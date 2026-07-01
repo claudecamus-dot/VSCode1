@@ -1,0 +1,52 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ' *)",
+      "Bash(PYTHONIOENCODING=utf-8 python -X utf8 -c ' *)",
+      "Read(//c/Users/claude.camus/.claude/skills/roadmap-keeper/assets/**)",
+      "Bash(node \"C:\\\\Users\\\\claude.camus\\\\.claude\\\\skills\\\\roadmap-keeper\\\\scripts\\\\render-roadmap.js\" \"C:\\\\Users\\\\claude.camus\\\\Documents\\\\VSCode1\\\\.roadmap\\\\roadmap.json\")",
+      "Bash(where soffice *)",
+      "Bash(powershell -Command \"Get-Command soffice -ErrorAction SilentlyContinue; Test-Path 'C:\\\\Program Files\\\\LibreOffice\\\\program\\\\soffice.exe'\")",
+      "Bash(cd \"/c/Users/claude.camus/Documents/VSCode1\" && rm -rf cadrage/captures/ppt-preview && python app/scripts/build-synthese-ppt.py)",
+      "Bash(rtk ls *)",
+      "Bash(rtk find *)",
+      "Bash(rtk wc *)",
+      "Bash(curl -s http://localhost:3000/api/sessions/15b11107-0b0b-4f0d-a000-c09a43c340f7/invites)",
+      "Bash(node -e ' *)",
+      "Bash(curl -s -X POST http://localhost:3000/api/sessions/15b11107-0b0b-4f0d-a000-c09a43c340f7/invites -F 'fichier=@/tmp/participants.xlsx;filename=participants.xlsx')",
+      "Bash(curl -s -X POST \"http://localhost:3000/api/sessions/does-not-exist/invites\" -F \"fichier=@/tmp/participants.csv\")",
+      "Bash(curl -s -X POST http://localhost:3000/api/sessions/15b11107-0b0b-4f0d-a000-c09a43c340f7/invites)",
+      "Bash(printf 'foo\\\\nbar\\\\n')",
+      "Bash(curl -s -X POST http://localhost:3000/api/sessions/15b11107-0b0b-4f0d-a000-c09a43c340f7/invites -F fichier=@/tmp/bad.csv)",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(chromium-cli --help)",
+      "Bash(node --check src/db.js)",
+      "Bash(node --check src/referentiel.js)",
+      "Bash(node --check src/server.js)",
+      "Bash(node scripts/test-reimport.js)",
+      "Bash(node --check src/invites.js)",
+      "Bash(node scripts/test-rappel.js)",
+      "Bash(node --check app/src/server.js)",
+      "Bash(node --check app/src/invites.js)",
+      "Bash(node --check app/src/db.js)",
+      "Bash(node app/scripts/test-rappel.js)",
+      "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\(' deps:',Object.keys\\(p.dependencies||{}\\).length,'| devDeps:',Object.keys\\(p.devDependencies||{}\\).length\\)\")",
+      "Bash(command -v tar)",
+      "Bash(rtk du *)",
+      "Bash(node scripts/build-artifact.js)",
+      "Bash(tar --version)",
+      "Bash(rtk npm *)",
+      "Bash(tar -tzf c:/Users/claude.camus/Documents/VSCode1/dist/*.tgz)",
+      "Bash(grep -E \"^[^/]+/[^/]+/?$\")",
+      "Bash(node --env-file=.env.dev src/server.js)",
+      "Bash(node --env-file=.env.preprod src/server.js)",
+      "Bash(node --env-file=.env.prod src/server.js)",
+      "Bash(curl -s -o /dev/null http://localhost:3000)",
+      "Bash(netstat -ano)"
+    ],
+    "additionalDirectories": [
+      "c:\\c\\Users\\claude.camus\\Documents\\VSCode1\\cadrage\\captures"
+    ]
+  }
+}

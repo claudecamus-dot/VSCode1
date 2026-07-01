@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Résultats — vue animateur</title>
+<style>
+  :root {
+    --brand-primary: #0b5ea8;
+    --brand-secondary: #14233b;
+    --brand-accent: #00a3e0;
+    --brand-bg: #f5f8fc;
+  }
+  body { font-family: 'Avenir Next', 'Inter', system-ui, sans-serif; max-width: 800px; margin: 1.5rem auto; padding: 0 1rem; color: var(--brand-secondary); background: var(--brand-bg); }
+  /* Meme gabarit de bouton que les autres pages (admin.html, repondre.html). */
+  button { padding: 0.6rem 1.2rem; font-size: 1rem; cursor: pointer; }
+  .barre-controles { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+  select { padding: 0.4rem; }
+  .checkbox-row { display: flex; align-items: center; gap: 0.4rem; }
+  .effectif { color: #555; font-size: 0.9rem; }
+  h2.titre-radar { margin: 0 0 0.4rem; }
+  /* Radar borne en taille pour tenir a l'ecran sans scroll, aligne dans la
+     colonne de lecture (comme le reste du texte) plutot qu'en pleine largeur. */
+  #zoneRadar { margin-top: 0; }
+  #zoneRadar svg { display: block; max-width: 560px; height: auto; margin: 0 auto; }
+
+  .participation { background: #eef2fc; border: 1px solid #c9d6f2; border-radius: 8px; padding: 0.6rem 1rem; margin-bottom: 1rem; font-size: 0.95rem; }
+  .participation strong { color: var(--brand-primary); }
+
+  /* Synthèse chiffrée : bandeau "en un coup d'œil" avant de plonger dans le détail. */
+  .synthese { display: flex; gap: 1.75rem; flex-wrap: wrap; background: #fff; border: 1px solid #d5dae1; border-radius: 8px; padding: 0.85rem 1.25rem; margin-bottom: 1.25rem; }
+  .synthese .stat { display: flex; flex-direction: column; gap: 0.15rem; }
+  .synthese .stat .valeur { font-size: 1.3rem; font-weight: 700; color: var(--brand-primary); white-space: nowrap; }
+  .synthese .stat .libelle { font-size: 0.75rem; color: #666; text-transform: uppercase; letter-spacing: 0.03em; }
+
+  /* Repli generique : reutilise par Points forts, Points d'attention, Comparaison, Participants. */
+  .repli-toggle { cursor: pointer; -webkit-user-select: none; user-select: none; }
+  .repli-contenu.ferme { display: none; }
+  .caret { display: inline-block; width: 1em; color: var(--brand-primary); font-size: 0.85em; }
+
+  .points-attention { border: 1px solid #f0d28a; background: #fff8e1; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1.5rem; }
+  .points-attention h2 { margin: 0 0 0.5rem; font-size: 1.05rem; }
+  .points-attention h3 { margin: 0.6rem 0 0.25rem; font-size: 0.9rem; color: #555; text-transform: uppercase; letter-spacing: 0.03em; }
+  .points-attention ul { margin: 0; padding-left: 1.1rem; }
+  .points-attention li { margin: 0.2rem 0; font-size: 0.92rem; }
+  .points-attention .metrique { color: #b3261e; font-weight: 600; }
+  .points-attention .contexte { color: #888; font-size: 0.85rem; }
+  .question-entete .stats { color: #777; font-size: 0.8rem; font-weight: 400; margin-left: 0.5rem; white-space: nowrap; }
+
+  /* Points forts : pendant positif de "Points d'attention", meme gabarit, teinte verte. */
+  .points-forts { border: 1px solid #a9d8ab; background: #eef7ee; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1.5rem; }
+  .points-forts h2 { margin: 0 0 0.5rem; font-size: 1.05rem; }
+  .points-forts h3 { margin: 0.6rem 0 0.25rem; font-size: 0.9rem; color: #555; text-transform: uppercase; letter-spacing: 0.03em; }
+  .points-forts ul { margin: 0; padding-left: 1.1rem; }
+  .points-forts li { margin: 0.2rem 0; font-size: 0.92rem; }
+  .points-forts .fleche { color: #1e6b34; margin-right: 0.2rem; }
+  .points-forts .metrique { color: #1e6b34; font-weight: 600; }
+  .points-forts .contexte { color: #888; font-size: 0.85rem; }
+  .points-forts .caret { color: #1e6b34; }
+
+  .commentaire { border: 1px solid #ddd; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1.5rem; }
+  .commentaire h2 { margin: 0 0 0.25rem; font-size: 1.05rem; }
+  .commentaire p.aide { margin: 0 0 0.5rem; color: #777; font-size: 0.85rem; }
+  .commentaire textarea { width: 100%; box-sizing: border-box; padding: 0.5rem; font-family: inherit; font-size: 0.95rem; min-height: 4.5rem; resize: vertical; }
+  .commentaire .barre-sauvegarde { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.5rem; }
+  .commentaire .etat-sauvegarde { font-size: 0.88rem; color: #1e6b34; }
+
+  .participants { border: 1px solid #ddd; border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 1.5rem; }
+  .participants h2 { margin: 0; font-size: 1.05rem; }
+  .participants-listes { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.75rem; }
+  .participants-liste { border: 1px solid #e6ecf2; border-radius: 8px; background: #fafbfc; padding: 0.8rem; min-height: 6rem; }
+  .participants-liste h3 { margin: 0 0 0.5rem; font-size: 0.95rem; }
+  .participants-liste ul { margin: 0; padding-left: 1.1rem; font-size: 0.9rem; }
+  .participants-liste li { margin-bottom: 0.3rem; }
+  .participants-liste .vide { color: #888; font-style: italic; }
+
+  .legende { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 0 0 0.6rem; font-size: 0.85rem; }
+  .legende-item { display: flex; align-items: center; gap: 0.35rem; }
+  .legende-puce { width: 0.7rem; height: 0.7rem; border-radius: 50%; display: inline-block; }
+
+  .pilier { border: 1px solid #ddd; border-radius: 8px; margin-bottom: 0.75rem; overflow: hidden; }
+  .pilier-entete { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: #f4f6fb; cursor: pointer; }
+  .pilier-entete .moyenne { font-weight: 700; color: var(--brand-primary); }
+  .pilier-contenu { padding: 0 1rem; }
+  .pilier-contenu.ferme { display: none; }
+
+  .sous-categorie-entete { display: flex; justify-content: space-between; align-items: baseline; margin-top: 0.9rem; }
+  .sous-categorie-entete h3 { margin: 0; font-size: 1rem; }
+  .sous-categorie-entete .moyenne { color: #555; font-size: 0.9rem; }
+
+  .question-row { border-top: 1px solid #eee; padding: 0.6rem 0; }
+  .question-entete { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+  .question-entete .moyenne { color: var(--brand-primary); font-weight: 600; }
+  .lien-detail { font-size: 0.85rem; color: var(--brand-primary); text-decoration: underline; }
+
+  .detail-nominatif { margin-top: 0.6rem; background: #fafafa; border-radius: 6px; padding: 0.6rem 0.8rem; }
+  .detail-nominatif.ferme { display: none; }
+  .detail-ligne { padding: 0.4rem 0; border-bottom: 1px solid #eee; font-size: 0.9rem; }
+  .detail-ligne:last-child { border-bottom: none; }
+  .detail-ligne .niveau-num { font-weight: 700; color: var(--brand-primary); margin-right: 0.4rem; }
+  .detail-ligne .niveau-texte { color: #555; }
+
+  .vide { color: #888; font-style: italic; }
+
+  .comparaison { border: 1px solid #ddd; border-radius: 8px; padding: 0.75rem 1rem 1.25rem; margin-bottom: 1.5rem; }
+  .comparaison h2 { margin: 0 0 0.25rem; font-size: 1.05rem; }
+  .comparaison h3 { font-size: 0.95rem; margin: 1rem 0 0.5rem; }
+  .legende-comparaison { display: flex; flex-wrap: wrap; gap: 1.25rem; font-size: 0.85rem; margin: 0.25rem 0 0.5rem; color: #444; }
+  .legende-comparaison .trait { display: inline-block; width: 1.6rem; height: 0; vertical-align: middle; margin-right: 0.35rem; }
+  .legende-comparaison .trait.courant { border-top: 3px solid #2c5cc5; }
+  .legende-comparaison .trait.precedent { border-top: 3px dashed #888; }
+  .delta-row { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; padding: 0.4rem 0; border-top: 1px solid #eee; font-size: 0.92rem; }
+  .delta-row .valeurs { color: #555; white-space: nowrap; }
+  .delta-row .delta { font-weight: 700; white-space: nowrap; }
+  .delta-row .delta.progression { color: #1e6b34; }
+  .delta-row .delta.regression { color: #b3261e; }
+  .delta-row .delta.stable { color: #888; }
+  .delta-row .delta.nouveau { color: #888; font-weight: 400; font-style: italic; }
+</style>
+<script src="/env-banner.js" defer></script>
+</head>
+<body>
+  <h1>Résultats — vue animateur</h1>
+
+  <div id="etatSession" class="participation" hidden></div>
+
+  <div class="barre-controles" id="barreControles" hidden>
+    <div>
+      <label for="equipe">Équipe :</label>
+      <select id="equipe"></select>
+    </div>
+    <div class="checkbox-row">
+      <input type="checkbox" id="avecManager" checked />
+      <label for="avecManager">Inclure le(s) manager(s)</label>
+    </div>
+    <span class="effectif" id="effectif"></span>
+    <button type="button" id="btnExportPPT" title="Support PPT de l'équipe sélectionnée (radar + points forts + points d'attention)">Exporter l'équipe (PPT)</button>
+    <button type="button" id="btnToutDeplier" title="Déplier toutes les sections repliées (pratique en préparation solo)">Tout déplier</button>
+  </div>
+
+  <div class="synthese" id="syntheseChiffree"></div>
+
+  <h2 class="titre-radar">Radar par objectif</h2>
+  <div class="legende" id="legendePiliers"></div>
+  <div id="zoneRadar"></div>
+
+  <section class="points-forts" id="pointsForts"></section>
+  <section class="points-attention" id="pointsAttention"></section>
+
+  <section id="comparaison" class="comparaison" hidden>
+    <h2 id="comparaisonTitre" class="repli-toggle"><span class="caret">▸</span> <span id="comparaisonTitreTexte">Évolution vs session précédente</span></h2>
+    <div class="repli-contenu ferme">
+      <div id="zoneRadarComparaison"></div>
+      <div class="legende-comparaison" id="legendeComparaison"></div>
+      <h3>Régression / progression par pilier</h3>
+      <div id="deltasPiliers"></div>
+    </div>
+  </section>
+
+  <section class="commentaire">
+    <h2>Commentaire de restitution</h2>
+    <p class="aide">Note libre pour contextualiser les résultats de l'équipe sélectionnée. Affichée ici et reprise dans l'export PPT. Propre à chaque équipe.</p>
+    <textarea id="commentaire" aria-label="Commentaire de restitution de l'équipe"></textarea>
+    <div class="barre-sauvegarde">
+      <button type="button" id="btnEnregistrerCommentaire">Enregistrer</button>
+      <span class="etat-sauvegarde" id="etatCommentaire"></span>
+    </div>
+  </section>
+
+  <h2>Détail par pilier</h2>
+  <div id="zonePiliers"></div>
+
+  <section class="participants" id="participants" hidden>
+    <h2 id="participantsTitre" class="repli-toggle"><span class="caret">▸</span> Participants</h2>
+    <div class="repli-contenu ferme">
+      <div class="participants-listes">
+        <div class="participants-liste">
+          <h3>Ont répondu</h3>
+          <ul id="listeSoumis"></ul>
+        </div>
+        <div class="participants-liste">
+          <h3>N'ont pas répondu</h3>
+          <ul id="listeNonSoumis"></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const sessionId = new URLSearchParams(window.location.search).get('session');
+    const PALETTE = ['#2c5cc5', '#1e6b34', '#b3261e', '#b8860b', '#6a3d9a', '#138086'];
+    let participationSession = null; // { soumis, invites } — niveau session, independant de l'equipe
+
+    // Libelle d'axe radar sans son contenu entre parentheses (ex. "Leadership et
+    // Culture agile (sponsorship, posture managériale, ...)" -> "Leadership et
+    // Culture agile") : ce detail alourdit le radar sans aider a la lecture rapide.
+    function libelleAxeRadar(texte) {
+      return String(texte).replace(/\s*\([^)]*\)/g, '').trim();
+    }
+
+    // Echappement HTML/XML : le referentiel importe (noms de pilier/objectif,
+    // texte de question) et les champs saisis par les repondants (nom, prenom,
+    // equipe, departement) sont injectes tels quels dans du innerHTML/SVG un peu
+    // partout sur cette page — sans cet echappement, un repondant qui saisit
+    // "<img src=x onerror=...>" comme nom l'executerait dans le navigateur de
+    // l'animateur qui consulte les resultats.
+    function esc(valeur) {
+      return String(valeur).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    async function init() {
+      if (!sessionId) {
+        $('etatSession').hidden = false;
+        $('etatSession').innerHTML = '<strong>Aucun identifiant de session.</strong> Ouvrez cette page depuis l’admin avec une session sélectionnée.';
+        $('barreControles').hidden = true;
+        $('participants').hidden = true;
+        $('pointsAttention').innerHTML = '';
+        $('pointsForts').innerHTML = '';
+        $('syntheseChiffree').innerHTML = '';
+        $('zoneRadar').innerHTML = '';
+        $('zonePiliers').innerHTML = '';
+        return;
+      }
+      // Sections a repli persistant (l'en-tete n'est pas regenere par innerHTML,
+      // contrairement a Points forts/Points d'attention rebatis a chaque rendu) :
+      // on n'attache l'ecouteur qu'une fois ici.
+      attacherRepli($('comparaisonTitre'));
+      attacherRepli($('participantsTitre'));
+
+      $('equipe').addEventListener('change', chargerResultats);
+      $('avecManager').addEventListener('change', () => {
+        chargerEquipes();
+        chargerResultats();
+      });
+      $('btnExportPPT').addEventListener('click', exporterPPT);
+      $('btnToutDeplier').addEventListener('click', toggleTout);
+      await chargerEquipes();
+      await chargerParticipation();
+      await chargerResultats();
+    }
+
+    async function chargerEquipes() {
+      const manager = $('avecManager').checked ? 'avec' : 'sans';
+      const equipes = await (await fetch(`/api/sessions/${sessionId}/equipes?manager=${manager}`)).json();
+      const select = $('equipe');
+      if (equipes.length === 0) {
+        select.innerHTML = '<option>Aucune équipe avec réponses soumises</option>';
+        return;
+      }
+      select.innerHTML = equipes.map((e) => `<option value="${esc(e.equipe)}">${esc(e.equipe)} (${e.effectif})</option>`).join('');
+      const equipeParam = new URLSearchParams(window.location.search).get('equipe');
+      if (equipeParam && equipes.some((e) => e.equipe === equipeParam)) select.value = equipeParam;
+    }
+
+    // --- Repli generique (Points forts, Points d'attention, Comparaison, Participants) ---
+
+    function attacherRepli(headerEl, ouvertParDefaut = false) {
+      const contenuEl = headerEl.nextElementSibling;
+      contenuEl.classList.toggle('ferme', !ouvertParDefaut);
+      const caret = headerEl.querySelector('.caret');
+      const maj = () => { if (caret) caret.textContent = contenuEl.classList.contains('ferme') ? '▸' : '▾'; };
+      maj();
+      headerEl.addEventListener('click', () => { contenuEl.classList.toggle('ferme'); maj(); });
+    }
+
+    // "Tout déplier" / "Tout replier" : interroge le DOM en direct (robuste aux
+    // sections regenerees par innerHTML) plutot que de garder une liste a jour.
+    // Ne touche pas aux accordeons plus fins (detail par pilier, detail nominatif),
+    // qui restent une divulgation manuelle question par question.
+    function toggleTout() {
+      const contenus = [...document.querySelectorAll('.repli-contenu')];
+      if (contenus.length === 0) return;
+      const auMoinsUnFerme = contenus.some((c) => c.classList.contains('ferme'));
+      contenus.forEach((c) => {
+        c.classList.toggle('ferme', !auMoinsUnFerme);
+        const caret = c.previousElementSibling && c.previousElementSibling.querySelector('.caret');
+        if (caret) caret.textContent = auMoinsUnFerme ? '▾' : '▸';
+      });
+      $('btnToutDeplier').textContent = auMoinsUnFerme ? 'Tout replier' : 'Tout déplier';
+    }
+
+    // Export PPT (US6.4) : radar + points forts + points d'attention de l'équipe
+    // sélectionnée. Le filtre manager courant s'applique.
+    async function exporterPPT() {
+      const equipe = $('equipe').value;
+      const manager = $('avecManager').checked ? 'avec' : 'sans';
+      const btn = $('btnExportPPT');
+      const libelle = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Génération…';
+      try {
+        const res = await fetch(`/api/sessions/${sessionId}/export-ppt?scope=equipe&equipe=${encodeURIComponent(equipe)}&manager=${manager}`);
+        if (!res.ok) {
+          const e = await res.json().catch(() => ({}));
+          alert(e.error || 'Échec de la génération du PPT.');
+          return;
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Restitution-${equipe.replace(/[^\w-]+/g, '_')}.pptx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = libelle;
+      }
+    }
+
+    // Taux de reponse de la session (US6.2), independant de l'equipe selectionnee.
+    // Mis en cache : consomme par la synthese chiffree a chaque changement d'equipe.
+    async function chargerParticipation() {
+      participationSession = await (await fetch(`/api/sessions/${sessionId}/participation`)).json();
+    }
+
+    function fmt(moyenne) {
+      return moyenne === null ? '—' : moyenne.toFixed(1);
+    }
+
+    function moyenneGlobale(piliers) {
+      const valides = piliers.map((p) => p.moyenne).filter((m) => m !== null);
+      return valides.length ? valides.reduce((a, b) => a + b, 0) / valides.length : null;
+    }
+
+    // --- Synthèse chiffrée : vue "en un coup d'œil" avant le détail ---
+    function rendreSynthese(data) {
+      const glob = moyenneGlobale(data.piliers);
+      const tauxTxt = participationSession && participationSession.invites > 0
+        ? `${participationSession.soumis} / ${participationSession.invites} (${Math.round((participationSession.soumis / participationSession.invites) * 100)} %)`
+        : `${participationSession ? participationSession.soumis : data.effectif} soumis`;
+      const effectifTxt = data.effectifTotal !== undefined ? `${data.effectif} / ${data.effectifTotal}` : `${data.effectif}`;
+      $('syntheseChiffree').innerHTML = `
+        <div class="stat"><span class="valeur">${fmt(glob)} / 3</span><span class="libelle">Moyenne globale</span></div>
+        <div class="stat"><span class="valeur">${tauxTxt}</span><span class="libelle">Taux de réponse (session)</span></div>
+        <div class="stat"><span class="valeur">${effectifTxt}</span><span class="libelle">Effectif équipe</span></div>`;
+    }
+
+    async function chargerResultats() {
+      const equipe = $('equipe').value;
+      if (!equipe) {
+        $('participants').hidden = true;
+        $('syntheseChiffree').innerHTML = '';
+        $('pointsForts').innerHTML = '';
+        $('pointsAttention').innerHTML = '';
+        $('zoneRadar').innerHTML = '';
+        $('zonePiliers').innerHTML = '';
+        return;
+      }
+      const manager = $('avecManager').checked ? 'avec' : 'sans';
+      const data = await (await fetch(`/api/sessions/${sessionId}/resultats?equipe=${encodeURIComponent(equipe)}&manager=${manager}`)).json();
+      $('effectif').textContent = `${data.effectif} réponse(s) prise(s) en compte`;
+      if (data.effectifTotal !== undefined) {
+        $('effectif').textContent += ` — ${data.effectifTotal} membre(s) dans l'équipe`;
+      }
+      rendreSynthese(data);
+      await chargerCommentaire();
+      afficherParticipants(data.repondants);
+      rendrePointsForts(data.piliers);
+      rendrePointsAttention(data.piliers);
+      rendreRadar(data.piliers);
+      rendrePiliers(data.piliers);
+      await chargerComparaison();
+    }
+
+    function afficherParticipants(repondants) {
+      const listeSoumis = $('listeSoumis');
+      const listeNonSoumis = $('listeNonSoumis');
+      listeSoumis.innerHTML = repondants.soumis.length
+        ? repondants.soumis
+            .map((m) => `<li>${esc(m.prenom)} ${esc(m.nom)}${m.est_manager ? ' (manager)' : ''}</li>`)
+            .join('')
+        : '<li class="vide">Aucun répondant.</li>';
+      listeNonSoumis.innerHTML = repondants.nonSoumis.length
+        ? repondants.nonSoumis
+            .map((m) => `<li>${esc(m.prenom)} ${esc(m.nom)}${m.est_manager ? ' (manager)' : ''}</li>`)
+            .join('')
+        : '<li class="vide">Aucun non-répondant.</li>';
+      $('participants').hidden = false;
+    }
+
+    // --- Commentaire de restitution par équipe (US6.3) ---
+    async function chargerCommentaire() {
+      const equipe = $('equipe').value;
+      const { texte } = await (await fetch(`/api/sessions/${sessionId}/commentaire?equipe=${encodeURIComponent(equipe)}`)).json();
+      $('commentaire').value = texte;
+      $('etatCommentaire').textContent = '';
+    }
+
+    async function enregistrerCommentaire() {
+      const equipe = $('equipe').value;
+      $('etatCommentaire').textContent = 'Enregistrement…';
+      const res = await fetch(`/api/sessions/${sessionId}/commentaire`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ equipe, texte: $('commentaire').value }),
+      });
+      $('etatCommentaire').textContent = res.ok ? 'Enregistré ✓' : "Échec de l'enregistrement";
+    }
+
+    $('btnEnregistrerCommentaire').addEventListener('click', enregistrerCommentaire);
+    $('commentaire').addEventListener('input', () => { $('etatCommentaire').textContent = ''; });
+
+    // --- Synthèse "points d'attention" (US6.2) ---
+    // Remonte les questions au plus fort désaccord (écart-type) et aux plus
+    // faibles moyennes, calculées sur la vue filtrée courante.
+    function rendrePointsAttention(piliers) {
+      const questions = piliers.flatMap((pilier) =>
+        pilier.sousCategories.flatMap((sc) =>
+          sc.questions
+            .filter((q) => q.moyenne !== null)
+            .map((q) => ({ ...q, contexte: `${esc(pilier.nom)} · ${esc(sc.nom)}` }))
+        )
+      );
+
+      if (questions.length === 0) {
+        $('pointsAttention').innerHTML = '<h2>Points d\'attention</h2><p class="vide">Aucune réponse soumise pour cette équipe.</p>';
+        return;
+      }
+
+      const dispersion = [...questions].sort((a, b) => b.ecartType - a.ecartType).slice(0, 3);
+      const faibles = [...questions].sort((a, b) => a.moyenne - b.moyenne).slice(0, 3);
+
+      const ligneDispersion = (q) =>
+        `<li>${esc(q.texte)} <span class="metrique">écart-type ${fmt(q.ecartType)}</span> <span class="contexte">(min ${q.min} / max ${q.max} — ${q.contexte})</span></li>`;
+      const ligneFaible = (q) =>
+        `<li>${esc(q.texte)} <span class="metrique">moyenne ${fmt(q.moyenne)} / 3</span> <span class="contexte">(${q.contexte})</span></li>`;
+
+      $('pointsAttention').innerHTML = `
+        <h2 class="repli-toggle"><span class="caret">▸</span> Points d'attention — ${$('equipe').value}</h2>
+        <div class="repli-contenu ferme">
+          <h3>Plus fort désaccord (dispersion)</h3>
+          <ul>${dispersion.map(ligneDispersion).join('')}</ul>
+          <h3>Scores les plus faibles</h3>
+          <ul>${faibles.map(ligneFaible).join('')}</ul>
+        </div>`;
+      attacherRepli($('pointsAttention').querySelector('.repli-toggle'));
+    }
+
+    // --- Synthèse "points forts" : pendant positif, symetrique de "points d'attention" ---
+    // Scores les plus hauts (meilleures moyennes) et meilleurs accords (dispersion
+    // la plus faible). L'accord n'a de sens qu'avec au moins 2 réponses : avec une
+    // seule, l'écart-type est trivialement 0 sans traduire un vrai consensus.
+    function rendrePointsForts(piliers) {
+      const questions = piliers.flatMap((pilier) =>
+        pilier.sousCategories.flatMap((sc) =>
+          sc.questions
+            .filter((q) => q.moyenne !== null)
+            .map((q) => ({ ...q, contexte: `${esc(pilier.nom)} · ${esc(sc.nom)}` }))
+        )
+      );
+
+      if (questions.length === 0) {
+        $('pointsForts').innerHTML = '<h2>Points forts</h2><p class="vide">Aucune réponse soumise pour cette équipe.</p>';
+        return;
+      }
+
+      const hauts = [...questions].sort((a, b) => b.moyenne - a.moyenne).slice(0, 3);
+      const accords = [...questions]
+        .filter((q) => q.reponses.length >= 2)
+        .sort((a, b) => a.ecartType - b.ecartType)
+        .slice(0, 3);
+
+      const ligneHaut = (q) =>
+        `<li><span class="fleche">▲</span>${esc(q.texte)} <span class="metrique">moyenne ${fmt(q.moyenne)} / 3</span> <span class="contexte">(${q.contexte})</span></li>`;
+      const ligneAccord = (q) =>
+        `<li><span class="fleche">▲</span>${esc(q.texte)} <span class="metrique">écart-type ${fmt(q.ecartType)}</span> <span class="contexte">(min ${q.min} / max ${q.max} — ${q.contexte})</span></li>`;
+
+      $('pointsForts').innerHTML = `
+        <h2 class="repli-toggle"><span class="caret">▸</span> Points forts — ${$('equipe').value}</h2>
+        <div class="repli-contenu ferme">
+          <h3>Scores les plus hauts</h3>
+          <ul>${hauts.map(ligneHaut).join('')}</ul>
+          <h3>Meilleurs accords</h3>
+          <ul>${accords.length ? accords.map(ligneAccord).join('') : '<li class="vide">Pas assez de réponses pour mesurer un accord.</li>'}</ul>
+        </div>`;
+      attacherRepli($('pointsForts').querySelector('.repli-toggle'));
+    }
+
+    // --- Radar SVG par objectif (sous-catégorie), couleur par pilier ---
+
+    function rendreRadar(piliers) {
+      const axes = [];
+      piliers.forEach((pilier, pilierIndex) => {
+        pilier.sousCategories.forEach((sc) => {
+          axes.push({ label: esc(libelleAxeRadar(sc.nom)), valeur: sc.moyenne, pilierIndex, pilierNom: pilier.nom });
+        });
+      });
+
+      $('legendePiliers').innerHTML = piliers
+        .map((p, i) => `<div class="legende-item"><span class="legende-puce" style="background:${PALETTE[i % PALETTE.length]}"></span>${esc(p.nom)}</div>`)
+        .join('');
+
+      if (axes.length < 3) {
+        $('zoneRadar').innerHTML = '<p class="vide">Pas assez d\'objectifs pour tracer un radar.</p>';
+        return;
+      }
+
+      // Radar borne (cf. #zoneRadar svg { max-width }) pour tenir a l'ecran sans
+      // scroll ; marge de libellés resserree (les libellés sont plus courts sans
+      // leur parenthèse), police toujours plus lisible que l'original.
+      const taille = 900;
+      const centre = taille / 2;
+      const rayon = taille / 2 - 160;
+      const maxValeur = 3;
+      const n = axes.length;
+
+      function decouperLabel(texte, maxCaracteres) {
+        const mots = texte.split(/\s+/);
+        const lignes = [];
+        let ligneCourante = '';
+        for (const mot of mots) {
+          const essai = ligneCourante ? `${ligneCourante} ${mot}` : mot;
+          if (essai.length > maxCaracteres && ligneCourante) {
+            lignes.push(ligneCourante);
+            ligneCourante = mot;
+          } else {
+            ligneCourante = essai;
+          }
+        }
+        if (ligneCourante) lignes.push(ligneCourante);
+        return lignes;
+      }
+
+      const pointPour = (i, valeur) => {
+        const angle = -Math.PI / 2 + i * ((2 * Math.PI) / n);
+        const r = (rayon * valeur) / maxValeur;
+        return [centre + r * Math.cos(angle), centre + r * Math.sin(angle)];
+      };
+
+      let svg = `<svg width="100%" height="auto" viewBox="0 0 ${taille} ${taille}" font-family="system-ui, sans-serif">`;
+
+      // grille (cercles de niveau 1,2,3)
+      for (let niveau = 1; niveau <= maxValeur; niveau++) {
+        const pts = axes.map((_, i) => pointPour(i, niveau).join(',')).join(' ');
+        svg += `<polygon points="${pts}" fill="none" stroke="#ddd" stroke-width="1" />`;
+      }
+
+      // axes
+      axes.forEach((axe, i) => {
+        const [x, y] = pointPour(i, maxValeur);
+        svg += `<line x1="${centre}" y1="${centre}" x2="${x}" y2="${y}" stroke="#ccc" stroke-width="1" />`;
+      });
+
+      // polygone des valeurs
+      const ptsValeurs = axes.map((axe, i) => pointPour(i, axe.valeur ?? 0).join(',')).join(' ');
+      svg += `<polygon points="${ptsValeurs}" fill="#2c5cc566" stroke="#2c5cc5" stroke-width="2" />`;
+      axes.forEach((axe, i) => {
+        const [x, y] = pointPour(i, axe.valeur ?? 0);
+        svg += `<circle cx="${x}" cy="${y}" r="4.5" fill="${PALETTE[axe.pilierIndex % PALETTE.length]}" />`;
+      });
+
+      // labels (couleur = pilier), repliés sur plusieurs lignes pour rester lisibles.
+      axes.forEach((axe, i) => {
+        const angle = -Math.PI / 2 + i * ((2 * Math.PI) / n);
+        const lx = centre + (rayon + 20) * Math.cos(angle);
+        const ly = centre + (rayon + 20) * Math.sin(angle);
+        const ancrage = Math.cos(angle) > 0.2 ? 'start' : Math.cos(angle) < -0.2 ? 'end' : 'middle';
+        const lignes = decouperLabel(axe.label, 22);
+        const decalageInitial = -((lignes.length - 1) * 0.6);
+        const tspans = lignes
+          .map((ligne, li) => `<tspan x="${lx}" dy="${li === 0 ? decalageInitial : 1.2}em">${ligne}</tspan>`)
+          .join('');
+        svg += `<text x="${lx}" y="${ly}" font-size="13" fill="${PALETTE[axe.pilierIndex % PALETTE.length]}" text-anchor="${ancrage}">${tspans}</text>`;
+      });
+
+      svg += '</svg>';
+      $('zoneRadar').innerHTML = svg;
+    }
+
+    // --- Comparaison historique (US6.5) ---
+
+    function fmtDate(iso) {
+      return new Date(iso).toLocaleDateString('fr-FR');
+    }
+
+    // Repli sur plusieurs lignes pour des labels d'axe lisibles (partagé avec le radar de comparaison).
+    function decouperLabel(texte, maxCaracteres) {
+      const mots = texte.split(/\s+/);
+      const lignes = [];
+      let ligneCourante = '';
+      for (const mot of mots) {
+        const essai = ligneCourante ? `${ligneCourante} ${mot}` : mot;
+        if (essai.length > maxCaracteres && ligneCourante) {
+          lignes.push(ligneCourante);
+          ligneCourante = mot;
+        } else {
+          ligneCourante = essai;
+        }
+      }
+      if (ligneCourante) lignes.push(ligneCourante);
+      return lignes;
+    }
+
+    async function chargerComparaison() {
+      const equipe = $('equipe').value;
+      const manager = $('avecManager').checked ? 'avec' : 'sans';
+      const data = await (await fetch(`/api/sessions/${sessionId}/comparaison?equipe=${encodeURIComponent(equipe)}&manager=${manager}`)).json();
+      const section = $('comparaison');
+      if (!data.disponible) {
+        section.hidden = true;
+        return;
+      }
+      section.hidden = false;
+      $('comparaisonTitreTexte').textContent = `Évolution vs session précédente (${fmtDate(data.precedente.ouverture_at)})`;
+      rendreRadarComparaison(data.axes);
+      $('legendeComparaison').innerHTML =
+        `<span><span class="trait courant"></span>Session courante (${data.courant.effectif} rép.)</span>` +
+        `<span><span class="trait precedent"></span>Session du ${fmtDate(data.precedente.ouverture_at)} (${data.precedente.effectif} rép.)</span>`;
+      rendreDeltas(data.piliers);
+    }
+
+    function rendreRadarComparaison(axes) {
+      const zone = $('zoneRadarComparaison');
+      if (axes.length < 3) {
+        zone.innerHTML = '<p class="vide">Pas assez d\'objectifs pour tracer un radar.</p>';
+        return;
+      }
+      const taille = 920, centre = taille / 2, rayon = taille / 2 - 200, maxValeur = 3, n = axes.length;
+      const pointPour = (i, valeur) => {
+        const angle = -Math.PI / 2 + i * ((2 * Math.PI) / n);
+        const r = (rayon * (valeur ?? 0)) / maxValeur;
+        return [centre + r * Math.cos(angle), centre + r * Math.sin(angle)];
+      };
+      let svg = `<svg width="100%" height="auto" viewBox="0 0 ${taille} ${taille}" font-family="system-ui, sans-serif">`;
+      for (let niveau = 1; niveau <= maxValeur; niveau++) {
+        svg += `<polygon points="${axes.map((_, i) => pointPour(i, niveau).join(',')).join(' ')}" fill="none" stroke="#ddd" stroke-width="1" />`;
+      }
+      axes.forEach((axe, i) => {
+        const [x, y] = pointPour(i, maxValeur);
+        svg += `<line x1="${centre}" y1="${centre}" x2="${x}" y2="${y}" stroke="#ccc" stroke-width="1" />`;
+      });
+      // session précédente : pointillé gris ; session courante : plein bleu (au-dessus).
+      // Un axe sans valeur précédente (objectif absent de l'ancienne session) reprend
+      // la valeur courante pour ce sommet, pour ne pas laisser croire à une régression
+      // totale là où aucune comparaison n'est simplement possible.
+      svg += `<polygon points="${axes.map((a, i) => pointPour(i, a.precedent ?? a.courant).join(',')).join(' ')}" fill="none" stroke="#888" stroke-width="2" stroke-dasharray="6 4" />`;
+      svg += `<polygon points="${axes.map((a, i) => pointPour(i, a.courant).join(',')).join(' ')}" fill="#2c5cc533" stroke="#2c5cc5" stroke-width="2" />`;
+      axes.forEach((axe, i) => {
+        const [x, y] = pointPour(i, axe.courant);
+        svg += `<circle cx="${x}" cy="${y}" r="4" fill="${PALETTE[axe.pilierIndex % PALETTE.length]}" />`;
+      });
+      axes.forEach((axe, i) => {
+        const angle = -Math.PI / 2 + i * ((2 * Math.PI) / n);
+        const lx = centre + (rayon + 16) * Math.cos(angle);
+        const ly = centre + (rayon + 16) * Math.sin(angle);
+        const ancrage = Math.cos(angle) > 0.2 ? 'start' : Math.cos(angle) < -0.2 ? 'end' : 'middle';
+        const lignes = decouperLabel(esc(libelleAxeRadar(axe.label)), 22);
+        const decalageInitial = -((lignes.length - 1) * 0.6);
+        const tspans = lignes.map((ligne, li) => `<tspan x="${lx}" dy="${li === 0 ? decalageInitial : 1.2}em">${ligne}</tspan>`).join('');
+        svg += `<text x="${lx}" y="${ly}" font-size="12" fill="${PALETTE[axe.pilierIndex % PALETTE.length]}" text-anchor="${ancrage}">${tspans}</text>`;
+      });
+      svg += '</svg>';
+      zone.innerHTML = svg;
+    }
+
+    function rendreDeltas(piliers) {
+      $('deltasPiliers').innerHTML = piliers
+        .map((p) => {
+          let classe, libelle;
+          if (p.delta === null) {
+            classe = 'nouveau';
+            libelle = p.precedent === null ? 'nouveau (absent avant)' : '—';
+          } else if (Math.abs(p.delta) < 0.05) {
+            classe = 'stable';
+            libelle = '→ stable';
+          } else if (p.delta > 0) {
+            classe = 'progression';
+            libelle = `▲ +${p.delta.toFixed(1)}`;
+          } else {
+            classe = 'regression';
+            libelle = `▼ ${p.delta.toFixed(1)}`;
+          }
+          return `<div class="delta-row"><span>${esc(p.nom)}</span><span class="valeurs">${fmt(p.precedent)} → ${fmt(p.courant)} / 3</span><span class="delta ${classe}">${libelle}</span></div>`;
+        })
+        .join('');
+    }
+
+    // --- Accordéon pilier > sous-catégorie > question ---
+
+    function rendrePiliers(piliers) {
+      $('zonePiliers').innerHTML = piliers
+        .map(
+          (pilier, pIndex) => `
+        <div class="pilier">
+          <div class="pilier-entete" data-pilier="${pIndex}">
+            <span><span class="caret">▸</span> ${esc(pilier.nom)}</span>
+            <span class="moyenne">moyenne : ${fmt(pilier.moyenne)} / 3</span>
+          </div>
+          <div class="pilier-contenu ferme" id="pilier-contenu-${pIndex}">
+            ${pilier.sousCategories
+              .map(
+                (sc, scIndex) => `
+              <div class="sous-categorie-entete">
+                <h3>${esc(sc.nom)}</h3>
+                <span class="moyenne">moyenne : ${fmt(sc.moyenne)} / 3</span>
+              </div>
+              ${sc.questions
+                .map(
+                  (q, qIndex) => `
+                <div class="question-row">
+                  <div class="question-entete" data-question="${pIndex}-${scIndex}-${qIndex}">
+                    <span>${esc(q.texte)}</span>
+                    <span class="moyenne">${fmt(q.moyenne)}${
+                      q.moyenne === null
+                        ? ''
+                        : `<span class="stats">min ${q.min} · max ${q.max} · écart-type ${fmt(q.ecartType)}</span>`
+                    }</span>
+                  </div>
+                  <span class="lien-detail" data-question-toggle="${pIndex}-${scIndex}-${qIndex}">voir le détail nominatif (${q.reponses.length})</span>
+                  <div class="detail-nominatif ferme" id="detail-${pIndex}-${scIndex}-${qIndex}">
+                    ${
+                      q.reponses.length === 0
+                        ? '<span class="vide">Aucune réponse.</span>'
+                        : q.reponses
+                            .map(
+                              (r) => `
+                      <div class="detail-ligne">
+                        <strong>${esc(r.prenom)} ${esc(r.nom)}</strong> —
+                        <span class="niveau-num">niveau ${r.niveau}</span>
+                        <span class="niveau-texte">${esc(r.niveau_texte)}</span>
+                      </div>`
+                            )
+                            .join('')
+                    }
+                  </div>
+                </div>`
+                )
+                .join('')}`
+              )
+              .join('')}
+          </div>
+        </div>`
+        )
+        .join('');
+
+      document.querySelectorAll('.pilier-entete').forEach((el) => {
+        el.addEventListener('click', () => {
+          const contenu = $(`pilier-contenu-${el.dataset.pilier}`);
+          contenu.classList.toggle('ferme');
+          const caret = el.querySelector('.caret');
+          if (caret) caret.textContent = contenu.classList.contains('ferme') ? '▸' : '▾';
+        });
+      });
+      document.querySelectorAll('[data-question-toggle]').forEach((el) => {
+        el.addEventListener('click', () => {
+          $(`detail-${el.dataset.questionToggle}`).classList.toggle('ferme');
+        });
+      });
+    }
+
+    init();
+  </script>
+</body>
+</html>

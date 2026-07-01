@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Maquettes — présentation d'une question</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 1000px; margin: 1.5rem auto; padding: 0 1rem; color: #222; }
+  h1 { font-size: 1.3rem; }
+  .maquette { border: 2px solid #ccc; border-radius: 10px; padding: 1.25rem; margin-bottom: 2.5rem; }
+  .maquette h2 { margin-top: 0; font-size: 1.05rem; color: #555; }
+  .question-texte { font-weight: 700; margin-bottom: 1rem; }
+
+  /* Option A : cartes cliquables */
+  .carte { display: block; border: 1px solid #ccc; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 0.6rem; cursor: pointer; }
+  .carte input { margin-right: 0.5rem; }
+  .carte .niveau-label { font-weight: 700; }
+  .carte:has(input:checked) { border-color: #2c5cc5; background: #eef2fc; }
+
+  /* Option B : liste radio classique */
+  .radio-ligne { display: flex; gap: 0.5rem; align-items: flex-start; margin-bottom: 0.6rem; }
+  .radio-ligne input { margin-top: 0.25rem; }
+
+  /* Option C : echelle compacte */
+  .echelle { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+  .segment { flex: 1; text-align: center; border: 1px solid #ccc; border-radius: 8px; padding: 0.6rem; cursor: pointer; font-weight: 700; }
+  .segment:has(input:checked) { border-color: #2c5cc5; background: #eef2fc; color: #2c5cc5; }
+  .segment input { display: none; }
+  .encart-detail { border: 1px solid #2c5cc5; border-radius: 8px; padding: 0.75rem 1rem; background: #f4f6fb; }
+</style>
+</head>
+<body>
+  <h1>Maquettes comparatives — présentation des 4 niveaux d'une question</h1>
+  <p>Même question réelle (issue du référentiel importé) déclinée selon 3 présentations différentes.</p>
+
+  <div class="maquette">
+    <h2>Option A — Cartes cliquables empilées</h2>
+    <p class="question-texte">L'équipe a-t-elle un mode de fonctionnement produit ?</p>
+    <label class="carte"><input type="radio" name="qa" /><span class="niveau-label">Niveau 0</span> — Je ne sais pas, ou l'équipe n'est pas suffisamment bien structurée pour répondre aux besoins (problème de compétences ou les rôles ne sont pas clairs)</label>
+    <label class="carte"><input type="radio" name="qa" /><span class="niveau-label">Niveau 1</span> — Les équipiers de l'équipe sont uniquement dédiés à l'activité de l'équipe. L'équipe a 1 seul Product Owner, 1 Scrum Master et 1 Tech Lead.</label>
+    <label class="carte"><input type="radio" name="qa" checked /><span class="niveau-label">Niveau 2</span> — En plus du niveau 1, l'équipe applique une des méthodes agile (Scrum, Kanban ou Scrumban). Les équipiers sont mobilisés sur les éléments du backlog. L'équipe couvre l'ensemble des activités de build et Run sur son périmètre produit.</label>
+    <label class="carte"><input type="radio" name="qa" /><span class="niveau-label">Niveau 3</span> — En plus du niveau 2, l'équipe mesure l'atteinte des résultats pour réaliser ses objectifs et adapte son backlog au fil de l'eau. L'équipe suit et met à jour ses indicateurs, les supports de pilotage et la roadmap produit.</label>
+  </div>
+
+  <div class="maquette">
+    <h2>Option B — Liste radio classique (existant)</h2>
+    <p class="question-texte">L'équipe a-t-elle un mode de fonctionnement produit ?</p>
+    <div class="radio-ligne"><input type="radio" name="qb" /><span>Je ne sais pas, ou l'équipe n'est pas suffisamment bien structurée pour répondre aux besoins (problème de compétences ou les rôles ne sont pas clairs)</span></div>
+    <div class="radio-ligne"><input type="radio" name="qb" /><span>Les équipiers de l'équipe sont uniquement dédiés à l'activité de l'équipe. L'équipe a 1 seul Product Owner, 1 Scrum Master et 1 Tech Lead.</span></div>
+    <div class="radio-ligne"><input type="radio" name="qb" checked /><span>En plus du niveau 1, l'équipe applique une des méthodes agile (Scrum, Kanban ou Scrumban). Les équipiers sont mobilisés sur les éléments du backlog. L'équipe couvre l'ensemble des activités de build et Run sur son périmètre produit.</span></div>
+    <div class="radio-ligne"><input type="radio" name="qb" /><span>En plus du niveau 2, l'équipe mesure l'atteinte des résultats pour réaliser ses objectifs et adapte son backlog au fil de l'eau. L'équipe suit et met à jour ses indicateurs, les supports de pilotage et la roadmap produit.</span></div>
+  </div>
+
+  <div class="maquette">
+    <h2>Option C — Échelle compacte + détail au clic</h2>
+    <p class="question-texte">L'équipe a-t-elle un mode de fonctionnement produit ?</p>
+    <div class="echelle" id="echelleC">
+      <label class="segment"><input type="radio" name="qc" value="0" />Niveau 0</label>
+      <label class="segment"><input type="radio" name="qc" value="1" />Niveau 1</label>
+      <label class="segment"><input type="radio" name="qc" value="2" checked />Niveau 2</label>
+      <label class="segment"><input type="radio" name="qc" value="3" />Niveau 3</label>
+    </div>
+    <div class="encart-detail" id="detailC">En plus du niveau 1, l'équipe applique une des méthodes agile (Scrum, Kanban ou Scrumban). Les équipiers sont mobilisés sur les éléments du backlog. L'équipe couvre l'ensemble des activités de build et Run sur son périmètre produit.</div>
+  </div>
+
+  <script>
+    const textesC = {
+      0: "Je ne sais pas, ou l'équipe n'est pas suffisamment bien structurée pour répondre aux besoins (problème de compétences ou les rôles ne sont pas clairs)",
+      1: "Les équipiers de l'équipe sont uniquement dédiés à l'activité de l'équipe. L'équipe a 1 seul Product Owner, 1 Scrum Master et 1 Tech Lead.",
+      2: "En plus du niveau 1, l'équipe applique une des méthodes agile (Scrum, Kanban ou Scrumban). Les équipiers sont mobilisés sur les éléments du backlog. L'équipe couvre l'ensemble des activités de build et Run sur son périmètre produit.",
+      3: "En plus du niveau 2, l'équipe mesure l'atteinte des résultats pour réaliser ses objectifs et adapte son backlog au fil de l'eau. L'équipe suit et met à jour ses indicateurs, les supports de pilotage et la roadmap produit.",
+    };
+    document.querySelectorAll('#echelleC input').forEach((input) => {
+      input.addEventListener('change', () => {
+        document.getElementById('detailC').textContent = textesC[input.value];
+      });
+    });
+  </script>
+</body>
+</html>

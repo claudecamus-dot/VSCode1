@@ -1,0 +1,29 @@
+{
+  "name": "maturite-agile-mvp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Increment 1 (Collecte) du MVP questionnaire de maturite agile/produit",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "start:dev": "node --env-file=.env.dev src/server.js",
+    "start:preprod": "node --env-file=.env.preprod src/server.js",
+    "start:prod": "node --env-file=.env.prod src/server.js",
+    "build:artifact": "node scripts/build-artifact.js",
+    "backup": "node scripts/backup-db.js",
+    "restore": "node scripts/restore-db.js",
+    "test": "node scripts/test-reimport.js && node scripts/test-rappel.js && node scripts/test-normalisation.js && node scripts/test-sessions.js && node scripts/test-admin-ui.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "dictionary-fr": "^3.0.0",
+    "exceljs": "^4.4.0",
+    "express": "^4.21.2",
+    "multer": "^2.0.1",
+    "nspell": "^2.1.5",
+    "puppeteer-core": "^25.1.0"
+  }
+}

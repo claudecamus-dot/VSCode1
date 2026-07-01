@@ -1,0 +1,231 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1160" height="2266" viewBox="0 0 1160 2266" font-family="Segoe UI, Arial, sans-serif">
+<rect width="1160" height="2266" fill="#F4F6F9"/>
+<text x="32" y="56" font-size="24" font-weight="700" fill="#0E2356">Questionnaire de maturite agile/produit</text>
+<text x="32" y="78" font-size="13" fill="#5A6B85">MVP complet (US1.1-6.5) + Epic 7 (consolidation multi-equipes) livres ; export PPT scope par ecran (equipe / departement, radar facon web). Backlog au stade reflexion : Epic 8 (packaging &amp; deploiement), Epic 9 (environnements DEV/PRE-PROD/PROD sur ce PC), Epic 10 (authentification) et Epic 11 (multi-clients).</text>
+<text x="32" y="111" font-size="13" font-weight="600" fill="#0E2356">7 / 11 Epics livres</text>
+<rect x="192" y="100" width="886" height="14" rx="7" fill="#E1E6EF"/>
+<rect x="192" y="100" width="567" height="14" rx="7" fill="#00A693"/>
+<text x="1092" y="111" font-size="13" font-weight="600" fill="#0E2356">64%</text>
+<line x1="832.6666666666666" y1="142" x2="832.6666666666666" y2="2188" stroke="#C0392B" stroke-width="1.5" stroke-dasharray="5 4"/>
+<rect x="786.4666666666666" y="118" width="92.4" height="19" rx="9" fill="#C0392B"/>
+<text x="832.6666666666666" y="131" font-size="11" font-weight="700" fill="#FFFFFF" text-anchor="middle">aujourd'hui</text>
+<text x="36" y="164" font-size="12" font-weight="700" fill="#0E2356">EPIC</text>
+<text x="389.66666666666663" y="161" font-size="12.5" font-weight="700" fill="#8E7CC3" text-anchor="middle">REFLEXION</text>
+<rect x="246" y="168" width="287.3333333333333" height="3" rx="1.5" fill="#8E7CC3"/>
+<text x="684.9999999999999" y="161" font-size="12.5" font-weight="700" fill="#4A90D9" text-anchor="middle">CONCEPTION</text>
+<rect x="541.3333333333333" y="168" width="287.3333333333333" height="3" rx="1.5" fill="#4A90D9"/>
+<text x="980.3333333333333" y="161" font-size="12.5" font-weight="700" fill="#00A693" text-anchor="middle">REALISATION</text>
+<rect x="836.6666666666666" y="168" width="287.3333333333333" height="3" rx="1.5" fill="#00A693"/>
+<rect x="32" y="176" width="1096" height="182" rx="8" fill="#FFFFFF" stroke="#E8ECF3"/>
+<text x="44" y="199" font-size="10.5" font-weight="400" fill="#8A97A8" letter-spacing="0.4">EPIC 1</text>
+<text x="44" y="216" font-size="14.5" font-weight="700" fill="#182840">Referentiel de questions</text>
+<text x="44" y="230" font-size="14.5" font-weight="700" fill="#182840">(import Excel)</text>
+<rect x="242" y="188" width="287.3333333333333" height="160" rx="6" fill="#F7F9FC" stroke="#E4E9F1" stroke-dasharray="4 3"/>
+<rect x="537.3333333333333" y="188" width="287.3333333333333" height="160" rx="6" fill="#F7F9FC" stroke="#E4E9F1" stroke-dasharray="4 3"/>
+<rect x="832.6666666666666" y="188" width="287.3333333333333" height="160" rx="6" fill="#E6F5F2" stroke="#E4E9F1"/>
+<rect x="840.6666666666666" y="196" width="140" height="18" rx="9" fill="#2E9E5B"/>
+<text x="910.6666666666666" y="209" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US1.1 - import Excel</text>
+<rect x="986.6666666666666" y="196" width="121.4" height="18" rx="9" fill="#2E9E5B"/>
+<text x="1047.3666666666666" y="209" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US1.2 - re-import</text>
+<rect x="840.6666666666666" y="220" width="152.4" height="18" rx="9" fill="#2E9E5B"/>
+<text x="916.8666666666667" y="233" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US1.3 - activer pilier</text>
+<rect x="840.6666666666666" y="244" width="183.4" height="18" rx="9" fill="#2E9E5B"/>
+<text x="932.3666666666667" y="257" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US1.3bis - activer question</text>
+<rect x="840.6666666666666" y="268" width="171" height="18" rx="9" fill="#2E9E5B"/>
+<text x="926.1666666666666" y="281" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US1.4 - rejet si invalide</text>
+<rect x="840.6666666666666" y="292" width="164.8" height="18" rx="9" fill="#2E9E5B"/>
+<text x="923.0666666666666" y="305" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US1.5 - valeur de niveau</text>
+<rect x="840.6666666666666" y="316" width="251.6" height="18" rx="9" fill="#2E9E5B"/>
+<text x="966.4666666666666" y="329" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US1.6 - conserver/remplacer a l'import</text>
+<rect x="32" y="372" width="1096" height="182" rx="8" fill="#FAFBFD" stroke="#E8ECF3"/>
+<text x="44" y="395" font-size="10.5" font-weight="400" fill="#8A97A8" letter-spacing="0.4">EPIC 2</text>
+<text x="44" y="412" font-size="14.5" font-weight="700" fill="#182840">Lancement et gestion d'une</text>
+<text x="44" y="426" font-size="14.5" font-weight="700" fill="#182840">session</text>
+<rect x="242" y="384" width="287.3333333333333" height="160" rx="6" fill="#F7F9FC" stroke="#E4E9F1" stroke-dasharray="4 3"/>
+<rect x="537.3333333333333" y="384" width="287.3333333333333" height="160" rx="6" fill="#F7F9FC" stroke="#E4E9F1" stroke-dasharray="4 3"/>
+<rect x="832.6666666666666" y="384" width="287.3333333333333" height="160" rx="6" fill="#E6F5F2" stroke="#E4E9F1"/>
+<rect x="840.6666666666666" y="392" width="146.20000000000002" height="18" rx="9" fill="#2E9E5B"/>
+<text x="913.7666666666667" y="405" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US2.1 - creer session</text>
+<rect x="840.6666666666666" y="416" width="158.6" height="18" rx="9" fill="#2E9E5B"/>
+<text x="919.9666666666666" y="429" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US2.2 - effectif deduit</text>
+<rect x="840.6666666666666" y="440" width="171" height="18" rx="9" fill="#2E9E5B"/>
+<text x="926.1666666666666" y="453" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US2.3 - gestion des roles</text>
+<rect x="840.6666666666666" y="464" width="164.8" height="18" rx="9" fill="#2E9E5B"/>
+<text x="923.0666666666666" y="477" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US2.4 - invitation email</text>
+<rect x="840.6666666666666" y="488" width="102.8" height="18" rx="9" fill="#2E9E5B"/>
+<text x="892.0666666666666" y="501" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US2.5 - rappel</text>
+<rect x="840.6666666666666" y="512" width="183.4" height="18" rx="9" fill="#2E9E5B"/>
+<text x="932.3666666666667" y="525" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US2.6 - sessions paralleles</text>
+<rect x="32" y="568" width="1096" height="206" rx="8" fill="#FFFFFF" stroke="#E8ECF3"/>
+<text x="44" y="591" font-size="10.5" font-weight="400" fill="#8A97A8" letter-spacing="0.4">EPIC 3</text>
+<text x="44" y="608" font-size="14.5" font-weight="700" fill="#182840">Identification du</text>
+<text x="44" y="622" font-size="14.5" font-weight="700" fill="#182840">repondant</text>
+<rect x="242" y="580" width="287.3333333333333" height="184" rx="6" fill="#F7F9FC" stroke="#E4E9F1" stroke-dasharray="4 3"/>
+<rect x="537.3333333333333" y="580" width="287.3333333333333" height="184" rx="6" fill="#F7F9FC" stroke="#E4E9F1" stroke-dasharray="4 3"/>
+<rect x="832.6666666666666" y="580" width="287.3333333333333" height="184" rx="6" fill="#E6F5F2" stroke="#E4E9F1"/>
+<rect x="840.6666666666666" y="588" width="127.60000000000001" height="18" rx="9" fill="#2E9E5B"/>
+<text x="904.4666666666666" y="601" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US3.0 - nom/prenom</text>
+<rect x="840.6666666666666" y="612" width="164.8" height="18" rx="9" fill="#2E9E5B"/>
+<text x="923.0666666666666" y="625" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US3.1 - dept/equipe/role</text>
+<rect x="840.6666666666666" y="636" width="152.4" height="18" rx="9" fill="#2E9E5B"/>
+<text x="916.8666666666667" y="649" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US3.2 - manager/equipe</text>
+<rect x="840.6666666666666" y="660" width="164.8" height="18" rx="9" fill="#2E9E5B"/>
+<text x="923.0666666666666" y="673" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US3.3 - saisie tolerante</text>
+<rect x="840.6666666666666" y="684" width="158.6" height="18" rx="9" fill="#2E9E5B"/>
+<text x="919.9666666666666" y="697" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US3.4 - auto-suggestion</text>
+<rect x="840.6666666666666" y="708" width="177.20000000000002" height="18" rx="9" fill="#2E9E5B"/>
+<text x="929.2666666666667" y="721" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US3.4bis - fusion doublons</text>
+<rect x="840.6666666666666" y="732" width="177.20000000000002" height="18" rx="9" fill="#2E9E5B"/>
+<text x="929.2666666666667" y="745" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US3.5 - texte parametrable</text>
+<rect x="32" y="788" width="1096" height="206" rx="8" fill="#FAFBFD" stroke="#E8ECF3"/>
+<text x="44" y="811" font-size="10.5" font-weight="400" fill="#8A97A8" letter-spacing="0.4">EPIC 4</text>
+<text x="44" y="828" font-size="14.5" font-weight="700" fill="#182840">Parcours de reponse au</text>
+<text x="44" y="842" font-size="14.5" font-weight="700" fill="#182840">questionnaire</text>
+<rect x="242" y="800" width="287.3333333333333" height="184" rx="6" fill="#F7F9FC" stroke="#E4E9F1" stroke-dasharray="4 3"/>
+<rect x="537.3333333333333" y="800" width="287.3333333333333" height="184" rx="6" fill="#F7F9FC" stroke="#E4E9F1" stroke-dasharray="4 3"/>
+<rect x="832.6666666666666" y="800" width="287.3333333333333" height="184" rx="6" fill="#E6F5F2" stroke="#E4E9F1"/>
+<rect x="840.6666666666666" y="808" width="177.20000000000002" height="18" rx="9" fill="#2E9E5B"/>
+<text x="929.2666666666667" y="821" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US4.1 - reponse par pilier</text>
+<rect x="840.6666666666666" y="832" width="133.8" height="18" rx="9" fill="#2E9E5B"/>
+<text x="907.5666666666666" y="845" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US4.2 - progression</text>
+<rect x="840.6666666666666" y="856" width="158.6" height="18" rx="9" fill="#2E9E5B"/>
+<text x="919.9666666666666" y="869" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US4.3 - sauvegarde auto</text>
+<rect x="840.6666666666666" y="880" width="171" height="18" rx="9" fill="#2E9E5B"/>
+<text x="926.1666666666666" y="893" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US4.3bis - reprise pilier</text>
+<rect x="840.6666666666666" y="904" width="189.6" height="18" rx="9" fill="#2E9E5B"/>
+<text x="935.4666666666666" y="917" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US4.4 - toutes les questions</text>
+<rect x="840.6666666666666" y="928" width="183.4" height="18" rx="9" fill="#2E9E5B"/>
+<text x="932.3666666666667" y="941" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US4.5 - modif avant confirm</text>
+<rect x="840.6666666666666" y="952" width="183.4" height="18" rx="9" fill="#2E9E5B"/>
+<text x="932.3666666666667" y="965" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US4.6 - verrouillage soumis</text>
+<rect x="32" y="1008" width="1096" height="134" rx="8" fill="#FFFFFF" stroke="#E8ECF3"/>
+<text x="44" y="1031" font-size="10.5" font-weight="400" fill="#8A97A8" letter-spacing="0.4">EPIC 5</text>
+<text x="44" y="1048" font-size="14.5" font-weight="700" fill="#182840">Agregation et consultation</text>
+<text x="44" y="1062" font-size="14.5" font-weight="700" fill="#182840">des resultats</text>
+<rect x="242" y="1020" width="287.3333333333333" height="112" rx="6" fill="#F7F9FC" stroke="#E4E9F1" stroke-dasharray="4 3"/>
+<rect x="537.3333333333333" y="1020" width="287.3333333333333" height="112" rx="6" fill="#F7F9FC" stroke="#E4E9F1" stroke-dasharray="4 3"/>
+<rect x="832.6666666666666" y="1020" width="287.3333333333333" height="112" rx="6" fill="#E6F5F2" stroke="#E4E9F1"/>
+<rect x="840.6666666666666" y="1028" width="164.8" height="18" rx="9" fill="#2E9E5B"/>
+<text x="923.0666666666666" y="1041" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US5.1 - accordeon pilier</text>
+<rect x="840.6666666666666" y="1052" width="164.8" height="18" rx="9" fill="#2E9E5B"/>
+<text x="923.0666666666666" y="1065" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US5.2 - detail nominatif</text>
+<rect x="840.6666666666666" y="1076" width="152.4" height="18" rx="9" fill="#2E9E5B"/>
+<text x="916.8666666666667" y="1089" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US5.3 - filtre manager</text>
+<rect x="840.6666666666666" y="1100" width="183.4" height="18" rx="9" fill="#2E9E5B"/>
+<text x="932.3666666666667" y="1113" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US5.4 - recalcul temps reel</text>
+<rect x="32" y="1156" width="1096" height="134" rx="8" fill="#FAFBFD" stroke="#E8ECF3"/>
+<text x="44" y="1179" font-size="10.5" font-weight="400" fill="#8A97A8" letter-spacing="0.4">EPIC 6</text>
+<text x="44" y="1196" font-size="14.5" font-weight="700" fill="#182840">Analyse et restitution</text>
+<rect x="242" y="1168" width="287.3333333333333" height="112" rx="6" fill="#F7F9FC" stroke="#E4E9F1" stroke-dasharray="4 3"/>
+<rect x="537.3333333333333" y="1168" width="287.3333333333333" height="112" rx="6" fill="#F7F9FC" stroke="#E4E9F1" stroke-dasharray="4 3"/>
+<rect x="832.6666666666666" y="1168" width="287.3333333333333" height="112" rx="6" fill="#E6F5F2" stroke="#E4E9F1"/>
+<rect x="840.6666666666666" y="1176" width="96.60000000000001" height="18" rx="9" fill="#2E9E5B"/>
+<text x="888.9666666666666" y="1189" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US6.1 - radar</text>
+<rect x="943.2666666666667" y="1176" width="140" height="18" rx="9" fill="#2E9E5B"/>
+<text x="1013.2666666666667" y="1189" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US6.2 - pre-analyses</text>
+<rect x="840.6666666666666" y="1200" width="171" height="18" rx="9" fill="#2E9E5B"/>
+<text x="926.1666666666666" y="1213" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US6.3 - commentaire libre</text>
+<rect x="840.6666666666666" y="1224" width="127.60000000000001" height="18" rx="9" fill="#2E9E5B"/>
+<text x="904.4666666666666" y="1237" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US6.4 - export PPT</text>
+<rect x="840.6666666666666" y="1248" width="202" height="18" rx="9" fill="#2E9E5B"/>
+<text x="941.6666666666666" y="1261" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US6.5 - comparaison historique</text>
+<rect x="32" y="1304" width="1096" height="110" rx="8" fill="#FFFFFF" stroke="#E8ECF3" opacity="0.82"/>
+<text x="44" y="1327" font-size="10.5" font-weight="400" fill="#8A97A8" letter-spacing="0.4">EPIC 7</text>
+<text x="44" y="1344" font-size="14.5" font-weight="700" fill="#182840">Consolidation</text>
+<text x="44" y="1358" font-size="14.5" font-weight="700" fill="#182840">multi-equipes</text>
+<text x="44" y="1372" font-size="14.5" font-weight="700" fill="#182840">(Sponsor/RH/Direction)</text>
+<text x="44" y="1407" font-size="9.5" font-weight="700" fill="#9AA6B6">HORS MVP</text>
+<rect x="242" y="1316" width="287.3333333333333" height="88" rx="6" fill="#F7F9FC" stroke="#E4E9F1" stroke-dasharray="4 3"/>
+<rect x="537.3333333333333" y="1316" width="287.3333333333333" height="88" rx="6" fill="#F7F9FC" stroke="#E4E9F1" stroke-dasharray="4 3"/>
+<rect x="832.6666666666666" y="1316" width="287.3333333333333" height="88" rx="6" fill="#E6F5F2" stroke="#E4E9F1"/>
+<rect x="840.6666666666666" y="1324" width="133.8" height="18" rx="9" fill="#2E9E5B"/>
+<text x="907.5666666666666" y="1337" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US7.1 - ecran dedie</text>
+<rect x="840.6666666666666" y="1348" width="171" height="18" rx="9" fill="#2E9E5B"/>
+<text x="926.1666666666666" y="1361" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US7.2 - radar departement</text>
+<rect x="840.6666666666666" y="1372" width="133.8" height="18" rx="9" fill="#2E9E5B"/>
+<text x="907.5666666666666" y="1385" font-size="10.5" font-weight="600" fill="#FFFFFF" text-anchor="middle">US7.3 - zoom equipe</text>
+<rect x="32" y="1428" width="1096" height="182" rx="8" fill="#FAFBFD" stroke="#E8ECF3"/>
+<text x="44" y="1451" font-size="10.5" font-weight="400" fill="#8A97A8" letter-spacing="0.4">EPIC 8</text>
+<text x="44" y="1468" font-size="14.5" font-weight="700" fill="#182840">Packaging et deploiement</text>
+<rect x="242" y="1440" width="287.3333333333333" height="160" rx="6" fill="#F0EDF7" stroke="#E4E9F1"/>
+<rect x="250" y="1448" width="208.20000000000002" height="18" rx="9" fill="#B7C0CC"/>
+<text x="354.1" y="1461" font-size="10.5" font-weight="600" fill="#445065" text-anchor="middle">US8.1 - packaging reproductible</text>
+<rect x="250" y="1472" width="276.40000000000003" height="18" rx="9" fill="#B7C0CC"/>
+<text x="388.20000000000005" y="1485" font-size="10.5" font-weight="600" fill="#445065" text-anchor="middle">US8.2 - config &amp; persistance/sauvegarde DB</text>
+<rect x="250" y="1496" width="239.20000000000002" height="18" rx="9" fill="#B7C0CC"/>
+<text x="369.6" y="1509" font-size="10.5" font-weight="600" fill="#445065" text-anchor="middle">US8.3 - package portable autoportant</text>
+<rect x="250" y="1520" width="270.20000000000005" height="18" rx="9" fill="#B7C0CC"/>
+<text x="385.1" y="1533" font-size="10.5" font-weight="600" fill="#445065" text-anchor="middle">US8.4 - runbook install pas-a-pas serveur</text>
+<rect x="250" y="1544" width="245.4" height="18" rx="9" fill="#B7C0CC"/>
+<text x="372.7" y="1557" font-size="10.5" font-weight="600" fill="#445065" text-anchor="middle">US8.5 - conteneurisation (Dockerfile)</text>
+<rect x="250" y="1568" width="171" height="18" rx="9" fill="#B7C0CC"/>
+<text x="335.5" y="1581" font-size="10.5" font-weight="600" fill="#445065" text-anchor="middle">US8.6 - deploiement cloud</text>
+<rect x="537.3333333333333" y="1440" width="287.3333333333333" height="160" rx="6" fill="#F7F9FC" stroke="#E4E9F1" stroke-dasharray="4 3"/>
+<rect x="832.6666666666666" y="1440" width="287.3333333333333" height="160" rx="6" fill="#F7F9FC" stroke="#E4E9F1" stroke-dasharray="4 3"/>
+<rect x="32" y="1624" width="1096" height="158" rx="8" fill="#FFFFFF" stroke="#E8ECF3"/>
+<text x="44" y="1647" font-size="10.5" font-weight="400" fill="#8A97A8" letter-spacing="0.4">EPIC 9</text>
+<text x="44" y="1664" font-size="14.5" font-weight="700" fill="#182840">Environnements DEV /</text>
+<text x="44" y="1678" font-size="14.5" font-weight="700" fill="#182840">PRE-PROD / PROD (sur ce</text>
+<text x="44" y="1692" font-size="14.5" font-weight="700" fill="#182840">PC)</text>
+<rect x="242" y="1636" width="287.3333333333333" height="136" rx="6" fill="#F0EDF7" stroke="#E4E9F1"/>
+<rect x="250" y="1644" width="301.2" height="18" rx="9" fill="#B7C0CC"/>
+<text x="400.6" y="1657" font-size="10.5" font-weight="600" fill="#445065" text-anchor="middle">US9.1 - 3 environnements isoles (port/data/DB)</text>
+<rect x="250" y="1668" width="288.8" height="18" rx="9" fill="#B7C0CC"/>
+<text x="394.4" y="1681" font-size="10.5" font-weight="600" fill="#445065" text-anchor="middle">US9.2 - scripts start/stop par environnement</text>
+<rect x="250" y="1692" width="388" height="18" rx="9" fill="#B7C0CC"/>
+<text x="444" y="1705" font-size="10.5" font-weight="600" fill="#445065" text-anchor="middle">US9.3 - promotion/MAJ selon avancement (DEV-&gt;PRE-PROD-&gt;PROD)</text>
+<rect x="250" y="1716" width="282.6" height="18" rx="9" fill="#B7C0CC"/>
+<text x="391.3" y="1729" font-size="10.5" font-weight="600" fill="#445065" text-anchor="middle">US9.4 - separation &amp; sauvegarde des donnees</text>
+<rect x="250" y="1740" width="257.8" height="18" rx="9" fill="#B7C0CC"/>
+<text x="378.9" y="1753" font-size="10.5" font-weight="600" fill="#445065" text-anchor="middle">US9.5 - bandeau environnement dans l'UI</text>
+<rect x="537.3333333333333" y="1636" width="287.3333333333333" height="136" rx="6" fill="#F7F9FC" stroke="#E4E9F1" stroke-dasharray="4 3"/>
+<rect x="832.6666666666666" y="1636" width="287.3333333333333" height="136" rx="6" fill="#F7F9FC" stroke="#E4E9F1" stroke-dasharray="4 3"/>
+<rect x="32" y="1796" width="1096" height="182" rx="8" fill="#FAFBFD" stroke="#E8ECF3"/>
+<text x="44" y="1819" font-size="10.5" font-weight="400" fill="#8A97A8" letter-spacing="0.4">EPIC 10</text>
+<text x="44" y="1836" font-size="14.5" font-weight="700" fill="#182840">Authentification et</text>
+<text x="44" y="1850" font-size="14.5" font-weight="700" fill="#182840">gestion des acces</text>
+<rect x="242" y="1808" width="287.3333333333333" height="160" rx="6" fill="#F0EDF7" stroke="#E4E9F1"/>
+<rect x="250" y="1816" width="233" height="18" rx="9" fill="#B7C0CC"/>
+<text x="366.5" y="1829" font-size="10.5" font-weight="600" fill="#445065" text-anchor="middle">US10.1 - authentification animateur</text>
+<rect x="250" y="1840" width="226.8" height="18" rx="9" fill="#B7C0CC"/>
+<text x="363.4" y="1853" font-size="10.5" font-weight="600" fill="#445065" text-anchor="middle">US10.2 - protection des routes API</text>
+<rect x="250" y="1864" width="381.8" height="18" rx="9" fill="#B7C0CC"/>
+<text x="440.9" y="1877" font-size="10.5" font-weight="600" fill="#445065" text-anchor="middle">US10.3 - niveaux d'acces (animateur/pilotage lecture seule)</text>
+<rect x="250" y="1888" width="220.6" height="18" rx="9" fill="#B7C0CC"/>
+<text x="360.3" y="1901" font-size="10.5" font-weight="600" fill="#445065" text-anchor="middle">US10.4 - cycle de vie des comptes</text>
+<rect x="250" y="1912" width="344.6" height="18" rx="9" fill="#B7C0CC"/>
+<text x="422.3" y="1925" font-size="10.5" font-weight="600" fill="#445065" text-anchor="middle">US10.5 - repondant hors perimetre (reste sans compte)</text>
+<rect x="250" y="1936" width="282.6" height="18" rx="9" fill="#B7C0CC"/>
+<text x="391.3" y="1949" font-size="10.5" font-weight="600" fill="#445065" text-anchor="middle">US10.6 - securite des sessions de connexion</text>
+<rect x="537.3333333333333" y="1808" width="287.3333333333333" height="160" rx="6" fill="#F7F9FC" stroke="#E4E9F1" stroke-dasharray="4 3"/>
+<rect x="832.6666666666666" y="1808" width="287.3333333333333" height="160" rx="6" fill="#F7F9FC" stroke="#E4E9F1" stroke-dasharray="4 3"/>
+<rect x="32" y="1992" width="1096" height="182" rx="8" fill="#FFFFFF" stroke="#E8ECF3"/>
+<text x="44" y="2015" font-size="10.5" font-weight="400" fill="#8A97A8" letter-spacing="0.4">EPIC 11</text>
+<text x="44" y="2032" font-size="14.5" font-weight="700" fill="#182840">Gestion de plusieurs</text>
+<text x="44" y="2046" font-size="14.5" font-weight="700" fill="#182840">clients (organisations)</text>
+<text x="44" y="2060" font-size="14.5" font-weight="700" fill="#182840">avec sessions separees</text>
+<rect x="242" y="2004" width="287.3333333333333" height="160" rx="6" fill="#F0EDF7" stroke="#E4E9F1"/>
+<rect x="250" y="2012" width="338.40000000000003" height="18" rx="9" fill="#B7C0CC"/>
+<text x="419.20000000000005" y="2025" font-size="10.5" font-weight="600" fill="#445065" text-anchor="middle">US11.1 - notion de client (cloisonnement 1er niveau)</text>
+<rect x="250" y="2036" width="301.2" height="18" rx="9" fill="#B7C0CC"/>
+<text x="400.6" y="2049" font-size="10.5" font-weight="600" fill="#445065" text-anchor="middle">US11.2 - acces/donnees limites au client actif</text>
+<rect x="250" y="2060" width="226.8" height="18" rx="9" fill="#B7C0CC"/>
+<text x="363.4" y="2073" font-size="10.5" font-weight="600" fill="#445065" text-anchor="middle">US11.3 - selecteur de client actif</text>
+<rect x="250" y="2084" width="251.6" height="18" rx="9" fill="#B7C0CC"/>
+<text x="375.8" y="2097" font-size="10.5" font-weight="600" fill="#445065" text-anchor="middle">US11.4 - referentiel propre par client</text>
+<rect x="250" y="2108" width="295" height="18" rx="9" fill="#B7C0CC"/>
+<text x="397.5" y="2121" font-size="10.5" font-weight="600" fill="#445065" text-anchor="middle">US11.5 - vue pilotage scopee a un seul client</text>
+<rect x="250" y="2132" width="431.40000000000003" height="18" rx="9" fill="#B7C0CC"/>
+<text x="465.70000000000005" y="2145" font-size="10.5" font-weight="600" fill="#445065" text-anchor="middle">US11.6 - migration des donnees existantes vers un client par defaut</text>
+<rect x="537.3333333333333" y="2004" width="287.3333333333333" height="160" rx="6" fill="#F7F9FC" stroke="#E4E9F1" stroke-dasharray="4 3"/>
+<rect x="832.6666666666666" y="2004" width="287.3333333333333" height="160" rx="6" fill="#F7F9FC" stroke="#E4E9F1" stroke-dasharray="4 3"/>
+<rect x="36" y="2196" width="22" height="14" rx="7" fill="#2E9E5B"/>
+<text x="64" y="2207" font-size="11" fill="#445065">Fait</text>
+<rect x="110.8" y="2196" width="22" height="14" rx="7" fill="#E8A23D"/>
+<text x="138.8" y="2207" font-size="11" fill="#445065">En cours</text>
+<rect x="210.39999999999998" y="2196" width="22" height="14" rx="7" fill="#B7C0CC"/>
+<text x="238.39999999999998" y="2207" font-size="11" fill="#445065">A faire</text>
+<line x1="303.79999999999995" y1="2195" x2="303.79999999999995" y2="2211" stroke="#C0392B" stroke-width="1.5" stroke-dasharray="5 4"/>
+<text x="311.79999999999995" y="2207" font-size="11" fill="#445065">ligne aujourd'hui</text>
+<text x="441.19999999999993" y="2207" font-size="11" fill="#445065">chaque US est placee dans la colonne de son stade d'avancement</text>
+</svg>

@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Animateur — Référentiel et sessions</title>
+<style>
+  :root {
+    --brand-primary: #0b5ea8;
+    --brand-secondary: #14233b;
+    --brand-accent: #00a3e0;
+    --brand-bg: #f5f8fc;
+    --brand-border: #d7e4f2;
+  }
+  body { font-family: 'Avenir Next', 'Inter', system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; background: var(--brand-bg); color: var(--brand-secondary); }
+  h1, h2 { color: var(--brand-secondary); }
+  section { border: 1px solid #ddd; border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem; }
+  label { display: block; margin: 0.75rem 0 0.25rem; font-weight: 600; }
+  input { width: 100%; padding: 0.5rem; box-sizing: border-box; }
+  textarea { width: 100%; padding: 0.5rem; box-sizing: border-box; font-family: inherit; font-size: 0.95rem; min-height: 6rem; resize: vertical; }
+  button { margin-top: 1rem; padding: 0.6rem 1.2rem; cursor: pointer; }
+  .result { margin-top: 1rem; padding: 0.75rem; border-radius: 6px; }
+  .ok { background: #e6f4ea; color: #1e6b34; }
+  .err { background: #fdecea; color: #b3261e; }
+  code { background: #f3f3f3; padding: 0.1rem 0.3rem; border-radius: 4px; }
+  .hidden { display: none; }
+  .boutons-email { display: flex; gap: 0.75rem; margin-top: 0.75rem; }
+  .liste-roles { list-style: none; padding: 0; margin: 0.5rem 0 0; }
+  .liste-roles li { display: flex; align-items: center; justify-content: space-between; padding: 0.4rem 0.6rem; border: 1px solid #e2e2e2; border-radius: 6px; margin-bottom: 0.4rem; }
+  .liste-roles button { margin: 0; padding: 0.15rem 0.55rem; background: #fdecea; color: #b3261e; border: 1px solid #f3b9b3; border-radius: 4px; font-size: 0.85rem; }
+  .ajout-role { display: flex; gap: 0.5rem; align-items: stretch; margin-top: 0.75rem; }
+  .ajout-role input, .ajout-role select { margin: 0; }
+  .ajout-role button { margin: 0; white-space: nowrap; }
+  .fleche { align-self: center; font-weight: 700; color: #666; }
+  .liste-valeurs { list-style: none; padding: 0; margin: 0.5rem 0 0; }
+  .liste-valeurs li { display: flex; align-items: center; justify-content: space-between; padding: 0.35rem 0.6rem; border: 1px solid #e2e2e2; border-radius: 6px; margin-bottom: 0.35rem; }
+  .liste-valeurs .effectif { color: #666; font-variant-numeric: tabular-nums; }
+  .perimetre { border: 1px solid #e2e2e2; border-radius: 6px; padding: 0.5rem 0.75rem; margin-top: 0.4rem; max-height: 320px; overflow-y: auto; }
+  .perimetre .pilier-ligne { font-weight: 600; margin: 0.5rem 0 0.2rem; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+  .tab-button { background: #f3f3f3; border: 1px solid #ccc; border-radius: 999px; padding: 0.65rem 0.95rem; cursor: pointer; font-weight: 600; }
+  .tab-button.active { background: var(--brand-primary); color: #fff; border-color: var(--brand-primary); }
+  .tab-button:focus { outline: 3px solid rgba(11,94,168,0.25); }
+  .perimetre .pilier-ligne:first-child { margin-top: 0; }
+  .perimetre label { display: flex; align-items: center; gap: 0.4rem; font-weight: 400; margin: 0; }
+  .perimetre .toggle-questions { background: none; border: none; color: var(--brand-primary); cursor: pointer; font-size: 0.85rem; margin: 0 0 0 0.3rem; padding: 0; text-decoration: underline; }
+  .perimetre .questions { margin: 0.15rem 0 0.3rem 1.6rem; }
+  .perimetre .questions.replie { display: none; }
+  .perimetre .questions label { font-size: 0.9rem; color: #444; margin: 0.15rem 0; }
+  .perimetre input[type=checkbox] { width: auto; }
+  .aide { margin: 0.2rem 0 0; font-size: 0.85rem; color: #666; }
+  .session-links { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); margin-top: 1rem; }
+  .session-link { display: inline-flex; align-items: center; justify-content: center; min-height: 3rem; border-radius: 999px; border: 1px solid var(--brand-border); background: #fff; color: var(--brand-primary); font-weight: 700; text-decoration: none; }
+  .session-link.disabled { opacity: 0.55; pointer-events: none; }
+  .session-select { width: 100%; padding: 0.6rem 0.7rem; box-sizing: border-box; }
+  .helper-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.8rem; }
+  .helper-row .pill { border-radius: 999px; padding: 0.28rem 0.6rem; background: #eef2fc; color: #2c5cc5; font-size: 0.85rem; font-weight: 600; }
+  .mode-import { border: 1px solid #e2e2e2; border-radius: 6px; padding: 0.6rem 0.8rem; margin: 0.5rem 0 0; }
+  .mode-import legend { font-weight: 600; padding: 0 0.3rem; }
+  .mode-import label { display: flex; gap: 0.5rem; align-items: flex-start; font-weight: 400; margin: 0.4rem 0; font-size: 0.9rem; }
+  .mode-import input[type=radio] { width: auto; margin-top: 0.2rem; }
+  .mode-import .danger { color: #b3261e; }
+</style>
+<script src="/env-banner.js" defer></script>
+</head>
+<body>
+  <h1>Espace animateur</h1>
+
+  <div class="tabs" aria-label="Navigation de l'espace animateur">
+    <button type="button" class="tab-button" data-tab="info">Information</button>
+    <button type="button" class="tab-button active" data-tab="config">Configuration globale</button>
+    <button type="button" class="tab-button" data-tab="session">Paramétrage de session</button>
+    <button type="button" class="tab-button" data-tab="resultats">Consultation des résultats</button>
+  </div>
+
+  <section data-tab="info" class="hidden">
+    <h2>Information</h2>
+    <p>Bienvenue dans l'outil de questionnaire de maturité agile/produit. Cette page centralise les fonctions d'administration :</p>
+    <ul>
+      <li>Import du référentiel Excel</li>
+      <li>Création et paramétrage des sessions</li>
+      <li>Gestion des rôles proposés aux répondants</li>
+      <li>Import des participants et création des emails invitation / rappel</li>
+      <li>Consultation des résultats et export PPT</li>
+    </ul>
+    <p>Entrez l'identifiant d'une session pour activer les écrans liés à cette session et ouvrir directement :</p>
+    <div class="session-links">
+      <a id="infoLienRepondre" class="session-link disabled" href="#" target="_blank">Ouvrir le questionnaire</a>
+      <a id="infoLienResultats" class="session-link disabled" href="#" target="_blank">Ouvrir les résultats</a>
+      <a id="infoLienPilotage" class="session-link disabled" href="#" target="_blank">Ouvrir le pilotage</a>
+    </div>
+    <label for="infoSessionId">Sélectionner une session</label>
+    <select id="infoSessionId" class="session-select"></select>
+    <div class="helper-row">
+      <span class="pill">Session active</span>
+      <span class="aide">La liste reprend les sessions déjà créées pour ouvrir directement les écrans associés.</span>
+    </div>
+    <p class="aide">Le choix ci-dessus remplit automatiquement les liens « répondant », « résultats » et « pilotage ».</p>
+  </section>
+
+  <section data-tab="config">
+    <h2>1. Importer le référentiel (fichier Excel)</h2>
+    <p>1 onglet = 1 pilier. Choisissez comment l'import traite la version précédente du référentiel. Dans tous les cas, les nouvelles sessions utilisent la nouvelle grille.</p>
+    <fieldset class="mode-import" id="modeImport">
+      <legend>Que faire de la version précédente ?</legend>
+      <label>
+        <input type="radio" name="modeImport" value="conserver" checked />
+        <span><strong>Conserver les versions précédentes</strong> — les questions inchangées sont gardées, les nouvelles ajoutées, et celles retirées sont archivées avec leurs réponses (anciennes sessions toujours consultables).</span>
+      </label>
+      <label>
+        <input type="radio" name="modeImport" value="remplacer" />
+        <span class="danger"><strong>Remplacer complètement</strong> — repart de zéro : l'ancienne grille, les sessions et toutes les réponses collectées sont définitivement supprimées avant de charger la nouvelle grille.</span>
+      </label>
+    </fieldset>
+    <label for="fichierExcel">Fichier Excel (.xlsx)</label>
+    <input type="file" id="fichierExcel" accept=".xlsx" />
+    <button type="button" id="btnImporter">Importer</button>
+    <div id="resultatImport"></div>
+  </section>
+
+  <section data-tab="session" class="hidden">
+    <h2>2. Créer une session</h2>
+    <label for="ouverture">Date d'ouverture de la saisie</label>
+    <input type="datetime-local" id="ouverture" />
+    <label for="fermeture">Date de fermeture de la saisie</label>
+    <input type="datetime-local" id="fermeture" />
+    <label for="texteIntro">Texte d'accueil affiché au répondant</label>
+    <p class="aide">Pré-rempli avec un message par défaut (qui rappelle le caractère nominatif des réponses). Adaptez-le au contexte de l'équipe ; il s'applique à cette session.</p>
+    <textarea id="texteIntro"></textarea>
+    <label>Périmètre : piliers et questions actifs pour cette session</label>
+    <p class="aide">Tout est coché par défaut. Décochez un pilier entier ou des questions précises pour les retirer de cette session.</p>
+    <div class="perimetre" id="perimetre">Importez d'abord un référentiel.</div>
+    <button type="button" id="btnCreerSession">Créer la session</button>
+    <div id="resultatSession"></div>
+  </section>
+
+  <section data-tab="session" class="hidden">
+    <h2>3. Inviter les participants par email</h2>
+    <p>Liste des participants (CSV ou Excel) : colonne A = email, colonne B = nom (facultatif). Un nouvel import remplace la liste existante pour cette session.</p>
+    <label for="idSession">Identifiant de la session</label>
+    <input id="idSession" placeholder="Rempli automatiquement après création ci-dessus" />
+    <label for="fichierParticipants">Fichier (.csv ou .xlsx)</label>
+    <input type="file" id="fichierParticipants" accept=".csv,.xlsx" />
+    <button type="button" id="btnImporterParticipants">Importer la liste</button>
+    <div id="resultatParticipants"></div>
+
+    <h3>Modèles d'email</h3>
+    <p class="aide">Les modèles sont pré-remplis et peuvent être modifiés avant envoi. Ils sont sauvegardés localement pour réutilisation.</p>
+    <label for="sujetInvitation">Objet de l'invitation</label>
+    <input id="sujetInvitation" />
+    <label for="contenuInvitation">Corps de l'invitation</label>
+    <textarea id="contenuInvitation" rows="6"></textarea>
+    <label for="sujetRappel">Objet du rappel</label>
+    <input id="sujetRappel" />
+    <label for="contenuRappel">Corps du rappel</label>
+    <textarea id="contenuRappel" rows="6"></textarea>
+    <button type="button" id="btnSauvegarderTemplates">Sauvegarder les modèles</button>
+    <div id="resultatTemplates"></div>
+
+    <div class="boutons-email">
+      <button type="button" id="btnInvitation">Ouvrir l'email d'invitation</button>
+      <button type="button" id="btnRappel">Ouvrir l'email de rappel</button>
+    </div>
+    <p class="aide">L'invitation s'adresse à toute la liste ; le rappel ne cible que les invités n'ayant pas encore soumis leur questionnaire (rapprochement par email).</p>
+    <div id="erreurEmail" class="err"></div>
+  </section>
+
+  <section data-tab="resultats" class="hidden">
+    <h2>Consultation des résultats</h2>
+    <p>Sélectionnez une session pour ouvrir la restitution des résultats.</p>
+    <label for="sessionResultats">Session</label>
+    <select id="sessionResultats"></select>
+    <div class="helper-row">
+      <button type="button" id="btnOuvrirResultats">Ouvrir les résultats</button>
+      <span class="pill" id="statutSessionResultats">Aucune session sélectionnée</span>
+    </div>
+    <div id="resultatConsultation"></div>
+  </section>
+
+  <section data-tab="config" class="hidden">
+    <h2>4. Gérer les rôles proposés aux répondants</h2>
+    <p>Liste globale (commune à toutes les sessions) des rôles proposés au répondant lors de son identification.</p>
+    <ul class="liste-roles" id="listeRoles"></ul>
+    <div class="ajout-role">
+      <input id="nouveauRole" placeholder="Nouveau rôle (ex: UX Designer)" />
+      <button type="button" id="btnAjouterRole">Ajouter</button>
+    </div>
+    <div id="erreurRole" class="err"></div>
+  </section>
+
+  <section data-tab="config" class="hidden">
+    <h2>5. Fusionner des doublons (équipes / départements)</h2>
+    <p>La saisie tolère déjà les variantes de casse/accents/espaces. Pour les doublons résiduels (ex. une faute de frappe), rapprochez ici deux libellés qui désignent la même entité : <strong>tous les répondants de la source sont réaffectés à la cible</strong>, dans toutes les sessions.</p>
+    <label for="champFusion">Type</label>
+    <select id="champFusion">
+      <option value="equipe">Équipes</option>
+      <option value="departement">Départements</option>
+    </select>
+    <ul class="liste-valeurs" id="listeValeurs"></ul>
+    <div class="ajout-role">
+      <select id="fusionSource" aria-label="Libellé à fusionner (source)"></select>
+      <span class="fleche">→</span>
+      <select id="fusionCible" aria-label="Libellé cible conservé"></select>
+      <button type="button" id="btnFusionner">Fusionner</button>
+    </div>
+    <div id="resultatFusion"></div>
+  </section>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    function afficherResultat(el, ok, message) {
+      el.innerHTML = `<div class="result ${ok ? 'ok' : 'err'}">${message}</div>`;
+    }
+
+    $('btnImporter').addEventListener('click', async () => {
+      const fichier = $('fichierExcel').files[0];
+      if (!fichier) return afficherResultat($('resultatImport'), false, 'Choisissez un fichier .xlsx.');
+      const mode = document.querySelector('input[name="modeImport"]:checked').value;
+
+      // Garde-fou avant le geste destructif : on récapitule ce qui sera effacé.
+      if (mode === 'remplacer') {
+        let stats = { sessions: 0, reponses: 0, piliers: 0, questions: 0 };
+        try {
+          const r = await fetch('/api/referentiel/stats');
+          if (r.ok) stats = await r.json();
+        } catch { /* compteurs à 0 si indisponibles */ }
+        const message =
+          'Remplacer complètement le référentiel ?\n\n' +
+          'Ceci supprimera DÉFINITIVEMENT :\n' +
+          `  • ${stats.sessions} session(s)\n` +
+          `  • ${stats.reponses} réponse(s) collectée(s)\n` +
+          `  • l'ancienne grille (${stats.piliers} pilier(s), ${stats.questions} question(s))\n\n` +
+          'Cette action est irréversible. Continuer ?';
+        if (!window.confirm(message)) {
+          return afficherResultat($('resultatImport'), false, 'Import annulé : référentiel inchangé.');
+        }
+      }
+
+      const formData = new FormData();
+      formData.append('fichier', fichier);
+      formData.append('mode', mode);
+      try {
+        const res = await fetch('/api/referentiel/import', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erreur inconnue.');
+        let suffixe;
+        if (data.mode === 'remplacer') {
+          suffixe = ' Référentiel remplacé : ancienne grille, sessions et réponses supprimées.';
+        } else {
+          suffixe = data.archivees > 0 ? ` ${data.archivees} question(s) retirée(s) du fichier ont été archivées (réponses passées conservées).` : '';
+        }
+        afficherResultat($('resultatImport'), true, `Import réussi : ${data.piliers} pilier(s), ${data.sousCategories} objectif(s), ${data.questions} question(s).${suffixe}`);
+        await chargerPerimetre();
+      } catch (err) {
+        afficherResultat($('resultatImport'), false, err.message);
+      }
+    });
+
+    // --- Périmètre de la session : arbre piliers > questions (US1.3/1.3bis) ---
+
+    async function chargerPerimetre() {
+      const referentiel = await (await fetch('/api/referentiel')).json();
+      const zone = $('perimetre');
+      if (referentiel.length === 0) {
+        zone.innerHTML = "Importez d'abord un référentiel.";
+        return;
+      }
+      zone.innerHTML = referentiel
+        .map((pilier) => {
+          const questions = pilier.sousCategories.flatMap((sc) => sc.questions);
+          const cases = questions
+            .map((q) => `<label><input type="checkbox" class="q-case" data-pilier="${pilier.id}" value="${q.id}" checked /> ${esc(q.texte)}</label>`)
+            .join('');
+          return `
+        <div class="pilier-ligne">
+          <label><input type="checkbox" class="pilier-case" data-pilier="${pilier.id}" checked /> ${esc(pilier.nom)} <span class="compteur" data-pilier="${pilier.id}">(${questions.length}/${questions.length})</span></label>
+          <button type="button" class="toggle-questions" data-pilier="${pilier.id}">détailler les questions</button>
+        </div>
+        <div class="questions replie" data-pilier="${pilier.id}">${cases}</div>`;
+        })
+        .join('');
+
+      zone.querySelectorAll('.toggle-questions').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const bloc = zone.querySelector(`.questions[data-pilier="${btn.dataset.pilier}"]`);
+          bloc.classList.toggle('replie');
+          btn.textContent = bloc.classList.contains('replie') ? 'détailler les questions' : 'masquer les questions';
+        });
+      });
+
+      // Case pilier = bascule maîtresse de toutes ses questions.
+      zone.querySelectorAll('.pilier-case').forEach((casePilier) => {
+        casePilier.addEventListener('change', () => {
+          zone
+            .querySelectorAll(`.q-case[data-pilier="${casePilier.dataset.pilier}"]`)
+            .forEach((c) => (c.checked = casePilier.checked));
+          majCompteur(casePilier.dataset.pilier);
+        });
+      });
+
+      // Une question cochée/décochée met à jour le compteur et l'état du pilier.
+      zone.querySelectorAll('.q-case').forEach((caseQ) => {
+        caseQ.addEventListener('change', () => {
+          const pilierId = caseQ.dataset.pilier;
+          const cases = [...zone.querySelectorAll(`.q-case[data-pilier="${pilierId}"]`)];
+          const cochees = cases.filter((c) => c.checked).length;
+          zone.querySelector(`.pilier-case[data-pilier="${pilierId}"]`).checked = cochees > 0;
+          majCompteur(pilierId);
+        });
+      });
+    }
+
+    function majCompteur(pilierId) {
+      const zone = $('perimetre');
+      const cases = [...zone.querySelectorAll(`.q-case[data-pilier="${pilierId}"]`)];
+      const cochees = cases.filter((c) => c.checked).length;
+      zone.querySelector(`.compteur[data-pilier="${pilierId}"]`).textContent = `(${cochees}/${cases.length})`;
+    }
+
+    function questionsActives() {
+      return [...document.querySelectorAll('#perimetre .q-case:checked')].map((c) => Number(c.value));
+    }
+
+    $('btnCreerSession').addEventListener('click', async () => {
+      const ouverture = $('ouverture').value;
+      const fermeture = $('fermeture').value;
+      if (!ouverture || !fermeture) return afficherResultat($('resultatSession'), false, 'Renseignez les deux dates.');
+      const actives = questionsActives();
+      if (actives.length === 0) return afficherResultat($('resultatSession'), false, 'Sélectionnez au moins une question active dans le périmètre.');
+      try {
+        const res = await fetch('/api/sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ouverture_at: new Date(ouverture).toISOString(), fermeture_at: new Date(fermeture).toISOString(), questions_actives: actives, texte_intro: $('texteIntro').value }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erreur inconnue.');
+        const lien = `${window.location.origin}${data.lien}`;
+        afficherResultat($('resultatSession'), true, `Session créée. Lien à partager : <code>${lien}</code>`);
+        $('idSession').value = data.id;
+      } catch (err) {
+        afficherResultat($('resultatSession'), false, err.message);
+      }
+    });
+
+    $('btnImporterParticipants').addEventListener('click', async () => {
+      const idSession = $('idSession').value.trim();
+      const fichier = $('fichierParticipants').files[0];
+      if (!idSession) return afficherResultat($('resultatParticipants'), false, "Renseignez l'identifiant de session.");
+      if (!fichier) return afficherResultat($('resultatParticipants'), false, 'Choisissez un fichier .csv ou .xlsx.');
+      const formData = new FormData();
+      formData.append('fichier', fichier);
+      try {
+        const res = await fetch(`/api/sessions/${idSession}/invites`, { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erreur inconnue.');
+        afficherResultat($('resultatParticipants'), true, `${data.invites} destinataire(s) importé(s).`);
+      } catch (err) {
+        afficherResultat($('resultatParticipants'), false, err.message);
+      }
+    });
+
+    function formatDateFr(iso) {
+      return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' });
+    }
+
+    function chargerTemplates() {
+      const defaults = {
+        invitation: {
+          sujet: 'Invitation : évaluation de maturité agile/produit de votre équipe',
+          corps: `Bonjour,\n\nVous êtes invité(e) à répondre au questionnaire d'évaluation de maturité agile/produit de votre équipe.\n\nLien pour répondre : {{lien}}\n\nVous pouvez répondre dès maintenant et jusqu'au {{fermeture}}.\n\nVos réponses individuelles sont nominatives et visibles par l'animateur de la session ; elles ne seront jamais visibles directement par les autres répondants.\n\nMerci pour votre participation.`,
+        },
+        rappel: {
+          sujet: 'Rappel : évaluation de maturité agile/produit',
+          corps: `Bonjour,\n\nRappel : le questionnaire d'évaluation de maturité agile/produit de votre équipe est ouvert jusqu'au {{fermeture}}.\n\nLien pour répondre : {{lien}}\n\nSi vous avez déjà répondu et soumis vos réponses, vous pouvez ignorer ce message.\n\nMerci pour votre participation.`,
+        },
+      };
+
+      const invitation = JSON.parse(localStorage.getItem('templateInvitation') || 'null');
+      const rappel = JSON.parse(localStorage.getItem('templateRappel') || 'null');
+      $('sujetInvitation').value = invitation?.sujet || defaults.invitation.sujet;
+      $('contenuInvitation').value = invitation?.corps || defaults.invitation.corps;
+      $('sujetRappel').value = rappel?.sujet || defaults.rappel.sujet;
+      $('contenuRappel').value = rappel?.corps || defaults.rappel.corps;
+    }
+
+    function sauvegarderTemplates() {
+      localStorage.setItem('templateInvitation', JSON.stringify({ sujet: $('sujetInvitation').value, corps: $('contenuInvitation').value }));
+      localStorage.setItem('templateRappel', JSON.stringify({ sujet: $('sujetRappel').value, corps: $('contenuRappel').value }));
+      $('resultatTemplates').innerHTML = '<div class="result ok">Modèles sauvegardés.</div>';
+    }
+
+    function getTemplate(type) {
+      return {
+        invitation: { sujet: $('sujetInvitation').value, corps: $('contenuInvitation').value },
+        rappel: { sujet: $('sujetRappel').value, corps: $('contenuRappel').value },
+      }[type];
+    }
+
+    function appliquerPlaceholders(corps, lien, fermeture) {
+      let texte = corps.replace(/{{\s*lien\s*}}/g, lien).replace(/{{\s*fermeture\s*}}/g, fermeture);
+      if (!/\bhttps?:\/\//.test(texte) && !texte.includes(lien)) {
+        texte += `\n\nLien pour répondre : ${lien}`;
+      }
+      return texte;
+    }
+
+    async function construireMailto(type) {
+      $('erreurEmail').textContent = '';
+      const idSession = $('idSession').value.trim();
+      if (!idSession) {
+        $('erreurEmail').textContent = "Renseignez l'identifiant de session.";
+        return;
+      }
+      // Le rappel ne vise que les invités sans questionnaire soumis (US2.5) ;
+      // l'invitation s'adresse à toute la liste.
+      const urlListe = type === 'rappel'
+        ? `/api/sessions/${idSession}/invites/non-repondants`
+        : `/api/sessions/${idSession}/invites`;
+      const [sessionRes, listeRes] = await Promise.all([
+        fetch(`/api/sessions/${idSession}`),
+        fetch(urlListe),
+      ]);
+      const session = await sessionRes.json();
+      if (!sessionRes.ok) {
+        $('erreurEmail').textContent = session.error;
+        return;
+      }
+      const destinataires = await listeRes.json();
+      if (destinataires.length === 0) {
+        $('erreurEmail').textContent = type === 'rappel'
+          ? "Aucun rappel à envoyer : tous les invités ont déjà soumis leur questionnaire (ou aucune liste de participants n'a été importée)."
+          : "Importez d'abord une liste de participants pour cette session.";
+        return;
+      }
+
+      const lien = `${window.location.origin}/repondre.html?session=${idSession}`;
+      const fermeture = formatDateFr(session.fermeture_at);
+      const emails = destinataires.map((i) => i.email);
+      const emailsTo = emails.map((e) => encodeURIComponent(e)).join(',');
+      const template = getTemplate(type);
+      const sujet = template.sujet;
+      const corps = appliquerPlaceholders(template.corps, lien, fermeture);
+
+      window.location.href = `mailto:${emailsTo}?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
+    }
+
+    $('btnSauvegarderTemplates').addEventListener('click', sauvegarderTemplates);
+    $('btnInvitation').addEventListener('click', () => construireMailto('invitation'));
+    $('btnRappel').addEventListener('click', () => construireMailto('rappel'));
+    chargerTemplates();
+    chargerSessionsInfo();
+    chargerSessionsResultats();
+    initTabs();
+
+    function initTabs() {
+      document.querySelectorAll('.tab-button').forEach((button) => {
+        button.addEventListener('click', () => activerOnglet(button.dataset.tab));
+      });
+    }
+
+    function activerOnglet(tab) {
+      document.querySelectorAll('.tab-button').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tab));
+      document.querySelectorAll('section[data-tab]').forEach((section) => {
+        section.classList.toggle('hidden', section.dataset.tab !== tab);
+      });
+      if (tab === 'resultats') {
+        chargerSessionsResultats();
+      }
+    }
+
+    async function chargerSessionsResultats() {
+      const select = $('sessionResultats');
+      const resultat = $('resultatConsultation');
+      const statut = $('statutSessionResultats');
+      resultat.innerHTML = '';
+      try {
+        const sessions = await (await fetch('/api/sessions')).json();
+        if (!Array.isArray(sessions) || sessions.length === 0) {
+          select.innerHTML = '<option value="">Aucune session disponible</option>';
+          $('btnOuvrirResultats').disabled = true;
+          statut.textContent = 'Aucune session disponible';
+          return;
+        }
+        select.innerHTML = sessions
+          .map((s) => `<option value="${s.id}">${formatDateFr(s.ouverture_at)} → ${formatDateFr(s.fermeture_at)} (${s.id.slice(0, 8)})</option>`)
+          .join('');
+        const sessionSelectionnee = select.value || sessions[0].id;
+        select.value = sessionSelectionnee;
+        statut.textContent = `Session prête : ${sessionSelectionnee.slice(0, 8)}`;
+        $('btnOuvrirResultats').disabled = false;
+      } catch (err) {
+        select.innerHTML = '<option value="">Erreur de chargement</option>';
+        $('btnOuvrirResultats').disabled = true;
+        statut.textContent = 'Erreur de chargement';
+        resultat.innerHTML = `<div class="result err">${err.message || 'Impossible de charger les sessions.'}</div>`;
+      }
+    }
+
+    $('btnOuvrirResultats').addEventListener('click', () => {
+      const sessionId = $('sessionResultats').value;
+      if (!sessionId) return;
+      const statut = $('statutSessionResultats');
+      statut.textContent = `Ouverture de la session ${sessionId.slice(0, 8)}`;
+      window.open(`${window.location.origin}/resultats.html?session=${encodeURIComponent(sessionId)}`, '_blank');
+    });
+
+    async function chargerSessionsInfo() {
+      const select = $('infoSessionId');
+      if (!select) return;
+      try {
+        const response = await fetch('/api/sessions');
+        if (!response.ok) throw new Error('Impossible de charger les sessions.');
+        const sessions = await response.json();
+        if (!Array.isArray(sessions) || sessions.length === 0) {
+          select.innerHTML = '<option value="">Aucune session disponible</option>';
+          majLiensSession();
+          return;
+        }
+        select.innerHTML = sessions
+          .map((s) => `<option value="${s.id}">${formatDateFr(s.ouverture_at)} → ${formatDateFr(s.fermeture_at)} (${s.id.slice(0, 8)})</option>`)
+          .join('');
+        const param = new URLSearchParams(window.location.search).get('session');
+        const sessionCourante = param && sessions.some((s) => s.id === param) ? param : sessions[0].id;
+        select.value = sessionCourante;
+        majLiensSession();
+      } catch (err) {
+        select.innerHTML = '<option value="">Erreur de chargement</option>';
+        majLiensSession();
+      }
+    }
+
+    function majLiensSession() {
+      const input = $('infoSessionId');
+      const sessionId = input ? input.value.trim() : '';
+      const liens = {
+        infoLienRepondre: (id) => `/repondre.html?session=${encodeURIComponent(id)}`,
+        infoLienResultats: (id) => `/resultats.html?session=${encodeURIComponent(id)}`,
+        infoLienPilotage: (id) => `/pilotage.html?session=${encodeURIComponent(id)}`,
+      };
+      Object.entries(liens).forEach(([id, build]) => {
+        const a = $(id);
+        if (!a) return;
+        if (sessionId) {
+          a.href = build(sessionId);
+          a.classList.remove('disabled');
+        } else {
+          a.href = '#';
+          a.classList.add('disabled');
+        }
+      });
+    }
+
+    function prefillerSessionDepuisQuery() {
+      const param = new URLSearchParams(window.location.search).get('session');
+      if (param && $('infoSessionId')) {
+        $('infoSessionId').value = param;
+        majLiensSession();
+      }
+    }
+
+    $('infoSessionId')?.addEventListener('change', majLiensSession);
+    $('sessionResultats')?.addEventListener('change', () => {
+      const selected = $('sessionResultats').value;
+      const statut = $('statutSessionResultats');
+      statut.textContent = selected ? `Session prête : ${selected.slice(0, 8)}` : 'Aucune session sélectionnée';
+    });
+    prefillerSessionDepuisQuery();
+
+    // --- Gestion des rôles (US2.3) ---
+
+    async function chargerRoles() {
+      const roles = await (await fetch('/api/roles')).json();
+      $('listeRoles').innerHTML = roles
+        .map((r) => `<li><span>${esc(r)}</span><button type="button" data-role="${encodeURIComponent(r)}">Supprimer</button></li>`)
+        .join('');
+      $('listeRoles').querySelectorAll('button').forEach((btn) => {
+        btn.addEventListener('click', () => supprimerRole(decodeURIComponent(btn.dataset.role)));
+      });
+    }
+
+    async function supprimerRole(nom) {
+      $('erreurRole').textContent = '';
+      const res = await fetch(`/api/roles/${encodeURIComponent(nom)}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json();
+        $('erreurRole').textContent = data.error || 'Suppression impossible.';
+        return;
+      }
+      await chargerRoles();
+    }
+
+    async function ajouterRole() {
+      $('erreurRole').textContent = '';
+      const nom = $('nouveauRole').value.trim();
+      if (!nom) return ($('erreurRole').textContent = 'Saisissez un nom de rôle.');
+      const res = await fetch('/api/roles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nom }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        $('erreurRole').textContent = data.error || 'Ajout impossible.';
+        return;
+      }
+      $('nouveauRole').value = '';
+      await chargerRoles();
+    }
+
+    $('btnAjouterRole').addEventListener('click', ajouterRole);
+    $('nouveauRole').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') ajouterRole();
+    });
+
+    // --- Fusion des doublons (US3.4bis) ---
+
+    function esc(valeur) {
+      return String(valeur).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    async function chargerValeursFusion() {
+      const champ = $('champFusion').value;
+      const valeurs = await (await fetch(`/api/repondants/valeurs/${champ}`)).json();
+      $('listeValeurs').innerHTML = valeurs.length
+        ? valeurs.map((v) => `<li><span>${esc(v.valeur)}</span><span class="effectif">${v.n}</span></li>`).join('')
+        : '<li><span>Aucune donnée pour le moment.</span></li>';
+      const options = valeurs.map((v) => `<option value="${esc(v.valeur)}">${esc(v.valeur)} (${v.n})</option>`).join('');
+      $('fusionSource').innerHTML = options;
+      $('fusionCible').innerHTML = options;
+    }
+
+    async function fusionner() {
+      $('resultatFusion').innerHTML = '';
+      const champ = $('champFusion').value;
+      const source = $('fusionSource').value;
+      const cible = $('fusionCible').value;
+      if (!source || !cible) return afficherResultat($('resultatFusion'), false, 'Sélectionnez une source et une cible.');
+      if (source === cible) return afficherResultat($('resultatFusion'), false, 'La source et la cible doivent être différentes.');
+      if (!confirm(`Fusionner « ${source} » dans « ${cible} » ? Tous les répondants concernés seront réaffectés.`)) return;
+      const res = await fetch('/api/repondants/fusion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ champ, source, cible }),
+      });
+      const data = await res.json();
+      if (!res.ok) return afficherResultat($('resultatFusion'), false, data.error || 'Fusion impossible.');
+      afficherResultat($('resultatFusion'), true, `${data.reaffectes} répondant(s) réaffecté(s) de « ${esc(source)} » vers « ${esc(cible)} ».`);
+      await chargerValeursFusion();
+    }
+
+    $('btnFusionner').addEventListener('click', fusionner);
+    $('champFusion').addEventListener('change', chargerValeursFusion);
+
+    async function chargerTexteIntroDefaut() {
+      const { texte } = await (await fetch('/api/texte-intro-defaut')).json();
+      if (!$('texteIntro').value) $('texteIntro').value = texte;
+    }
+
+    chargerRoles();
+    chargerPerimetre();
+    chargerValeursFusion();
+    chargerTexteIntroDefaut();
+  </script>
+</body>
+</html>

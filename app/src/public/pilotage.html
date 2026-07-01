@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Vue pilotage — Consolidation par département</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 800px; margin: 1.5rem auto; padding: 0 1rem; color: #222; }
+  /* Meme gabarit de bouton que les autres pages (admin.html, repondre.html, resultats.html). */
+  button { padding: 0.6rem 1.2rem; font-size: 1rem; cursor: pointer; }
+  .barre-controles { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+  select { padding: 0.4rem; }
+  .checkbox-row { display: flex; align-items: center; gap: 0.4rem; }
+  .effectif { color: #555; font-size: 0.9rem; }
+  .aide { color: #777; font-size: 0.85rem; margin: 0.2rem 0 0.6rem; }
+  .err { color: #b3261e; }
+  .vide { color: #888; font-style: italic; }
+  h2.titre-radar { margin: 0 0 0.4rem; }
+  /* Radar borne en taille pour tenir a l'ecran sans scroll et centre, comme sur
+     la page resultats. */
+  #zoneRadar { margin-top: 0; }
+  #zoneRadar svg { display: block; max-width: 560px; height: auto; margin: 0 auto; }
+
+  .legende { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 0 0 0.6rem; font-size: 0.85rem; }
+  .legende-item { display: flex; align-items: center; gap: 0.35rem; }
+  .legende-puce { width: 0.7rem; height: 0.7rem; border-radius: 50%; display: inline-block; }
+
+  .equipe-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.6rem 0.8rem; border: 1px solid #e2e2e2; border-radius: 6px; margin-bottom: 0.45rem; }
+  .equipe-row .nom { font-weight: 600; }
+  .equipe-row .effectif { white-space: nowrap; }
+  .equipe-row a { color: #2c5cc5; text-decoration: none; font-size: 0.9rem; white-space: nowrap; }
+  .equipe-row a:hover { text-decoration: underline; }
+</style>
+<script src="/env-banner.js" defer></script>
+</head>
+<body>
+  <h1>Vue pilotage — Consolidation par département</h1>
+  <div id="zoneStatut"></div>
+
+  <div class="barre-controles">
+    <label for="departement">Département :</label>
+    <select id="departement"></select>
+    <div class="checkbox-row">
+      <input type="checkbox" id="avecManager" checked />
+      <label for="avecManager">Inclure le(s) manager(s)</label>
+    </div>
+    <span class="effectif" id="effectif"></span>
+    <button type="button" id="btnExportPPT" title="Support PPT : 2 slides du département + 2 slides par équipe du département">Exporter le département (PPT)</button>
+  </div>
+
+  <h2 class="titre-radar">Radar consolidé du département</h2>
+  <div class="legende" id="legendePiliers"></div>
+  <div id="zoneRadar"></div>
+
+  <h2>Équipes du département</h2>
+  <p class="aide">Cliquez « Voir le détail » pour ouvrir les résultats complets d'une équipe.</p>
+  <div id="zoneEquipes"></div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const sessionId = new URLSearchParams(window.location.search).get('session');
+    const PALETTE = ['#2c5cc5', '#1e6b34', '#b3261e', '#b8860b', '#6a3d9a', '#138086'];
+
+    async function init() {
+      if (!sessionId) {
+        $('zoneStatut').innerHTML = '<p class="err">Lien invalide : identifiant de session manquant.</p>';
+        return;
+      }
+      const res = await fetch(`/api/sessions/${sessionId}/departements`);
+      if (!res.ok) {
+        const e = await res.json();
+        $('zoneStatut').innerHTML = `<p class="err">${e.error}</p>`;
+        return;
+      }
+      const departements = await res.json();
+      const select = $('departement');
+      if (departements.length === 0) {
+        $('zoneStatut').innerHTML = '<p class="vide">Aucune réponse soumise pour cette session.</p>';
+        return;
+      }
+      select.innerHTML = departements.map((d) => `<option value="${esc(d.departement)}">${esc(d.departement)} (${d.effectif})</option>`).join('');
+      select.addEventListener('change', chargerConsolidation);
+      $('avecManager').addEventListener('change', chargerConsolidation);
+      $('btnExportPPT').addEventListener('click', exporterPPT);
+      await chargerConsolidation();
+    }
+
+    // Export PPT (US6.4) : 2 slides du département + 2 slides par équipe du département.
+    async function exporterPPT() {
+      const departement = $('departement').value;
+      const manager = $('avecManager').checked ? 'avec' : 'sans';
+      const btn = $('btnExportPPT');
+      const libelle = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Génération…';
+      try {
+        const res = await fetch(`/api/sessions/${sessionId}/export-ppt?scope=departement&departement=${encodeURIComponent(departement)}&manager=${manager}`);
+        if (!res.ok) {
+          const e = await res.json().catch(() => ({}));
+          alert(e.error || 'Échec de la génération du PPT.');
+          return;
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Restitution-${departement.replace(/[^\w-]+/g, '_')}.pptx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = libelle;
+      }
+    }
+
+    async function chargerConsolidation() {
+      const departement = $('departement').value;
+      const manager = $('avecManager').checked ? 'avec' : 'sans';
+      const data = await (await fetch(`/api/sessions/${sessionId}/consolidation?departement=${encodeURIComponent(departement)}&manager=${manager}`)).json();
+      $('effectif').textContent = `${data.effectif} réponse(s) soumise(s) — ${data.equipes.length} équipe(s)`;
+      rendreRadar(data.piliers);
+      rendreEquipes(data.equipes);
+    }
+
+    function fmt(moyenne) {
+      return moyenne === null ? '—' : moyenne.toFixed(1);
+    }
+
+    // Libelle d'axe radar sans son contenu entre parentheses (ex. "Leadership et
+    // Culture agile (sponsorship, posture managériale, ...)" -> "Leadership et
+    // Culture agile") — mire le traitement du radar de resultats.html.
+    function libelleAxeRadar(texte) {
+      return String(texte).replace(/\s*\([^)]*\)/g, '').trim();
+    }
+
+    function decouperLabel(texte, maxCaracteres) {
+      const mots = texte.split(/\s+/);
+      const lignes = [];
+      let ligneCourante = '';
+      for (const mot of mots) {
+        const essai = ligneCourante ? `${ligneCourante} ${mot}` : mot;
+        if (essai.length > maxCaracteres && ligneCourante) {
+          lignes.push(ligneCourante);
+          ligneCourante = mot;
+        } else {
+          ligneCourante = essai;
+        }
+      }
+      if (ligneCourante) lignes.push(ligneCourante);
+      return lignes;
+    }
+
+    // Radar consolidé : un axe par objectif, coloré selon son pilier.
+    function rendreRadar(piliers) {
+      const axes = [];
+      piliers.forEach((pilier, pilierIndex) => {
+        pilier.sousCategories.forEach((sc) => axes.push({ label: esc(libelleAxeRadar(sc.nom)), valeur: sc.moyenne, pilierIndex }));
+      });
+
+      $('legendePiliers').innerHTML = piliers
+        .map((p, i) => `<div class="legende-item"><span class="legende-puce" style="background:${PALETTE[i % PALETTE.length]}"></span>${esc(p.nom)}</div>`)
+        .join('');
+
+      if (axes.length < 3) {
+        $('zoneRadar').innerHTML = '<p class="vide">Pas assez d\'objectifs pour tracer un radar.</p>';
+        return;
+      }
+
+      // Radar borne (cf. #zoneRadar svg { max-width }) pour tenir a l'ecran sans
+      // scroll ; marge de libellés resserree (les libellés sont plus courts sans
+      // leur parenthèse), police toujours plus lisible que l'original.
+      const taille = 900, centre = taille / 2, rayon = taille / 2 - 160, maxValeur = 3, n = axes.length;
+      const pointPour = (i, valeur) => {
+        const angle = -Math.PI / 2 + i * ((2 * Math.PI) / n);
+        const r = (rayon * (valeur ?? 0)) / maxValeur;
+        return [centre + r * Math.cos(angle), centre + r * Math.sin(angle)];
+      };
+
+      let svg = `<svg width="100%" height="auto" viewBox="0 0 ${taille} ${taille}" font-family="system-ui, sans-serif">`;
+      for (let niveau = 1; niveau <= maxValeur; niveau++) {
+        svg += `<polygon points="${axes.map((_, i) => pointPour(i, niveau).join(',')).join(' ')}" fill="none" stroke="#ddd" stroke-width="1" />`;
+      }
+      axes.forEach((axe, i) => {
+        const [x, y] = pointPour(i, maxValeur);
+        svg += `<line x1="${centre}" y1="${centre}" x2="${x}" y2="${y}" stroke="#ccc" stroke-width="1" />`;
+      });
+      svg += `<polygon points="${axes.map((a, i) => pointPour(i, a.valeur).join(',')).join(' ')}" fill="#2c5cc533" stroke="#2c5cc5" stroke-width="2" />`;
+      axes.forEach((axe, i) => {
+        const [x, y] = pointPour(i, axe.valeur);
+        svg += `<circle cx="${x}" cy="${y}" r="4.5" fill="${PALETTE[axe.pilierIndex % PALETTE.length]}" />`;
+      });
+      axes.forEach((axe, i) => {
+        const angle = -Math.PI / 2 + i * ((2 * Math.PI) / n);
+        const lx = centre + (rayon + 20) * Math.cos(angle);
+        const ly = centre + (rayon + 20) * Math.sin(angle);
+        const ancrage = Math.cos(angle) > 0.2 ? 'start' : Math.cos(angle) < -0.2 ? 'end' : 'middle';
+        const lignes = decouperLabel(axe.label, 22);
+        const decalageInitial = -((lignes.length - 1) * 0.6);
+        const tspans = lignes.map((ligne, li) => `<tspan x="${lx}" dy="${li === 0 ? decalageInitial : 1.2}em">${ligne}</tspan>`).join('');
+        svg += `<text x="${lx}" y="${ly}" font-size="13" fill="${PALETTE[axe.pilierIndex % PALETTE.length]}" text-anchor="${ancrage}">${tspans}</text>`;
+      });
+      svg += '</svg>';
+      $('zoneRadar').innerHTML = svg;
+    }
+
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    // Liste des équipes du département ; le zoom ouvre le détail complet (US7.3).
+    function rendreEquipes(equipes) {
+      if (equipes.length === 0) {
+        $('zoneEquipes').innerHTML = '<p class="vide">Aucune équipe pour ce département.</p>';
+        return;
+      }
+      $('zoneEquipes').innerHTML = equipes
+        .map((e) => {
+          const lien = `resultats.html?session=${encodeURIComponent(sessionId)}&equipe=${encodeURIComponent(e.equipe)}`;
+          return `<div class="equipe-row"><span class="nom">${esc(e.equipe)}</span><span class="effectif">${e.effectif} réponse(s)</span><a href="${lien}">Voir le détail →</a></div>`;
+        })
+        .join('');
+    }
+
+    init();
+  </script>
+</body>
+</html>

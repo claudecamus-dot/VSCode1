@@ -1,0 +1,206 @@
+{
+  "title": "Questionnaire de maturite agile/produit",
+  "subtitle": "MVP complet (US1.1-6.5) + Epic 7 (consolidation multi-equipes) livres ; export PPT scope par ecran (equipe / departement, radar facon web). Backlog au stade reflexion : Epic 8 (packaging & deploiement), Epic 9 (environnements DEV/PRE-PROD/PROD sur ce PC), Epic 10 (authentification) et Epic 11 (multi-clients).",
+  "items": [
+    { "phase": "reflexion", "title": "Analyse de la grille existante", "description": "Lecture de la grille Excel V3.2 : 4 piliers, ~50 questions a 4 niveaux de maturite.", "status": "done" },
+    { "phase": "reflexion", "title": "Personas", "description": "Modeliser les profils cibles (repondant, animateur/coach, management/RH) et leurs besoins.", "status": "done" },
+    { "phase": "reflexion", "title": "Experience map", "description": "Parcours bout-en-bout en 8 etapes, construit en brainstorm interactif avec le client.", "status": "done" },
+    { "phase": "reflexion", "title": "Difficultes de realisation", "description": "Risques techniques/fonctionnels/organisationnels/donnees identifies en 4 categories.", "status": "done" },
+    {
+      "phase": "conception",
+      "title": "Decoupage Epics / User Stories",
+      "description": "7 epics, ~30 US, discutes et valides epic par epic avec le client.",
+      "status": "done",
+      "subItems": [
+        { "label": "Epic1 Referentiel", "status": "done" },
+        { "label": "Epic2 Session", "status": "done" },
+        { "label": "Epic3 Identification", "status": "done" },
+        { "label": "Epic4 Reponse", "status": "done" },
+        { "label": "Epic5 Resultats", "status": "done" },
+        { "label": "Epic6 Restitution", "status": "done" },
+        { "label": "Epic7 hors MVP", "status": "todo" }
+      ]
+    },
+    { "phase": "conception", "title": "Perimetre MVP", "description": "Sous-ensemble des Epics 1-6 retenu pour un premier cycle complet utilisable ; Epic 7 (consolidation multi-equipes) exclu de ce cycle.", "status": "done" },
+    {
+      "phase": "realisation",
+      "title": "1. Collecte",
+      "description": "Import/re-import Excel, creation session, identification repondant, parcours de reponse, soumission, invitation email.",
+      "status": "done",
+      "subItems": [
+        { "label": "US1.1 import", "status": "done" },
+        { "label": "US1.2 reimport", "status": "done" },
+        { "label": "US1.3 activer pilier", "status": "done" },
+        { "label": "US1.3bis activer question", "status": "done" },
+        { "label": "US1.4 rejet si invalide", "status": "done" },
+        { "label": "US1.5 valeur niveau", "status": "done" },
+        { "label": "US1.6 conserver/remplacer import", "status": "done" },
+        { "label": "US2.1 creer session", "status": "done" },
+        { "label": "US2.2 effectif deduit", "status": "done" },
+        { "label": "US2.3 gestion roles", "status": "done" },
+        { "label": "US2.4 invitation email", "status": "done" },
+        { "label": "US2.5 rappel", "status": "done" },
+        { "label": "US2.6 sessions paralleles", "status": "done" },
+        { "label": "US3.0 nom/prenom", "status": "done" },
+        { "label": "US3.1 dept/equipe/role", "status": "done" },
+        { "label": "US3.2 manager/equipe", "status": "done" },
+        { "label": "US3.3 saisie tolerante", "status": "done" },
+        { "label": "US3.4 auto-suggestion", "status": "done" },
+        { "label": "US3.4bis fusion doublons", "status": "done" },
+        { "label": "US3.5 texte parametrable", "status": "done" },
+        { "label": "US4.1 reponse par pilier", "status": "done" },
+        { "label": "US4.2 progression", "status": "done" },
+        { "label": "US4.3 sauvegarde auto", "status": "done" },
+        { "label": "US4.3bis reprise pilier", "status": "done" },
+        { "label": "US4.4 toutes questions", "status": "done" },
+        { "label": "US4.5 modif avant confirm", "status": "done" },
+        { "label": "US4.6 verrouillage soumis", "status": "done" }
+      ]
+    },
+    {
+      "phase": "realisation",
+      "title": "2. Resultats bruts",
+      "description": "Ecrans animateur agrege/anonyme et non anonyme, calcul en temps reel — complet, livre en avance du sequencement initial.",
+      "status": "done",
+      "subItems": [
+        { "label": "US5.1 accordeon pilier", "status": "done" },
+        { "label": "US5.2 detail nominatif", "status": "done" },
+        { "label": "US5.3 filtre manager", "status": "done" },
+        { "label": "US5.4 recalcul temps reel", "status": "done" }
+      ]
+    },
+    {
+      "phase": "realisation",
+      "title": "3. Restitution",
+      "description": "Radar de maturite et pre-analyses (min/max/dispersion/taux de reponse) — radar deja livre en avance, le reste reste a faire.",
+      "status": "done",
+      "subItems": [
+        { "label": "US6.1 radar", "status": "done" },
+        { "label": "US6.2 pre-analyses", "status": "done" },
+        { "label": "US6.3 commentaire libre", "status": "done" },
+        { "label": "US6.4 export PPT", "status": "done" },
+        { "label": "US6.5 comparaison historique", "status": "done" }
+      ]
+    }
+  ],
+  "epics": [
+    {
+      "id": "Epic 1", "title": "Referentiel de questions (import Excel)",
+      "subItems": [
+        { "label": "US1.1 - import Excel", "status": "done" },
+        { "label": "US1.2 - re-import", "status": "done" },
+        { "label": "US1.3 - activer pilier", "status": "done" },
+        { "label": "US1.3bis - activer question", "status": "done" },
+        { "label": "US1.4 - rejet si invalide", "status": "done" },
+        { "label": "US1.5 - valeur de niveau", "status": "done" },
+        { "label": "US1.6 - conserver/remplacer a l'import", "status": "done" }
+      ]
+    },
+    {
+      "id": "Epic 2", "title": "Lancement et gestion d'une session",
+      "subItems": [
+        { "label": "US2.1 - creer session", "status": "done" },
+        { "label": "US2.2 - effectif deduit", "status": "done" },
+        { "label": "US2.3 - gestion des roles", "status": "done" },
+        { "label": "US2.4 - invitation email", "status": "done" },
+        { "label": "US2.5 - rappel", "status": "done" },
+        { "label": "US2.6 - sessions paralleles", "status": "done" }
+      ]
+    },
+    {
+      "id": "Epic 3", "title": "Identification du repondant",
+      "subItems": [
+        { "label": "US3.0 - nom/prenom", "status": "done" },
+        { "label": "US3.1 - dept/equipe/role", "status": "done" },
+        { "label": "US3.2 - manager/equipe", "status": "done" },
+        { "label": "US3.3 - saisie tolerante", "status": "done" },
+        { "label": "US3.4 - auto-suggestion", "status": "done" },
+        { "label": "US3.4bis - fusion doublons", "status": "done" },
+        { "label": "US3.5 - texte parametrable", "status": "done" }
+      ]
+    },
+    {
+      "id": "Epic 4", "title": "Parcours de reponse au questionnaire",
+      "subItems": [
+        { "label": "US4.1 - reponse par pilier", "status": "done" },
+        { "label": "US4.2 - progression", "status": "done" },
+        { "label": "US4.3 - sauvegarde auto", "status": "done" },
+        { "label": "US4.3bis - reprise pilier", "status": "done" },
+        { "label": "US4.4 - toutes les questions", "status": "done" },
+        { "label": "US4.5 - modif avant confirm", "status": "done" },
+        { "label": "US4.6 - verrouillage soumis", "status": "done" }
+      ]
+    },
+    {
+      "id": "Epic 5", "title": "Agregation et consultation des resultats",
+      "subItems": [
+        { "label": "US5.1 - accordeon pilier", "status": "done" },
+        { "label": "US5.2 - detail nominatif", "status": "done" },
+        { "label": "US5.3 - filtre manager", "status": "done" },
+        { "label": "US5.4 - recalcul temps reel", "status": "done" }
+      ]
+    },
+    {
+      "id": "Epic 6", "title": "Analyse et restitution",
+      "subItems": [
+        { "label": "US6.1 - radar", "status": "done" },
+        { "label": "US6.2 - pre-analyses", "status": "done" },
+        { "label": "US6.3 - commentaire libre", "status": "done" },
+        { "label": "US6.4 - export PPT", "status": "done" },
+        { "label": "US6.5 - comparaison historique", "status": "done" }
+      ]
+    },
+    {
+      "id": "Epic 7", "title": "Consolidation multi-equipes (Sponsor/RH/Direction)",
+      "scope": "hors-mvp",
+      "subItems": [
+        { "label": "US7.1 - ecran dedie", "status": "done" },
+        { "label": "US7.2 - radar departement", "status": "done" },
+        { "label": "US7.3 - zoom equipe", "status": "done" }
+      ]
+    },
+    {
+      "id": "Epic 8", "title": "Packaging et deploiement",
+      "subItems": [
+        { "label": "US8.1 - packaging reproductible", "status": "todo", "phase": "reflexion" },
+        { "label": "US8.2 - config & persistance/sauvegarde DB", "status": "todo", "phase": "reflexion" },
+        { "label": "US8.3 - package portable autoportant", "status": "todo", "phase": "reflexion" },
+        { "label": "US8.4 - runbook install pas-a-pas serveur", "status": "todo", "phase": "reflexion" },
+        { "label": "US8.5 - conteneurisation (Dockerfile)", "status": "todo", "phase": "reflexion" },
+        { "label": "US8.6 - deploiement cloud", "status": "todo", "phase": "reflexion" }
+      ]
+    },
+    {
+      "id": "Epic 9", "title": "Environnements DEV / PRE-PROD / PROD (sur ce PC)",
+      "subItems": [
+        { "label": "US9.1 - 3 environnements isoles (port/data/DB)", "status": "todo", "phase": "reflexion" },
+        { "label": "US9.2 - scripts start/stop par environnement", "status": "todo", "phase": "reflexion" },
+        { "label": "US9.3 - promotion/MAJ selon avancement (DEV->PRE-PROD->PROD)", "status": "todo", "phase": "reflexion" },
+        { "label": "US9.4 - separation & sauvegarde des donnees", "status": "todo", "phase": "reflexion" },
+        { "label": "US9.5 - bandeau environnement dans l'UI", "status": "todo", "phase": "reflexion" }
+      ]
+    },
+    {
+      "id": "Epic 10", "title": "Authentification et gestion des acces",
+      "subItems": [
+        { "label": "US10.1 - authentification animateur", "status": "todo", "phase": "reflexion" },
+        { "label": "US10.2 - protection des routes API", "status": "todo", "phase": "reflexion" },
+        { "label": "US10.3 - niveaux d'acces (animateur/pilotage lecture seule)", "status": "todo", "phase": "reflexion" },
+        { "label": "US10.4 - cycle de vie des comptes", "status": "todo", "phase": "reflexion" },
+        { "label": "US10.5 - repondant hors perimetre (reste sans compte)", "status": "todo", "phase": "reflexion" },
+        { "label": "US10.6 - securite des sessions de connexion", "status": "todo", "phase": "reflexion" }
+      ]
+    },
+    {
+      "id": "Epic 11", "title": "Gestion de plusieurs clients (organisations) avec sessions separees",
+      "subItems": [
+        { "label": "US11.1 - notion de client (cloisonnement 1er niveau)", "status": "todo", "phase": "reflexion" },
+        { "label": "US11.2 - acces/donnees limites au client actif", "status": "todo", "phase": "reflexion" },
+        { "label": "US11.3 - selecteur de client actif", "status": "todo", "phase": "reflexion" },
+        { "label": "US11.4 - referentiel propre par client", "status": "todo", "phase": "reflexion" },
+        { "label": "US11.5 - vue pilotage scopee a un seul client", "status": "todo", "phase": "reflexion" },
+        { "label": "US11.6 - migration des donnees existantes vers un client par defaut", "status": "todo", "phase": "reflexion" }
+      ]
+    }
+  ]
+}

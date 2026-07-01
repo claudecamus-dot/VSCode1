@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Questionnaire de maturité agile/produit</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 720px; margin: 1.5rem auto; padding: 0 1rem; color: #222; }
+  h1 { font-size: 1.3rem; }
+  .notice { background: #fff8e1; border: 1px solid #f0d28a; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.92rem; white-space: pre-wrap; }
+  label { display: block; margin: 0.75rem 0 0.25rem; font-weight: 600; }
+  input, select { width: 100%; padding: 0.55rem; box-sizing: border-box; font-size: 1rem; }
+  .checkbox-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; }
+  .checkbox-row input { width: auto; }
+  button { margin-top: 1.25rem; padding: 0.65rem 1.3rem; font-size: 1rem; cursor: pointer; }
+  .progress { font-weight: 600; margin-bottom: 1rem; }
+  .pilier-nav { display: flex; flex-wrap: nowrap; align-items: stretch; gap: 0.4rem; margin-bottom: 0.75rem; }
+  .pilier-nav button { flex: 1; min-width: 0; background: #eee; border: 1px solid #ccc; border-radius: 6px; padding: 0.5rem 0.3rem; font-size: 0.85rem; white-space: normal; line-height: 1.2; }
+  .pilier-nav button.actif { background: #2c5cc5; color: white; }
+  .pilier-nav button.complet { background: #1e6b34; color: white; }
+  .consigne { font-size: 0.9rem; color: #444; margin: 0.4rem 0; }
+  .question { border: 1px solid #ddd; border-radius: 8px; padding: 0.85rem; margin-bottom: 0.9rem; font-size: 0.92rem; }
+  .question p { margin-bottom: 0.55rem; }
+  .question p strong { font-size: 0.98rem; }
+  .echelle { display: flex; gap: 0.45rem; margin: 0.45rem 0; }
+  .segment { flex: 1; text-align: center; border: 1px solid #ccc; border-radius: 8px; padding: 0.45rem 0.25rem; cursor: pointer; font-weight: 700; font-size: 0.86rem; margin: 0; }
+  .segment:has(input:checked) { border-color: #2c5cc5; background: #eef2fc; color: #2c5cc5; }
+  .segment input { display: none; }
+  .encart-detail { border: 1px solid #2c5cc5; border-radius: 8px; padding: 0.65rem 0.8rem; background: #f4f6fb; font-size: 0.86rem; min-height: 1.2em; }
+  .encart-detail.vide { border-style: dashed; border-color: #ccc; background: transparent; color: #888; font-style: italic; }
+  .err { color: #b3261e; margin-top: 0.5rem; }
+  .ok { color: #1e6b34; margin-top: 0.5rem; }
+  .actions { display: flex; justify-content: flex-end; gap: 0.75rem; align-items: center; margin-top: 1rem; flex-wrap: wrap; }
+  .actions button { min-width: 180px; }
+  .actions button:disabled { opacity: 0.55; cursor: not-allowed; }
+  .fin-soumission { font-size: 1.2rem; font-weight: 700; margin-top: 1.2rem; color: #1e6b34; }
+  .hidden { display: none; }
+</style>
+<script src="/env-banner.js" defer></script>
+</head>
+<body>
+  <h1>Questionnaire de maturité agile/produit</h1>
+
+  <div id="zoneStatutSession"></div>
+
+  <form id="formIdentification" class="hidden">
+    <div class="notice" id="noticeIdentification"></div>
+    <label for="email">Email</label>
+    <input id="email" type="email" required />
+    <label for="nom">Nom</label>
+    <input id="nom" required />
+    <label for="prenom">Prénom</label>
+    <input id="prenom" required />
+    <label for="departement">Département</label>
+    <input id="departement" required list="suggestionsDepartement" />
+    <datalist id="suggestionsDepartement"></datalist>
+    <label for="equipe">Équipe</label>
+    <input id="equipe" required list="suggestionsEquipe" />
+    <datalist id="suggestionsEquipe"></datalist>
+    <p class="consigne">Choisissez dans la liste si votre département/équipe y figure ; sinon, saisissez-le librement (la casse et les accents sont sans importance).</p>
+    <label for="role">Rôle</label>
+    <select id="role" required></select>
+    <div class="checkbox-row"><input type="checkbox" id="estManager" /><label for="estManager" style="margin:0">Je suis manager</label></div>
+    <div class="checkbox-row"><input type="checkbox" id="dansEquipe" /><label for="dansEquipe" style="margin:0">Je fais partie de cette équipe au quotidien</label></div>
+    <button type="submit">Commencer le questionnaire</button>
+    <div id="erreurIdentification" class="err"></div>
+  </form>
+
+  <div id="zoneQuestionnaire" class="hidden">
+    <div class="progress" id="progression"></div>
+    <div class="pilier-nav" id="navigationPiliers"></div>
+    <div id="zonePilierCourant"></div>
+    <div id="zoneSoumission"></div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const sessionId = new URLSearchParams(window.location.search).get('session');
+    const storageKey = `repondant:${sessionId}`;
+
+    // Echappement HTML : le referentiel importe (noms de pilier/objectif, texte
+    // de question/niveau) et les suggestions departement/equipe deja saisies par
+    // d'autres repondants sont injectes dans du innerHTML — sans cet echappement,
+    // un contenu contenant "<...>" casserait la page ou s'y executerait.
+    function esc(valeur) {
+      return String(valeur).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    let referentiel = [];
+    let reponsesEnCours = {}; // questionId -> choix
+    let repondant = null;
+    let pilierActifIndex = 0;
+    let piliersSauvegardes = new Set();
+
+    async function init() {
+      if (!sessionId) {
+        $('zoneStatutSession').innerHTML = '<p class="err">Lien invalide : identifiant de session manquant.</p>';
+        return;
+      }
+      const sessionRes = await fetch(`/api/sessions/${sessionId}`);
+      const session = await sessionRes.json();
+      if (!sessionRes.ok) {
+        $('zoneStatutSession').innerHTML = `<p class="err">${session.error}</p>`;
+        return;
+      }
+      $('noticeIdentification').textContent = session.texte_intro;
+      if (session.statut !== 'ouverte') {
+        const messages = { pas_encore_ouverte: "Cette session n'est pas encore ouverte.", fermee: 'Cette session est fermée.' };
+        $('zoneStatutSession').innerHTML = `<p class="err">${messages[session.statut]}</p>`;
+        return;
+      }
+
+      const repondantId = localStorage.getItem(storageKey);
+      if (repondantId) {
+        const ok = await chargerRepondant(repondantId);
+        if (ok) return;
+      }
+      await afficherFormulaireIdentification();
+    }
+
+    async function afficherFormulaireIdentification() {
+      const roles = await (await fetch('/api/roles')).json();
+      const selectRole = $('role');
+      selectRole.innerHTML = roles.map((r) => `<option value="${esc(r)}">${esc(r)}</option>`).join('');
+
+      const departements = await (await fetch('/api/departements')).json();
+      $('suggestionsDepartement').innerHTML = departements.map((d) => `<option value="${esc(d)}"></option>`).join('');
+      const equipes = await (await fetch('/api/equipes')).json();
+      $('suggestionsEquipe').innerHTML = equipes.map((e) => `<option value="${esc(e)}"></option>`).join('');
+
+      $('formIdentification').classList.remove('hidden');
+    }
+
+    $('formIdentification').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      $('erreurIdentification').textContent = '';
+      const corps = {
+        email: $('email').value,
+        nom: $('nom').value,
+        prenom: $('prenom').value,
+        departement: $('departement').value,
+        equipe: $('equipe').value,
+        role: $('role').value,
+        est_manager: $('estManager').checked,
+        dans_equipe: $('dansEquipe').checked,
+      };
+      const res = await fetch(`/api/sessions/${sessionId}/repondants`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(corps),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        $('erreurIdentification').textContent = data.error;
+        return;
+      }
+      localStorage.setItem(storageKey, data.id);
+      $('formIdentification').classList.add('hidden');
+      await chargerRepondant(data.id);
+    });
+
+    async function chargerRepondant(repondantId) {
+      const res = await fetch(`/api/repondants/${repondantId}`);
+      if (!res.ok) {
+        localStorage.removeItem(storageKey);
+        return false;
+      }
+      repondant = await res.json();
+      reponsesEnCours = {};
+      for (const r of repondant.reponses) reponsesEnCours[r.question_id] = r.niveau;
+
+      referentiel = await (await fetch(`/api/sessions/${sessionId}/referentiel`)).json();
+      piliersSauvegardes = new Set(
+        referentiel
+          .filter((pilier) => pilierQuestions(pilier).every((q) => repondant.reponses.some((r) => r.question_id === q.id)))
+          .map((pilier) => pilier.id)
+      );
+      $('zoneQuestionnaire').classList.remove('hidden');
+
+      if (repondant.soumis_at) {
+        afficherSoumissionFaite();
+        return true;
+      }
+
+      pilierActifIndex = referentiel.findIndex((p) => !pilierEstComplet(p));
+      if (pilierActifIndex === -1) pilierActifIndex = 0;
+      rendreNavigation();
+      rendrePilierCourant();
+      return true;
+    }
+
+    function pilierQuestions(pilier) {
+      return pilier.sousCategories.flatMap((sc) => sc.questions);
+    }
+
+    function pilierEstComplet(pilier) {
+      return pilierQuestions(pilier).every((q) => reponsesEnCours[q.id] !== undefined);
+    }
+
+    function rendreNavigation() {
+      const nav = $('navigationPiliers');
+      nav.innerHTML = referentiel
+        .map((p, i) => {
+          const classe = i === pilierActifIndex ? 'actif' : pilierEstComplet(p) ? 'complet' : '';
+          return `<button data-index="${i}" class="${classe}">${esc(p.nom)}</button>`;
+        })
+        .join('');
+      nav.querySelectorAll('button').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          pilierActifIndex = Number(btn.dataset.index);
+          rendreNavigation();
+          rendrePilierCourant();
+        });
+      });
+
+      const totalQuestions = referentiel.reduce((s, p) => s + pilierQuestions(p).length, 0);
+      const repondues = Object.keys(reponsesEnCours).length;
+      $('progression').textContent = `${repondues} / ${totalQuestions} questions répondues — il en reste ${totalQuestions - repondues}.`;
+    }
+
+    function rendrePilierCourant() {
+      const pilier = referentiel[pilierActifIndex];
+      const zone = $('zonePilierCourant');
+      zone.innerHTML = pilier.sousCategories
+        .map(
+          (sc) => `
+        <h3>${esc(sc.nom)}</h3>
+        ${sc.questions
+          .map((q) => {
+            const choixSelectionne = reponsesEnCours[q.id];
+            const choixInfo = q.niveaux.find((n) => n.niveau === choixSelectionne);
+            return `
+          <div class="question">
+            <p><strong>${esc(q.texte)}</strong></p>
+            <div class="echelle">
+              ${q.niveaux
+                .map(
+                  (n) => `
+                <label class="segment">
+                  <input type="radio" name="q${q.id}" value="${n.niveau}" ${choixSelectionne === n.niveau ? 'checked' : ''} />
+                  Choix ${n.niveau}
+                </label>`
+                )
+                .join('')}
+            </div>
+            <div class="encart-detail ${choixInfo ? '' : 'vide'}" id="detail-q${q.id}">${
+              choixInfo ? esc(choixInfo.texte) : 'Sélectionnez un choix pour en voir le détail.'
+            }</div>
+          </div>`;
+          })
+          .join('')}`
+        )
+        .join('');
+      zone.querySelectorAll('input[type=radio]').forEach((input) => {
+        input.addEventListener('change', () => {
+          const questionId = Number(input.name.slice(1));
+          reponsesEnCours[questionId] = Number(input.value);
+          const question = pilierQuestions(pilier).find((q) => q.id === questionId);
+          const choixInfo = question.niveaux.find((n) => n.niveau === Number(input.value));
+          const encart = $(`detail-q${questionId}`);
+          encart.textContent = choixInfo.texte;
+          encart.classList.remove('vide');
+          piliersSauvegardes.delete(pilier.id);
+          rendreZoneSoumission();
+        });
+      });
+
+      rendreZoneSoumission();
+    }
+
+    async function validerPilierCourant(pilier) {
+      const erreurEl = $('erreurAction');
+      if (erreurEl) erreurEl.textContent = '';
+      const reponses = pilierQuestions(pilier).map((q) => ({ question_id: q.id, niveau: reponsesEnCours[q.id] }));
+      if (reponses.some((r) => r.niveau === undefined)) {
+        if (erreurEl) erreurEl.textContent = 'Répondez à toutes les questions de ce pilier avant de le valider.';
+        return;
+      }
+      const res = await fetch(`/api/repondants/${repondant.id}/piliers/${pilier.id}/reponses`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reponses }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (erreurEl) erreurEl.textContent = data.error;
+        return;
+      }
+      piliersSauvegardes.add(pilier.id);
+      rendreNavigation();
+      const prochainIndex = referentiel.findIndex((_, idx) => idx > pilierActifIndex && !pilierEstComplet(referentiel[idx]));
+      if (prochainIndex !== -1) pilierActifIndex = prochainIndex;
+      rendrePilierCourant();
+    }
+
+    function rendreZoneSoumission() {
+      const zone = $('zoneSoumission');
+      const complet = referentiel.every((p) => pilierEstComplet(p));
+      const tousSauvegardes = referentiel.every((p) => piliersSauvegardes.has(p.id));
+      let actionHtml = `<button type="button" id="btnValiderPilier">Continuer</button>`;
+      let submitHtml = '';
+
+      if (!complet) {
+        actionHtml = `<button type="button" id="btnValiderPilier">Continuer</button>`;
+      } else if (tousSauvegardes) {
+        actionHtml = `<button type="button" id="btnValiderPilier" disabled>Continuer</button>`;
+        submitHtml = `<button type="button" id="btnSoumettre">Confirmer et soumettre définitivement</button>`;
+      } else {
+        actionHtml = `<button type="button" id="btnValiderPilier">Continuer</button>`;
+      }
+
+      zone.innerHTML = `<div class="actions">${actionHtml}${submitHtml}</div><div id="erreurAction" class="err"></div>`;
+      $('btnValiderPilier').addEventListener('click', () => validerPilierCourant(referentiel[pilierActifIndex]));
+      if (submitHtml) {
+        $('btnSoumettre').addEventListener('click', soumettre);
+      }
+    }
+
+    async function soumettre() {
+      const res = await fetch(`/api/repondants/${repondant.id}/soumission`, { method: 'POST' });
+      const data = await res.json();
+      const erreurEl = $('erreurAction');
+      if (!res.ok) {
+        if (erreurEl) erreurEl.textContent = data.error;
+        return;
+      }
+      if (erreurEl) erreurEl.textContent = '';
+      afficherSoumissionFaite();
+    }
+
+    function afficherSoumissionFaite() {
+      $('navigationPiliers').innerHTML = '';
+      $('zonePilierCourant').innerHTML = '<p class="fin-soumission">Merci, votre questionnaire a bien été soumis. Vos réponses ont été enregistrées avec succès.</p>';
+      $('zoneSoumission').innerHTML = '';
+    }
+
+    init();
+  </script>
+</body>
+</html>
