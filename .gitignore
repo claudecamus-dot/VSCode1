@@ -2,3 +2,13 @@ node_modules/
 dist/
 **/__pycache__/
 *.pyc
+
+# Claude Code — réglages/notes propres à une machine ou une personne (jamais
+# partagés), à distinguer de .claude/settings.json et .claude/skills|hooks|
+# agents/ qui eux restent versionnés pour toute l'équipe.
+.claude/settings.local.json
+CLAUDE.local.md
+
+# Roadmap — .roadmap/roadmap.json est la source de vérité versionnée ;
+# le .svg est régénéré à la demande par le skill roadmap-keeper.
+.roadmap/*.svg

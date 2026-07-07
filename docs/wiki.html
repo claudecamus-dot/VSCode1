@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wiki — Questionnaire de maturité agile/produit</title>
+<style>
+  :root {
+    --font-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', serif;
+    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-mono: 'Cascadia Code', 'SF Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+
+    --bg: #f5f6fb;
+    --surface: #ffffff;
+    --surface-2: #edeff7;
+    --ink: #1b1f3b;
+    --ink-soft: #4a4f72;
+    --ink-faint: #8489ab;
+    --line: #d8dbec;
+    --line-soft: #e8eaf5;
+
+    --accent: #5b3fae;
+    --accent-soft: #ece7fb;
+    --accent-ink: #33245c;
+
+    --confirmed: #1e7a4c;
+    --confirmed-soft: #e3f5ec;
+    --deduit: #a6650a;
+    --deduit-soft: #fbeddc;
+    --incertain: #b3261e;
+    --incertain-soft: #fbe4e2;
+
+    --shadow: 0 1px 2px rgba(27,31,59,0.06), 0 4px 16px rgba(27,31,59,0.06);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14162b;
+      --surface: #1c1f3a;
+      --surface-2: #242847;
+      --ink: #eef0fb;
+      --ink-soft: #b9bcdb;
+      --ink-faint: #7f84ab;
+      --line: #343a63;
+      --line-soft: #2a2f52;
+
+      --accent: #9c86e8;
+      --accent-soft: #2c2657;
+      --accent-ink: #e3d9ff;
+
+      --confirmed: #5fcf95;
+      --confirmed-soft: #163627;
+      --deduit: #e0a640;
+      --deduit-soft: #3a2c12;
+      --incertain: #f08b83;
+      --incertain-soft: #3d1c1a;
+
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #14162b; --surface: #1c1f3a; --surface-2: #242847;
+    --ink: #eef0fb; --ink-soft: #b9bcdb; --ink-faint: #7f84ab;
+    --line: #343a63; --line-soft: #2a2f52;
+    --accent: #9c86e8; --accent-soft: #2c2657; --accent-ink: #e3d9ff;
+    --confirmed: #5fcf95; --confirmed-soft: #163627;
+    --deduit: #e0a640; --deduit-soft: #3a2c12;
+    --incertain: #f08b83; --incertain-soft: #3d1c1a;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+  }
+
+  :root[data-theme="light"] {
+    --bg: #f5f6fb; --surface: #ffffff; --surface-2: #edeff7;
+    --ink: #1b1f3b; --ink-soft: #4a4f72; --ink-faint: #8489ab;
+    --line: #d8dbec; --line-soft: #e8eaf5;
+    --accent: #5b3fae; --accent-soft: #ece7fb; --accent-ink: #33245c;
+    --confirmed: #1e7a4c; --confirmed-soft: #e3f5ec;
+    --deduit: #a6650a; --deduit-soft: #fbeddc;
+    --incertain: #b3261e; --incertain-soft: #fbe4e2;
+    --shadow: 0 1px 2px rgba(27,31,59,0.06), 0 4px 16px rgba(27,31,59,0.06);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    line-height: 1.55;
+    font-size: 16px;
+  }
+  h1, h2, h3, h4 { font-family: var(--font-display); color: var(--ink); font-weight: 600; letter-spacing: -0.01em; }
+  h1 { font-size: 2rem; margin: 0 0 .3em; }
+  h2 { font-size: 1.5rem; margin: 2em 0 .6em; padding-top: .4em; border-top: 1px solid var(--line-soft); }
+  h2:first-of-type { border-top: none; padding-top: 0; }
+  h3 { font-size: 1.15rem; margin: 1.6em 0 .5em; color: var(--accent-ink); }
+  h4 { font-size: 1rem; margin: 1.2em 0 .4em; }
+  p { margin: .6em 0; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code { font-family: var(--font-mono); font-size: .92em; background: var(--surface-2); padding: .12em .35em; border-radius: 4px; color: var(--accent-ink); }
+  ul, ol { padding-left: 1.4em; }
+  li { margin: .3em 0; }
+
+  .layout { display: flex; min-height: 100vh; max-width: 1400px; margin: 0 auto; }
+
+  /* --- Sidebar --- */
+  .sidebar {
+    width: 270px;
+    flex: 0 0 270px;
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 1.6em 1.2em 3em;
+    border-right: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .sidebar-title { font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; margin: 0 0 .2em; color: var(--ink); }
+  .sidebar-sub { font-size: .78rem; color: var(--ink-faint); margin: 0 0 1.4em; }
+  .theme-toggle { display: flex; gap: .3em; margin-bottom: 1.6em; }
+  .theme-toggle button {
+    flex: 1; font-family: var(--font-body); font-size: .74rem; padding: .4em .3em; border-radius: 6px;
+    border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-soft); cursor: pointer;
+  }
+  .theme-toggle button:hover { border-color: var(--accent); color: var(--accent-ink); }
+  .toc-group { margin-bottom: 1.4em; }
+  .toc-group-title {
+    font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-faint);
+    margin: 0 0 .5em; font-weight: 700;
+  }
+  .toc-link {
+    display: block; font-size: .88rem; color: var(--ink-soft); padding: .32em .5em; border-radius: 6px;
+    text-decoration: none; border-left: 2px solid transparent;
+  }
+  .toc-link:hover { background: var(--surface-2); color: var(--accent-ink); text-decoration: none; }
+
+  /* --- Main --- */
+  main { flex: 1; min-width: 0; padding: 2.6em 3em 6em; }
+  .doc-meta { display: flex; gap: .5em; flex-wrap: wrap; align-items: center; margin-bottom: 1.6em; }
+  .doc-meta .tag-confirme, .doc-meta .tag-deduit, .doc-meta .tag-incertain { font-size: .7rem; }
+  section.doc { margin-bottom: 4.5em; }
+  section.doc > .doc-header { margin-bottom: 1.2em; }
+  .doc-path { font-family: var(--font-mono); font-size: .78rem; color: var(--ink-faint); }
+
+  /* --- Fact blocks --- */
+  .fact {
+    border-left: 3px solid var(--line);
+    background: var(--surface);
+    padding: .8em 1em;
+    margin: .8em 0;
+    border-radius: 0 8px 8px 0;
+    box-shadow: var(--shadow);
+  }
+  .fact.accent { border-left-color: var(--accent); background: var(--accent-soft); }
+  .fact p { margin: 0 0 .5em; }
+  .fact p:last-child { margin-bottom: 0; }
+  .fact-label {
+    display: inline-block; font-family: var(--font-mono); font-size: .74rem; color: var(--ink-faint);
+    margin-left: .4em;
+  }
+
+  .critical {
+    border: 1px solid var(--incertain);
+    background: var(--incertain-soft);
+    padding: 1em 1.2em;
+    border-radius: 10px;
+    margin: 1em 0;
+  }
+  .critical p { margin: .3em 0; }
+  .critical strong { color: var(--incertain); }
+
+  /* --- Tags --- */
+  .tag {
+    display: inline-block; font-family: var(--font-mono); font-size: .72rem; font-weight: 700;
+    padding: .15em .55em; border-radius: 999px; letter-spacing: .02em; vertical-align: middle;
+  }
+  .tag-confirme { background: var(--confirmed-soft); color: var(--confirmed); }
+  .tag-deduit { background: var(--deduit-soft); color: var(--deduit); }
+  .tag-incertain { background: var(--incertain-soft); color: var(--incertain); }
+
+  /* --- Chips --- */
+  .chip-row { display: flex; flex-wrap: wrap; gap: .5em; margin: .8em 0; }
+  .chip-pill {
+    background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-soft);
+    font-size: .82rem; padding: .3em .8em; border-radius: 999px;
+  }
+
+  /* --- Tables --- */
+  .table-wrap { overflow-x: auto; margin: 1em 0; border: 1px solid var(--line); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; min-width: 480px; }
+  thead th {
+    text-align: left; background: var(--surface-2); color: var(--ink-soft); font-weight: 700;
+    padding: .6em .9em; border-bottom: 1px solid var(--line); white-space: nowrap;
+  }
+  tbody td { padding: .6em .9em; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface-2); }
+
+  /* --- Tree --- */
+  .tree {
+    font-family: var(--font-mono); font-size: .82rem; background: var(--surface-2);
+    border: 1px solid var(--line); border-radius: 10px; padding: 1.2em 1.4em;
+    white-space: pre; overflow-x: auto; color: var(--ink-soft); line-height: 1.5;
+  }
+
+  /* --- Stats --- */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .9em; margin: 1.2em 0; }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 1em 1.1em;
+    box-shadow: var(--shadow);
+  }
+  .stat-card .stat-value { font-family: var(--font-display); font-size: 1.7rem; color: var(--accent-ink); font-weight: 700; }
+  .stat-card .stat-caption { font-size: .78rem; color: var(--ink-faint); margin-top: .2em; }
+  .stat-strip { display: flex; flex-wrap: wrap; gap: .6em 1.6em; margin: 1em 0; padding: .8em 0; border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }
+  .stat-strip .stat-item { font-size: .86rem; color: var(--ink-soft); }
+  .stat-strip .stat-item strong { color: var(--ink); font-family: var(--font-mono); }
+
+  /* --- Decisions --- */
+  .decision-grid { display: flex; flex-direction: column; gap: .6em; margin: 1em 0; }
+  .decision-row {
+    display: flex; gap: .8em; align-items: flex-start; padding: .8em 1em; background: var(--surface);
+    border: 1px solid var(--line); border-radius: 10px;
+  }
+  .decision-tag {
+    flex: 0 0 auto; font-size: .7rem; font-family: var(--font-mono); text-transform: uppercase;
+    background: var(--accent-soft); color: var(--accent-ink); padding: .25em .6em; border-radius: 6px; margin-top: .1em;
+  }
+  .decision-row p { margin: 0; font-size: .92rem; }
+
+  /* --- Timeline --- */
+  .mvp-timeline { position: relative; margin: 1.4em 0 1.4em .6em; padding-left: 1.6em; border-left: 2px solid var(--line); }
+  .mvp-step { position: relative; padding: .3em 0 1.2em 1em; font-size: .92rem; color: var(--ink-soft); }
+  .mvp-step::before {
+    content: ''; position: absolute; left: -1.66em; top: .5em; width: 10px; height: 10px; border-radius: 50%;
+    background: var(--accent); border: 2px solid var(--surface);
+  }
+  .mvp-step.future::before { background: var(--ink-faint); }
+  .mvp-step.future { color: var(--ink-faint); }
+  .mvp-label { display: block; font-family: var(--font-display); font-weight: 700; color: var(--ink); margin-bottom: .15em; }
+  .mvp-step.future .mvp-label { color: var(--ink-faint); }
+
+  /* --- Agent / workflow cards --- */
+  .agent-grid, .wf-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: .8em; margin: 1em 0; }
+  .agent-card, .wf-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: .9em 1em;
+    font-size: .88rem; color: var(--ink-soft); box-shadow: var(--shadow);
+  }
+  .agent-card strong, .wf-card strong { color: var(--ink); }
+
+  /* --- Shadow list --- */
+  .shadow-list { list-style: none; padding-left: 0; margin: 1em 0; }
+  .shadow-list li {
+    position: relative; padding: .5em .9em .5em 2.2em; margin: .4em 0; background: var(--surface-2);
+    border-radius: 8px; font-size: .89rem; color: var(--ink-soft);
+  }
+  .shadow-list li::before {
+    content: '?'; position: absolute; left: .7em; top: .4em; width: 1.2em; height: 1.2em; border-radius: 50%;
+    background: var(--incertain-soft); color: var(--incertain); font-family: var(--font-mono); font-weight: 700;
+    font-size: .8rem; text-align: center; line-height: 1.2em;
+  }
+
+  footer.page-footer { text-align: center; color: var(--ink-faint); font-size: .78rem; padding: 2em 0; }
+
+  @media (max-width: 900px) {
+    .layout { flex-direction: column; }
+    .sidebar { position: relative; width: 100%; height: auto; flex: none; border-right: none; border-bottom: 1px solid var(--line); }
+    main { padding: 2em 1.4em 4em; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <nav class="sidebar">
+    <p class="sidebar-title">Questionnaire de maturité agile/produit</p>
+    <p class="sidebar-sub">Wiki technique — mis à jour 2026-07-07</p>
+
+    <div class="theme-toggle">
+      <button onclick="setTheme('light')">Clair</button>
+      <button onclick="setTheme('dark')">Sombre</button>
+      <button onclick="setTheme('')">Auto</button>
+    </div>
+
+    <div class="toc-group">
+      <p class="toc-group-title">Vue d'ensemble</p>
+      <a class="toc-link" href="#vue-ensemble">Présentation</a>
+      <a class="toc-link" href="#god-nodes">God nodes</a>
+      <a class="toc-link" href="#points-critiques">Points critiques</a>
+      <a class="toc-link" href="#zones-ombre">Zones d'ombre</a>
+      <a class="toc-link" href="#roadmap">Roadmap</a>
+      <a class="toc-link" href="#agents">Agents recommandés</a>
+    </div>
+
+    <div class="toc-group">
+      <p class="toc-group-title">Métier</p>
+      <a class="toc-link" href="#metier-vue">Vue d'ensemble</a>
+      <a class="toc-link" href="#personas">Personas</a>
+      <a class="toc-link" href="#parcours">Parcours (8 étapes)</a>
+      <a class="toc-link" href="#difficultes">Difficultés identifiées</a>
+      <a class="toc-link" href="#epics">Découpage Epics</a>
+    </div>
+
+    <div class="toc-group">
+      <p class="toc-group-title">Stack technique</p>
+      <a class="toc-link" href="#stack-runtime">Runtime &amp; serveur</a>
+      <a class="toc-link" href="#stack-deps">Dépendances npm</a>
+      <a class="toc-link" href="#stack-hors-npm">Dépendances hors npm</a>
+      <a class="toc-link" href="#stack-env">Variables d'environnement</a>
+      <a class="toc-link" href="#stack-environnements">3 environnements</a>
+    </div>
+
+    <div class="toc-group">
+      <p class="toc-group-title">Architecture</p>
+      <a class="toc-link" href="#archi-flux">Flux de requête</a>
+      <a class="toc-link" href="#archi-structure">Structure du code</a>
+      <a class="toc-link" href="#archi-donnees">Modèle de données</a>
+      <a class="toc-link" href="#archi-decisions">Décisions notables</a>
+      <a class="toc-link" href="#archi-fragilites">Fragilités connues</a>
+    </div>
+
+    <div class="toc-group">
+      <p class="toc-group-title">Conventions</p>
+      <a class="toc-link" href="#conv-lint">Linting / formatage</a>
+      <a class="toc-link" href="#conv-nommage">Nommage</a>
+      <a class="toc-link" href="#conv-erreurs">Erreurs &amp; validation</a>
+      <a class="toc-link" href="#conv-git">Git</a>
+      <a class="toc-link" href="#conv-secrets">Secrets</a>
+      <a class="toc-link" href="#conv-patterns">Patterns d'équipe</a>
+    </div>
+
+    <div class="toc-group">
+      <p class="toc-group-title">Tests</p>
+      <a class="toc-link" href="#tests-frameworks">Frameworks</a>
+      <a class="toc-link" href="#tests-organisation">Organisation</a>
+      <a class="toc-link" href="#tests-incoherence">Incohérence doc/code</a>
+      <a class="toc-link" href="#tests-couverture">Couverture</a>
+      <a class="toc-link" href="#tests-philosophie">Philosophie</a>
+    </div>
+  </nav>
+
+  <main>
+
+    <!-- ============ INDEX ============ -->
+    <section class="doc" id="vue-ensemble">
+      <div class="doc-header">
+        <span class="doc-path">docs/wiki/index.md</span>
+        <h1>Vue d'ensemble</h1>
+        <div class="doc-meta">
+          <span class="tag tag-deduit">mixed</span>
+          <span class="fact-label">agents: onboarder · updated: 2026-07-07</span>
+        </div>
+      </div>
+
+      <p>Outil web permettant à un animateur (coach agile, manager) de faire passer à une équipe un questionnaire de maturité agile/produit à partir d'une grille Excel de référence, de consulter les résultats agrégés (radar, dispersion, comparaison dans le temps) et d'exporter un support de restitution PowerPoint. Une vue de consolidation multi-équipes ("pilotage") permet une lecture au niveau département.
+      <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">onboarder · 2026-07-07 · README.md:3-8</span></p>
+
+      <p>Vocabulaire métier à préserver tel quel : <strong>pilier</strong> → <strong>sous-catégorie/objectif</strong> → <strong>question</strong> (4 <strong>niveaux</strong> de réponse, 0 à 3) ; <strong>animateur</strong> vs <strong>répondant</strong> ; <strong>session</strong> ; <strong>pilotage</strong>.
+      <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">onboarder · 2026-07-07 · CLAUDE.md:10-14</span></p>
+
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-value">929</div><div class="stat-caption">lignes dans server.js (monolithe de routes)</div></div>
+        <div class="stat-card"><div class="stat-value">11</div><div class="stat-caption">Epics métier (7 livrés, 4 en réflexion)</div></div>
+        <div class="stat-card"><div class="stat-value">8</div><div class="stat-caption">tables SQLite</div></div>
+        <div class="stat-card"><div class="stat-value">5 / 5</div><div class="stat-caption">scripts de test JS, 2 utilisant réellement assert</div></div>
+      </div>
+
+      <h2 id="god-nodes">God nodes</h2>
+      <div class="fact accent">
+        <p><strong>app/src/server.js</strong> (929 lignes) — la totalité des routes API et le service des fichiers statiques dans un seul fichier Express, sans découpage en routeurs. <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">onboarder · 2026-07-07 · app/src/server.js:1-929</span></p>
+      </div>
+      <div class="fact accent">
+        <p><strong>app/src/db.js</strong> — schéma complet (8 tables), migrations idempotentes (<code>ALTER TABLE</code> conditionnels) et données par défaut (rôles), sans framework de migration. <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">onboarder · 2026-07-07 · app/src/db.js:11-131</span></p>
+      </div>
+      <div class="fact accent">
+        <p><strong>app/src/referentiel.js</strong> — parsing du fichier Excel source (structure peu tabulaire) et logique de réconciliation ré-import non destructif/remplacement total. <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">onboarder · 2026-07-07 · app/src/referentiel.js:31-253</span></p>
+      </div>
+      <div class="fact accent">
+        <p><strong>app/src/radar-svg.js</strong> — génère un radar SVG calqué sur le rendu de <code>resultats.html</code> ("Mire le rendu de resultats.html") : deux implémentations du même visuel à faire évoluer en parallèle. <span class="tag tag-deduit">DÉDUIT</span><span class="fact-label">onboarder · 2026-07-07 · app/src/radar-svg.js:1-4,44</span></p>
+      </div>
+
+      <h2 id="points-critiques">Points critiques</h2>
+      <div class="critical">
+        <p><strong>Aucune authentification n'est en place.</strong> L'espace animateur et les routes API associées sont accessibles à quiconque possède l'URL — Epic 10 ("Authentification et gestion des accès") est explicitement non implémenté à ce stade.
+        <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">onboarder · 2026-07-07 · app/README.md:183-184 ; cadrage/epics-us.md:92-94</span></p>
+      </div>
+
+      <div class="decision-grid">
+        <div class="decision-row"><span class="decision-tag">destructif</span><p>Le mode <code>remplacer</code> de l'import référentiel est une purge totale irréversible (référentiel + sessions + répondants + réponses + invites + commentaires), sans sauvegarde automatique préalable — seule une confirmation UI basée sur <code>GET /api/referentiel/stats</code> protège ce geste. <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">app/src/referentiel.js:222-253</span></p></div>
+        <div class="decision-row"><span class="decision-tag">données</span><p>Saisie libre département/équipe : la tolérance aux fautes peut laisser passer de vrais doublons, rattrapables seulement a posteriori par fusion manuelle animateur. <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">app/src/normalisation.js:19-30 ; cadrage/difficultes-realisation.md:22</span></p></div>
+        <div class="decision-row"><span class="decision-tag">portabilité</span><p><code>CHROME_PATH</code> par défaut pointe vers un chemin Windows : l'export PPT n'est pas portable en l'état sur Linux/Mac sans surcharge de variable d'environnement. <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">app/src/server.js:17 ; app/.env.example:20-21</span></p></div>
+        <div class="decision-row"><span class="decision-tag">multi-tenant</span><p>Référentiel, rôles et répondants sont des données globales à l'outil (pas de notion de client/organisation) — Epic 11 couvre ce point mais reste au stade réflexion. <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">cadrage/epics-us.md:105-116 ; .roadmap/roadmap.json:194-204</span></p></div>
+      </div>
+
+      <h2 id="zones-ombre">Zones d'ombre</h2>
+      <ul class="shadow-list">
+        <li>Aucune configuration ESLint/Prettier versionnée dans le dépôt (seules des <code>.eslintrc</code> internes à des dépendances tierces dans <code>node_modules</code> existent). <span class="tag tag-confirme">CONFIRMÉ</span></li>
+        <li><code>app/README.md</code> annonce des "assertions Node natives <code>node:assert/strict</code>" pour <code>npm test</code>, mais seuls 2 des 5 scripts l'utilisent réellement ; les 3 autres s'appuient sur un helper maison <code>check()</code>. <span class="tag tag-confirme">CONFIRMÉ</span></li>
+        <li>Aucun test ne couvre directement <code>radar-svg.js</code> — seul <code>test-export-ppt.py</code>, indépendant de <code>npm test</code>, vérifie la géométrie du PPT final côté Python. <span class="tag tag-confirme">CONFIRMÉ</span></li>
+        <li>Pas de CI visible dans le dépôt (aucun <code>.github/workflows</code> repéré lors de l'exploration). <span class="tag tag-incertain">INCERTAIN</span></li>
+        <li><code>correcteur.js</code> charge <code>dictionary-fr</code> (module ESM) via <code>import()</code> dynamique dans un projet <code>"type": "commonjs"</code> — fonctionne aujourd'hui mais reste un point de fragilité. <span class="tag tag-deduit">DÉDUIT</span></li>
+        <li>Le <code>.roadmap/roadmap.json</code> est présenté comme source de vérité versionnée, mais le README racine avertit lui-même qu'il "peut être en avance ou en retard sur le code réel". <span class="tag tag-confirme">CONFIRMÉ</span></li>
+      </ul>
+
+      <h2 id="roadmap">Frise de roadmap</h2>
+      <p>Statut d'après <code>.roadmap/roadmap.json</code> (source déclarée comme pouvant dériver du code réel — voir zones d'ombre). <span class="tag tag-deduit">DÉDUIT</span><span class="fact-label">.roadmap/roadmap.json:1-206</span></p>
+      <div class="mvp-timeline">
+        <div class="mvp-step"><span class="mvp-label">Réflexion</span> Analyse de la grille Excel V3.2, personas, experience map (8 étapes), difficultés de réalisation — <strong>terminé</strong>.</div>
+        <div class="mvp-step"><span class="mvp-label">Conception</span> Découpage en 11 Epics / ~40 US, périmètre MVP retenu (Epics 1-6) — <strong>terminé</strong>.</div>
+        <div class="mvp-step"><span class="mvp-label">Réalisation 1 — Collecte</span> Import/ré-import Excel, sessions, identification répondant, parcours de réponse, invitations — <strong>livré</strong> (Epics 1-4).</div>
+        <div class="mvp-step"><span class="mvp-label">Réalisation 2 — Résultats bruts</span> Écran animateur accordéon par pilier, détail nominatif, filtre manager, recalcul temps réel — <strong>livré</strong> (Epic 5).</div>
+        <div class="mvp-step"><span class="mvp-label">Réalisation 3 — Restitution</span> Radar, pré-analyses, commentaire libre, export PPT, comparaison historique — <strong>livré</strong> (Epic 6), Epic 7 livré en avance du séquencement initial.</div>
+        <div class="mvp-step future"><span class="mvp-label">Backlog — Epic 8</span> Packaging &amp; déploiement — non démarré, phase réflexion.</div>
+        <div class="mvp-step future"><span class="mvp-label">Backlog — Epic 9</span> Environnements DEV/PRE-PROD/PROD — non démarré, phase réflexion.</div>
+        <div class="mvp-step future"><span class="mvp-label">Backlog — Epic 10</span> Authentification et gestion des accès — non démarré, phase réflexion.</div>
+        <div class="mvp-step future"><span class="mvp-label">Backlog — Epic 11</span> Multi-clients (organisations) — non démarré, phase réflexion.</div>
+      </div>
+
+      <h2 id="agents">Agents recommandés</h2>
+      <p>17 agents versionnés dans <code>.claude/agents/</code>. <span class="tag tag-confirme">CONFIRMÉ</span></p>
+      <div class="agent-grid">
+        <div class="agent-card"><strong>orchestrator / orchestrator-dev / planner</strong> — pilotage de feature, découpage en tickets, routage vers <code>developer</code>.</div>
+        <div class="agent-card"><strong>developer / developer-refactor / developer-migrator</strong> — implémentation générique, refactoring, migrations.</div>
+        <div class="agent-card"><strong>reviewer / qa-engineer / debugger</strong> — review de diff, tests manquants, diagnostic de bug.</div>
+        <div class="agent-card"><strong>auditor / auditor-subagent</strong> — audit multi-domaine (sécurité, performance, architecture...).</div>
+        <div class="agent-card"><strong>onboarder / documentarian / pathfinder</strong> — découverte de projet, wiki vivant, reconnaissance rapide.</div>
+        <div class="agent-card"><strong>ux-designer / ui-designer</strong> — flows et systèmes visuels, ne codent jamais.</div>
+        <div class="agent-card"><strong>ppt-designer</strong> — génération/amélioration du support PPT de restitution (US6.4), skill dédié <code>restitution-ppt</code>.</div>
+      </div>
+      <h3>Prioritaires</h3>
+      <ul>
+        <li><strong>auditor</strong> (sécurité) — auditer l'exposition actuelle avant tout déploiement, vu l'absence totale d'authentification.</li>
+        <li><strong>planner</strong> — décomposer les Epics 8-11 en tickets structurés (aujourd'hui au stade brouillon).</li>
+        <li><strong>qa-engineer</strong> — formaliser une stratégie de test homogène avant le packaging.</li>
+      </ul>
+      <h3>Recommandés</h3>
+      <ul>
+        <li><strong>documentarian</strong> — maintenir ce wiki à jour au fil de l'avancement des Epics 8-11.</li>
+        <li><strong>orchestrator-dev</strong> — piloter l'implémentation ticket par ticket une fois planifiée.</li>
+      </ul>
+      <h3>Optionnels</h3>
+      <ul>
+        <li><strong>ux-designer</strong> — spécifier les nouveaux écrans (Epic 10 auth, Epic 11 sélecteur de client).</li>
+        <li><strong>developer-migrator</strong> — pour l'US11.6 (migration des données vers un client par défaut).</li>
+      </ul>
+    </section>
+
+    <!-- ============ BUSINESS ============ -->
+    <section class="doc" id="metier-vue">
+      <div class="doc-header">
+        <span class="doc-path">docs/wiki/business/index.md</span>
+        <h1>Domaine métier</h1>
+        <div class="doc-meta"><span class="tag tag-confirme">confirmed</span><span class="fact-label">agents: onboarder · updated: 2026-07-07</span></div>
+      </div>
+
+      <p>L'outil sert à évaluer la maturité agile/produit d'une équipe à partir d'une grille de référence (~50 questions, 4 piliers), à en restituer une lecture agrégée (radar, dispersion) et à produire un support de restitution PowerPoint présenté en réunion d'équipe. Une vue de consolidation multi-équipes existe pour une lecture au niveau département. <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">README.md:3-8</span></p>
+
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>Terme</th><th>Sens</th></tr></thead>
+        <tbody>
+          <tr><td>Pilier</td><td>Axe du référentiel (Équipe Produit, Excellence Technique, Culture Agile, Agilité à l'échelle)</td></tr>
+          <tr><td>Sous-catégorie / objectif</td><td>Regroupement de questions à l'intérieur d'un pilier</td></tr>
+          <tr><td>Question</td><td>Item évalué, 4 niveaux de réponse (0 à 3), chacun avec une valeur numérique</td></tr>
+          <tr><td>Session</td><td>Campagne d'évaluation pour une équipe donnée</td></tr>
+          <tr><td>Animateur</td><td>Pilote une session (coach agile, manager) — accès administration</td></tr>
+          <tr><td>Répondant</td><td>Répond au questionnaire (équipier ou manager)</td></tr>
+          <tr><td>Pilotage</td><td>Vue consolidée par département, pour sponsor/RH/direction</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">CLAUDE.md:10-14, cadrage/experience-map.md</span></p>
+
+      <h2 id="personas">Personas</h2>
+      <div class="chip-row">
+        <span class="chip-pill">Répondant équipier</span>
+        <span class="chip-pill">Répondant manager</span>
+        <span class="chip-pill">Animateur / coach agile</span>
+        <span class="chip-pill">Sponsor / RH / direction</span>
+      </div>
+      <ol>
+        <li><strong>Répondant – Équipier</strong> — fait un état des lieux honnête de son quotidien d'équipe ; craint que ses réponses individuelles remontent nommément à son manager.</li>
+        <li><strong>Répondant – Manager direct</strong> — répond au <em>même</em> questionnaire que l'équipe pour permettre le calcul d'un écart de perception ; risque de biais de désirabilité managériale.</li>
+        <li><strong>Animateur / Coach agile</strong> — administre la session, suit le taux de complétion, consulte les résultats agrégés, exporte la restitution.</li>
+        <li><strong>Sponsor / RH / Direction</strong> — vision consolidée multi-équipes par pilier ; granularité au moins équipe, jamais individuelle.</li>
+      </ol>
+      <p><span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">cadrage/personas.md:1-86</span></p>
+
+      <h2 id="parcours">Parcours (experience map, 8 étapes)</h2>
+      <ol>
+        <li><strong>Invitation</strong> à la session — friction : manque de contexte sur l'objectif → faible taux de réponse.</li>
+        <li><strong>Identification du rôle</strong> <em>(point critique)</em> — nom/prénom nominatif, département, équipe, rôle, statut manager, "dans l'équipe au quotidien" (cette dernière paire porte le calcul de l'écart de perception, pas le statut manager seul).</li>
+        <li><strong>Remplissage du questionnaire</strong> (~50 questions, 4 piliers), navigation par pilier, sauvegarde/reprise par pilier complété.</li>
+        <li><strong>Soumission</strong> — verrouillage définitif jusqu'à réouverture par l'animateur.</li>
+        <li><strong>Agrégation et calcul des écarts</strong> — temps réel dès soumission, aucun seuil minimal d'anonymat (dès 1 réponse), écran nominatif pour l'animateur.</li>
+        <li><strong>Analyse et préparation de la restitution</strong> — pré-analyses (min/max/dispersion, taux de réponse), commentaire libre.</li>
+        <li><strong>Restitution à l'équipe</strong> — support PPT présenté par l'animateur.</li>
+        <li><strong>Consolidation multi-équipes</strong> — écran dédié sponsor/RH/direction, radar par département avec zoom équipe.</li>
+      </ol>
+      <p><span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">cadrage/experience-map.md:1-118</span></p>
+
+      <h2 id="difficultes">Difficultés identifiées</h2>
+      <ul>
+        <li>Parsing d'un fichier Excel à structure peu tabulaire (cellules fusionnées, symboles, texte concaténé).</li>
+        <li>Absence de seuil minimal d'anonymat — choix produit assumé, à signaler à l'écran si échantillon très faible.</li>
+        <li>Absence d'anonymat réel vis-à-vis de l'animateur — à communiquer explicitement dès l'invitation.</li>
+        <li>Saisie libre département/équipe → risque de doublons fragmentant la consolidation.</li>
+      </ul>
+      <p><span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">cadrage/difficultes-realisation.md:1-42</span></p>
+
+      <h2 id="epics">Découpage Epics</h2>
+      <p>11 Epics identifiés dans <code>cadrage/epics-us.md</code>, dont 7 couverts par le MVP livré (Epics 1 à 7) et 4 au stade réflexion (Epics 8 à 11 : packaging, environnements, authentification, multi-clients). <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">cadrage/epics-us.md:1-127 ; .roadmap/roadmap.json</span></p>
+
+      <p>Utilisateurs cibles : organisations menant une démarche de transformation agile/produit, représentées par un animateur/coach interne ou externe, avec une lecture consolidée possible au niveau département pour le sponsoring. <span class="tag tag-deduit">DÉDUIT</span><span class="fact-label">synthèse cadrage/personas.md + cadrage/epics-us.md (Epic 11)</span></p>
+    </section>
+
+    <!-- ============ STACK ============ -->
+    <section class="doc" id="stack-runtime">
+      <div class="doc-header">
+        <span class="doc-path">docs/wiki/technical/stack.md</span>
+        <h1>Stack technique</h1>
+        <div class="doc-meta"><span class="tag tag-confirme">confirmed</span><span class="fact-label">agents: onboarder · updated: 2026-07-07</span></div>
+      </div>
+
+      <div class="stat-strip">
+        <span class="stat-item">Runtime <strong>Node ≥ 22</strong></span>
+        <span class="stat-item">Serveur <strong>Express 4</strong></span>
+        <span class="stat-item">DB <strong>node:sqlite</strong></span>
+        <span class="stat-item">Front <strong>vanilla, no build</strong></span>
+      </div>
+
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>Composant</th><th>Détail</th></tr></thead>
+        <tbody>
+          <tr><td>Runtime</td><td>Node.js ≥ 22 (<code>engines.node</code>) — requis car <code>node:sqlite</code> n'existe pas avant. <span class="tag tag-confirme">CONFIRMÉ</span></td></tr>
+          <tr><td>Serveur HTTP</td><td>Express 4 (<code>^4.21.2</code>) — toutes les routes API + fichiers statiques dans <code>server.js</code>. <span class="tag tag-confirme">CONFIRMÉ</span></td></tr>
+          <tr><td>Base de données</td><td><code>node:sqlite</code> (<code>DatabaseSync</code>) — module intégré, aucune dépendance externe. Un fichier <code>.db</code> par environnement. <span class="tag tag-confirme">CONFIRMÉ</span></td></tr>
+          <tr><td>Configuration</td><td><code>node --env-file=.env.&lt;env&gt;</code> (natif Node ≥ 20.6), pas de dépendance <code>dotenv</code>. <span class="tag tag-confirme">CONFIRMÉ</span></td></tr>
+          <tr><td>Front-end</td><td>HTML/CSS/JS vanilla, aucun framework, aucun build (<code>app/src/public/</code>). <span class="tag tag-confirme">CONFIRMÉ</span></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="fact-label">onboarder · 2026-07-07 · app/package.json:18-24, app/src/db.js:3-9, app/README.md:27-31,39</p>
+
+      <h2 id="stack-deps">Dépendances npm</h2>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>Package</th><th>Version</th><th>Rôle</th></tr></thead>
+        <tbody>
+          <tr><td><code>express</code></td><td>^4.21.2</td><td>Serveur HTTP, routage API</td></tr>
+          <tr><td><code>exceljs</code></td><td>^4.4.0</td><td>Lecture du fichier Excel du référentiel</td></tr>
+          <tr><td><code>multer</code></td><td>^2.0.1</td><td>Upload de fichiers (mémoire, limite 10 Mo)</td></tr>
+          <tr><td><code>nspell</code></td><td>^2.1.5</td><td>Correction orthographique conservatrice du référentiel</td></tr>
+          <tr><td><code>dictionary-fr</code></td><td>^3.0.0</td><td>Dictionnaire français pour <code>nspell</code></td></tr>
+          <tr><td><code>puppeteer-core</code></td><td>^25.1.0</td><td>Pilote un Chrome existant pour rasteriser le radar (export PPT)</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">app/package.json:21-28</span> — aucune <code>devDependencies</code> déclarée : pas de framework de test, pas de linter, pas de bundler. <span class="tag tag-confirme">CONFIRMÉ</span></p>
+
+      <h2 id="stack-hors-npm">Dépendances hors npm</h2>
+      <ul>
+        <li><strong>Chrome/Chromium</strong> installé sur la machine (<code>CHROME_PATH</code>), piloté en headless par <code>puppeteer-core</code>.</li>
+        <li><strong>Python 3</strong> avec <code>python-pptx</code> (<code>pip install python-pptx</code>) — génère le <code>.pptx</code> final.</li>
+      </ul>
+      <p>Sans ces deux dépendances correctement configurées, le reste de l'application fonctionne normalement ; seul l'export PPT échoue. <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">app/README.md:37-41, 258-269</span></p>
+      <p>Aucun fichier de verrouillage (<code>requirements.txt</code>/<code>Pipfile</code>) n'a été repéré pour figer la version de Python/python-pptx. <span class="tag tag-incertain">INCERTAIN</span></p>
+
+      <h2 id="stack-env">Variables d'environnement</h2>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>Variable</th><th>Défaut</th><th>Rôle</th></tr></thead>
+        <tbody>
+          <tr><td><code>APP_ENV</code></td><td><code>''</code></td><td>Libellé du bandeau d'environnement UI</td></tr>
+          <tr><td><code>PORT</code></td><td><code>3000</code></td><td>Port HTTP d'écoute</td></tr>
+          <tr><td><code>DB_PATH</code></td><td><code>./data/app.db</code></td><td>Chemin du fichier SQLite</td></tr>
+          <tr><td><code>BACKUP_DIR</code></td><td>dossier de DB_PATH + <code>/backups</code></td><td>Sortie des sauvegardes</td></tr>
+          <tr><td><code>CHROME_PATH</code></td><td>chemin Windows Chrome</td><td>Export PPT (rasterisation radar)</td></tr>
+          <tr><td><code>PYTHON</code></td><td><code>python</code></td><td>Interpréteur pour générer le PPT</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">app/.env.example:1-25, app/README.md:91-98</span></p>
+
+      <h2 id="stack-environnements">3 environnements (DEV / PRE-PROD / PROD)</h2>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>Environnement</th><th>Commande</th><th>Port</th><th>Base</th></tr></thead>
+        <tbody>
+          <tr><td>DEV</td><td><code>npm run start:dev</code></td><td>3000</td><td><code>./data/dev/app.db</code></td></tr>
+          <tr><td>PRE-PROD</td><td><code>npm run start:preprod</code></td><td>3001</td><td><code>./data/preprod/app.db</code></td></tr>
+          <tr><td>PROD</td><td><code>npm run start:prod</code></td><td>3002</td><td><code>./data/prod/app.db</code></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>Les trois environnements peuvent tourner en parallèle sur le même poste. <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">app/README.md:68-84</span></p>
+    </section>
+
+    <!-- ============ ARCHITECTURE ============ -->
+    <section class="doc" id="archi-flux">
+      <div class="doc-header">
+        <span class="doc-path">docs/wiki/technical/architecture.md</span>
+        <h1>Architecture</h1>
+        <div class="doc-meta"><span class="tag tag-deduit">mixed</span><span class="fact-label">agents: onboarder · updated: 2026-07-07</span></div>
+      </div>
+
+      <p>Express (<code>app/src/server.js</code>, toutes les routes API + service des pages statiques) → SQLite via <code>node:sqlite</code> → pages front vanilla dans <code>app/src/public/</code>. <code>admin.html</code> est la page par défaut de l'outil (<code>/</code> comme <code>/admin.html</code>). <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">app/src/server.js:19-27, CLAUDE.md:44-48</span></p>
+
+      <h2 id="archi-structure">Structure du code</h2>
+      <div class="tree">app/
+├── src/
+│   ├── server.js         # toutes les routes API + fichiers statiques (929 lignes)
+│   ├── db.js             # ouverture SQLite, schéma + migrations idempotentes, rôles par défaut
+│   ├── referentiel.js     # import Excel, ré-import non destructif / remplacement total
+│   ├── invites.js         # import liste d'invités (CSV/Excel), calcul des non-répondants
+│   ├── normalisation.js   # rapprochement tolérant département/équipe
+│   ├── correcteur.js      # correction orthographique conservatrice (nspell)
+│   ├── radar-svg.js       # génération du radar SVG (écran + rasterisation PPT)
+│   ├── session-utils.js   # formatage d'un libellé de session
+│   └── public/            # pages front (vanilla, aucun build)
+│       ├── admin.html / repondre.html / resultats.html / pilotage.html
+│       ├── maquette-question.html
+│       └── env-banner.js
+├── scripts/
+│   ├── backup-db.js / restore-db.js
+│   ├── build-artifact.js
+│   ├── export-restitution-ppt.py / pptx_deck.py
+│   ├── capture-screenshots.js
+│   └── test-*.js / test-export-ppt.py
+├── data/                   # bases SQLite par environnement (gitignoré)
+└── .env.dev / .env.preprod / .env.prod / .env.example</div>
+      <p><span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">app/README.md:129-155</span></p>
+
+      <h2 id="archi-donnees">Modèle de données</h2>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>Table</th><th>Rôle</th></tr></thead>
+        <tbody>
+          <tr><td><code>piliers / sous_categories / questions / niveaux</code></td><td>Référentiel de maturité, colonne <code>archive</code> sur les 3 premières</td></tr>
+          <tr><td><code>sessions</code></td><td>Campagne d'évaluation (dates, texte d'accueil)</td></tr>
+          <tr><td><code>session_questions</code></td><td>Périmètre de questions actives par session</td></tr>
+          <tr><td><code>repondants</code></td><td>Identité, département/équipe/rôle, statuts manager/équipe, verrouillage soumission</td></tr>
+          <tr><td><code>reponses</code></td><td>Réponse (0-3) d'un répondant à une question</td></tr>
+          <tr><td><code>roles</code></td><td>Catalogue global de rôles suggérés</td></tr>
+          <tr><td><code>invites</code></td><td>Emails invités, pour rappel ciblé</td></tr>
+          <tr><td><code>commentaires</code></td><td>Commentaire libre par équipe/session</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">app/src/db.js:14-100, app/README.md:157-179</span></p>
+
+      <h2 id="archi-decisions">Décisions notables</h2>
+      <div class="decision-grid">
+        <div class="decision-row"><span class="decision-tag">référentiel</span><p>Ré-import non destructif par défaut : réconciliation par clé de contenu pour réutiliser le même <code>question_id</code>, entrée disparue archivée si elle porte des réponses. Mode <code>remplacer</code> = purge totale atomique. <span class="tag tag-confirme">CONFIRMÉ</span></p></div>
+        <div class="decision-row"><span class="decision-tag">export</span><p>Export PPT en deux étapes : Puppeteer (Chrome headless) rasterise le radar SVG en PNG, puis un script Python (python-pptx) construit le .pptx. Un seul lancement de navigateur pour tous les radars d'un export. <span class="tag tag-confirme">CONFIRMÉ</span></p></div>
+        <div class="decision-row"><span class="decision-tag">agrégation</span><p>Recalcul des agrégats à la demande (pas de table précalculée) — cohérent avec l'exigence de temps réel, mais réagrège l'ensemble des réponses à chaque requête. <span class="tag tag-deduit">DÉDUIT</span></p></div>
+        <div class="decision-row"><span class="decision-tag">comparaison</span><p>La session précédente d'une équipe est retrouvée par égalité de chaîne sur <code>equipe</code> (pas un identifiant stable) — dépend de la cohérence apportée par la saisie tolérante. <span class="tag tag-confirme">CONFIRMÉ</span></p></div>
+        <div class="decision-row"><span class="decision-tag">sécurité</span><p>Aucune authentification à ce stade (Epic 10 non implémenté) — aucun middleware d'authentification observé sur l'ensemble de <code>server.js</code>. <span class="tag tag-confirme">CONFIRMÉ</span></p></div>
+        <div class="decision-row"><span class="decision-tag">environnements</span><p>3 environnements isolés en parallèle sur le même poste (DEV/PRE-PROD/PROD), port et base SQLite propres, chargés via <code>node --env-file</code>. <span class="tag tag-confirme">CONFIRMÉ</span></p></div>
+      </div>
+
+      <h2 id="archi-fragilites">Fragilités connues</h2>
+      <ul>
+        <li>Parsing Excel dépendant d'une structure implicite (motif de texte <code>"PILIER - OBJECTIF"</code>, colonnes fixes 4/6/8/10 pour les niveaux) — pas de validation stricte au-delà du test "aucun pilier détecté". <span class="tag tag-confirme">CONFIRMÉ</span></li>
+        <li><code>server.js</code> en monolithe unique (929 lignes, ~25 routes) sans découpage en routeurs. <span class="tag tag-confirme">CONFIRMÉ</span></li>
+        <li>Double implémentation du rendu radar (SVG serveur vs JS front dans <code>resultats.html</code>), sans test automatisé garantissant la parité. <span class="tag tag-deduit">DÉDUIT</span></li>
+        <li>Aucune notion de client/organisation — référentiel/rôles/répondants globaux à l'installation. <span class="tag tag-confirme">CONFIRMÉ</span></li>
+        <li><code>CHROME_PATH</code> par défaut non portable (chemin Windows en dur). <span class="tag tag-confirme">CONFIRMÉ</span></li>
+      </ul>
+    </section>
+
+    <!-- ============ CONVENTIONS ============ -->
+    <section class="doc" id="conv-lint">
+      <div class="doc-header">
+        <span class="doc-path">docs/wiki/technical/conventions.md</span>
+        <h1>Conventions de code</h1>
+        <div class="doc-meta"><span class="tag tag-deduit">mixed</span><span class="fact-label">agents: onboarder · updated: 2026-07-07</span></div>
+      </div>
+
+      <p>Aucune configuration ESLint/Prettier n'est versionnée dans le dépôt — seuls des <code>.eslintrc*</code> internes à des dépendances tierces existent dans <code>app/node_modules/</code>. Les conventions ci-dessous sont donc observées dans le code réel, pas outillées automatiquement. <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">recherche <code>**/.eslintrc*</code> limitée à app/node_modules/**</span></p>
+
+      <h2 id="conv-nommage">Nommage</h2>
+      <ul>
+        <li>Vocabulaire métier français préservé dans les identifiants : tables/colonnes SQL en <code>snake_case</code> français (<code>sous_categories</code>, <code>ouverture_at</code>, <code>est_manager</code>), fonctions/variables JS en <code>camelCase</code> français (<code>getReferentiel</code>, <code>reconcileReferentiel</code>, <code>agregerResultats</code>). <span class="tag tag-confirme">CONFIRMÉ</span></li>
+        <li>Pas de classes : tous les modules <code>src/*.js</code> exportent des fonctions (<code>module.exports = { ... }</code>), style purement fonctionnel. <span class="tag tag-confirme">CONFIRMÉ</span></li>
+        <li>Commentaires en français orientés "pourquoi" plutôt que "quoi", systématiquement au-dessus d'une fonction/bloc non trivial. <span class="tag tag-confirme">CONFIRMÉ</span></li>
+        <li>Modules CommonJS (<code>"type": "commonjs"</code>), malgré un <code>import()</code> dynamique ponctuel pour <code>dictionary-fr</code> (ESM-only). <span class="tag tag-confirme">CONFIRMÉ</span></li>
+      </ul>
+
+      <h2 id="conv-erreurs">Gestion d'erreurs et validation</h2>
+      <ul>
+        <li>Validation manuelle en tête de route, sans librairie de schéma (pas de <code>zod</code>/<code>joi</code>/<code>ajv</code>), messages d'erreur en français explicites (<code>res.status(400).json({ error: '...' })</code>). <span class="tag tag-confirme">CONFIRMÉ</span></li>
+        <li>Transactions SQLite explicites (<code>BEGIN</code>/<code>COMMIT</code>/<code>ROLLBACK</code>) pour les opérations multi-tables sensibles. <span class="tag tag-confirme">CONFIRMÉ</span></li>
+        <li>Listes blanches pour les entrées qui construisent du SQL dynamique (ex. <code>CHAMPS_FUSIONNABLES</code>) plutôt qu'une validation ad hoc. <span class="tag tag-confirme">CONFIRMÉ</span></li>
+      </ul>
+
+      <h2 id="conv-git">Git</h2>
+      <ul>
+        <li>Historique court (2 commits observés), messages en français ("Initial commit: questionnaire de maturité agile/produit (MVP)", "Ajoute la documentation technique..."). <span class="tag tag-confirme">CONFIRMÉ</span></li>
+        <li>Hook <code>PreToolUse</code> (<code>guard_destructive_git.py</code>) bloque <code>git push --force</code> (sans <code>--force-with-lease</code>) et <code>git reset --hard</code>. <span class="tag tag-confirme">CONFIRMÉ</span></li>
+      </ul>
+
+      <h2 id="conv-secrets">Secrets et fichiers sensibles</h2>
+      <ul>
+        <li><code>.env</code>, <code>secrets/**</code>, <code>config/credentials.json</code> refusés en lecture par <code>.claude/settings.json</code>. <span class="tag tag-confirme">CONFIRMÉ</span></li>
+        <li><code>data/**/*.db</code> gitignoré (bases SQLite non versionnées). <span class="tag tag-confirme">CONFIRMÉ</span></li>
+        <li><code>.roadmap/*.svg</code> gitignoré ; seul <code>.roadmap/roadmap.json</code> versionné. <span class="tag tag-confirme">CONFIRMÉ</span></li>
+      </ul>
+
+      <h2 id="conv-patterns">Patterns d'équipe</h2>
+      <ul>
+        <li>Skill projet dédié <code>.claude/skills/restitution-ppt/</code> avec invariants de mise en page découverts par rendu réel. <span class="tag tag-confirme">CONFIRMÉ</span></li>
+        <li>Vérification par rendu réel plutôt que déclarative : ne jamais déclarer un design PPT "bon" sur la seule géométrie. <span class="tag tag-confirme">CONFIRMÉ</span></li>
+        <li>Libellés en clair sans abréviation cryptique dans les livrables client (ex. "écart-type", pas "é-t"). <span class="tag tag-confirme">CONFIRMÉ</span></li>
+      </ul>
+    </section>
+
+    <!-- ============ TESTS ============ -->
+    <section class="doc" id="tests-frameworks">
+      <div class="doc-header">
+        <span class="doc-path">docs/wiki/technical/tests.md</span>
+        <h1>Tests</h1>
+        <div class="doc-meta"><span class="tag tag-deduit">mixed</span><span class="fact-label">agents: onboarder · updated: 2026-07-07</span></div>
+      </div>
+
+      <p>Aucun framework de test tiers (pas de Jest/Mocha/Vitest) : les tests JS s'appuient sur <code>node:assert/strict</code>, mais de façon inégale. <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">app/package.json (absence de devDependencies), app/README.md:244-245</span></p>
+      <p>Côté PPT, <code>scripts/test-export-ppt.py</code> est un script Python indépendant (assertions manuelles + vérification de géométrie). <span class="tag tag-confirme">CONFIRMÉ</span></p>
+
+      <h2 id="tests-organisation">Organisation</h2>
+      <div class="tree">npm test
+  → node scripts/test-reimport.js
+  → node scripts/test-rappel.js
+  → node scripts/test-normalisation.js
+  → node scripts/test-sessions.js
+  → node scripts/test-admin-ui.js</div>
+      <p><span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">app/package.json:16, app/README.md:246-252</span></p>
+
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>Script</th><th>Style</th><th>Couverture</th></tr></thead>
+        <tbody>
+          <tr><td><code>test-reimport.js</code></td><td>Helper maison <code>check()</code>, DB SQLite temporaire</td><td>Ré-import non destructif / remplacement total (US1.2/US1.6)</td></tr>
+          <tr><td><code>test-rappel.js</code></td><td>Non relu en détail ; absent des résultats "assert"</td><td>Rappel des non-répondants (US2.5), à confirmer</td></tr>
+          <tr><td><code>test-normalisation.js</code></td><td>Idem, absent des résultats "assert"</td><td>Rapprochement tolérant département/équipe (US3.3)</td></tr>
+          <tr><td><code>test-sessions.js</code></td><td><code>node:assert/strict</code></td><td>Formatage de libellé de session</td></tr>
+          <tr><td><code>test-admin-ui.js</code></td><td><code>node:assert/strict</code> sur contenu texte brut HTML</td><td>Sélecteurs/scripts présents, régression texte — pas d'exécution DOM réelle</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><span class="tag tag-confirme">CONFIRMÉ</span> pour test-sessions.js / test-admin-ui.js / test-reimport.js ; <span class="tag tag-deduit">DÉDUIT</span> pour test-rappel.js / test-normalisation.js (non lus intégralement, absents des fichiers matchant "assert")</p>
+
+      <h2 id="tests-incoherence">Incohérence documentation/code</h2>
+      <div class="critical">
+        <p>Le <code>app/README.md</code> décrit <code>npm test</code> comme enchaînant des "assertions Node natives <code>node:assert/strict</code>", mais <strong>seuls 2 des 5 scripts</strong> l'utilisent réellement ; les 3 autres s'appuient sur un helper <code>check()</code> maison (log <code>ok</code>/<code>FAIL</code>, compteur d'échecs, code de sortie final). Fonctionnellement équivalent pour <code>npm test</code>, mais la documentation sur-généralise le style réel. <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">app/README.md:244-245 vs recherche du motif "assert" dans app/scripts</span></p>
+      </div>
+
+      <h2 id="tests-couverture">Seuil de couverture</h2>
+      <p>Aucun seuil de couverture défini ni mesuré (pas d'outil de coverage type <code>c8</code>/<code>istanbul</code> dans les dépendances). <span class="tag tag-confirme">CONFIRMÉ</span></p>
+
+      <h2 id="tests-philosophie">Philosophie</h2>
+      <ul>
+        <li>Tests d'intégration fonctionnels plutôt qu'unitaires isolés — vraie base SQLite temporaire, pas de mock de la couche DB. <span class="tag tag-deduit">DÉDUIT</span></li>
+        <li>Tests de régression sur contenu HTML brut (<code>test-admin-ui.js</code>) plutôt que pilotés par un vrai navigateur. <span class="tag tag-confirme">CONFIRMÉ</span></li>
+        <li>Vérification visuelle humaine obligatoire pour le PPT — la géométrie automatisée ne suffit pas à déclarer un design correct. <span class="tag tag-confirme">CONFIRMÉ</span></li>
+        <li>Aucun test n'exerce <code>radar-svg.js</code> directement, ni les routes HTTP via de vraies requêtes (pas de <code>supertest</code> observé). <span class="tag tag-confirme">CONFIRMÉ</span></li>
+        <li><code>capture-screenshots.js</code> est un outil de développement, pas un test — non invoqué par <code>npm test</code>. <span class="tag tag-confirme">CONFIRMÉ</span></li>
+      </ul>
+    </section>
+
+    <footer class="page-footer">
+      Wiki généré par l'agent onboarder · sources : <code>docs/wiki/</code> · dernière mise à jour 2026-07-07
+    </footer>
+
+  </main>
+</div>
+
+<script>
+  function setTheme(t) {
+    if (t) {
+      document.documentElement.setAttribute('data-theme', t);
+      localStorage.setItem('wiki-theme', t);
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+      localStorage.removeItem('wiki-theme');
+    }
+  }
+  (function () {
+    var saved = localStorage.getItem('wiki-theme');
+    if (saved) document.documentElement.setAttribute('data-theme', saved);
+  })();
+</script>
+</body>
+</html>
