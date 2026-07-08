@@ -240,8 +240,7 @@ Toutes les routes sont préfixées `/api`. Aucune authentification n'est en plac
 npm test
 ```
 
-Enchaîne (`package.json`) les scripts suivants (assertions Node natives
-`node:assert/strict`, pas de framework de test) :
+Enchaîne (`package.json`) les scripts suivants (aucun framework de test) :
 
 ```
 node scripts/test-reimport.js
@@ -249,11 +248,33 @@ node scripts/test-rappel.js
 node scripts/test-normalisation.js
 node scripts/test-sessions.js
 node scripts/test-admin-ui.js
+node scripts/test-radar.js
+node scripts/test-correcteur.js
 ```
+
+Deux styles d'assertion cohabitent, tous deux sans dépendance externe :
+`test-sessions.js`, `test-admin-ui.js`, `test-radar.js` et `test-correcteur.js`
+utilisent les assertions Node natives (`node:assert/strict`) ; `test-reimport.js`,
+`test-rappel.js` et `test-normalisation.js` s'appuient sur un petit helper
+maison `check()`. Une harmonisation vers `node:assert/strict` (voire
+`node:test`) est souhaitable mais non bloquante. `test-correcteur.js` charge le
+dictionnaire français complet et dure ~6 s.
 
 Chaque script peut aussi être lancé individuellement (`node scripts/test-xxx.js`).
 Il existe également `scripts/test-export-ppt.py`, indépendant de `npm test`, pour
-vérifier la génération du PPT côté Python.
+vérifier la génération du PPT côté Python (géométrie des slides).
+
+### Lint
+
+```bash
+npm run lint            # ESLint (flat config eslint.config.js)
+```
+
+ESLint (règles recommandées) est la seule `devDependency` : globals Node pour
+`src/`+`scripts/`, navigateur pour `src/public/`. Il tourne aussi en CI
+(`.github/workflows/ci.yml`, avant `npm test`). Le formatage pur (Prettier)
+n'est pas verrouillé ; un `.editorconfig` (racine) couvre indentation, fins de
+ligne et encodage.
 
 ## Export PowerPoint (dépendance Python)
 

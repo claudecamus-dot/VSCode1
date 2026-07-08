@@ -33,8 +33,10 @@ agents: [onboarder]
 
 `CONFIRMÉ` — onboarder · 2026-07-07 · app/package.json:21-28
 
-Aucune `devDependencies` n'est déclarée : pas de framework de test, pas de
-linter, pas de bundler embarqué dans le projet npm. `CONFIRMÉ` — onboarder · 2026-07-07 · app/package.json:1-29 (absence de la clé `devDependencies`)
+Côté `devDependencies`, seul **ESLint** est déclaré (`eslint`, `@eslint/js`,
+`globals` — ajoutés le 2026-07-08 pour outiller les conventions) : toujours pas
+de framework de test (les tests s'appuient sur les modules natifs Node), pas de
+bundler, pas de transpileur. `CONFIRMÉ` — 2026-07-08 · app/package.json (bloc `devDependencies`)
 
 ## Dépendances hors npm (contrat externe, non versionnées dans le projet)
 

@@ -37,7 +37,9 @@ passage obligés pour toute évolution :
 - **`app/src/radar-svg.js`** — génère un radar SVG dont le rendu est
   volontairement calqué sur celui de `resultats.html` ("Mire le rendu de
   resultats.html") : deux implémentations du même visuel (front web + génération
-  serveur pour le PPT) à faire évoluer en parallèle. `DÉDUIT` — onboarder · 2026-07-07 · app/src/radar-svg.js:1-4,44
+  serveur pour le PPT) à faire évoluer en parallèle. Un test structurel
+  (`app/scripts/test-radar.js`, dans `npm test`) verrouille la structure du SVG
+  serveur pour détecter une dérive. `DÉDUIT` — onboarder · 2026-07-07 · app/src/radar-svg.js:1-4,44 ; `CONFIRMÉ` — 2026-07-08 · app/scripts/test-radar.js
 
 ## Carte des domaines
 
@@ -82,13 +84,17 @@ ce stade. `CONFIRMÉ` — onboarder · 2026-07-07 · app/README.md:183-184 ; cad
 ## Zones d'ombre
 
 <ul class="shadow-list">
-<li>Aucune configuration ESLint/Prettier versionnée dans le dépôt (seules des <code>.eslintrc</code> internes à des dépendances tierces dans <code>node_modules</code> existent) — les conventions de style ne sont donc pas outillées, uniquement observées dans le code. `CONFIRMÉ` — onboarder · 2026-07-07 · recherche de fichiers <code>.eslintrc*</code> hors node_modules : aucun résultat</li>
-<li>Le <code>app/README.md</code> annonce des "assertions Node natives <code>node:assert/strict</code>" pour <code>npm test</code>, mais seuls 2 des 5 scripts (<code>test-admin-ui.js</code>, <code>test-sessions.js</code>) utilisent réellement <code>node:assert/strict</code> ; les 3 autres (<code>test-reimport.js</code>, <code>test-rappel.js</code>, <code>test-normalisation.js</code>) s'appuient sur un helper maison <code>check()</code> — incohérence documentation/code à signaler. `CONFIRMÉ` — onboarder · 2026-07-07 · app/README.md:244-245, app/scripts/test-reimport.js:14-22, recherche "assert" dans app/scripts</li>
-<li>Aucun test ne couvre directement <code>radar-svg.js</code> (génération du radar SVG serveur) — seul <code>test-export-ppt.py</code>, indépendant de <code>npm test</code>, vérifie la géométrie du PPT final côté Python. La fidélité visuelle radar web / radar PPT n'est vérifiée qu'à l'œil (voir <code>.claude/skills/restitution-ppt/SKILL.md</code>). `CONFIRMÉ` — onboarder · 2026-07-07 · absence de <code>test-radar*.js</code> dans app/scripts (glob), app/README.md:255-256</li>
-<li>Pas de CI visible dans le dépôt (aucun <code>.github/workflows</code> repéré lors de l'exploration) — à confirmer si un pipeline existe ailleurs (hors dépôt). `INCERTAIN` — onboarder · 2026-07-07 · non observé lors de l'exploration</li>
-<li><code>correcteur.js</code> charge <code>dictionary-fr</code> (module ESM) via <code>import()</code> dynamique dans un projet <code>"type": "commonjs"</code> — fonctionne aujourd'hui mais reste un point de fragilité si le format du package évolue. `DÉDUIT` — onboarder · 2026-07-07 · app/src/correcteur.js:16-20, app/package.json:7</li>
-<li>Le <code>.roadmap/roadmap.json</code> est présenté comme source de vérité versionnée de l'avancement, mais le README racine avertit lui-même qu'il "peut être en avance ou en retard sur le code réel" — à recouper avec <code>git log</code>/l'état du code avant de s'y fier pour une décision. `CONFIRMÉ` — onboarder · 2026-07-07 · CLAUDE.md:17-20</li>
+<li><strong>Limitation acceptée</strong> — le <code>.roadmap/roadmap.json</code> est présenté comme source de vérité versionnée de l'avancement, mais le README racine avertit lui-même qu'il "peut être en avance ou en retard sur le code réel". Inhérent à un artefact tenu à la main, non corrigeable par le code : <code>git log</code> et l'état réel du code font foi, à recouper avant toute décision. `CONFIRMÉ` — onboarder · 2026-07-07 · CLAUDE.md:17-20</li>
 </ul>
+
+**Résolues le 2026-07-08** : l'incohérence documentation/tests (README aligné
+sur les deux styles d'assertion réels) ; l'absence de test sur `radar-svg.js`
+(ajout de `test-radar.js`) ; l'absence de CI (`.github/workflows/ci.yml` —
+`npm install`, lint, puis `npm test` sur push/PR) ; l'outillage de style
+(ESLint flat config `app/eslint.config.js` + `.editorconfig`, script
+`npm run lint`, intégré à la CI) ; le risque de chargement ESM du correcteur,
+désormais gardé par `test-correcteur.js`. Prettier n'est volontairement pas
+ajouté — un reformatage global du dépôt serait trop invasif pour un premier pas.
 
 ## Roadmap
 

@@ -33,7 +33,8 @@ npm run start:dev       # http://localhost:3000, base ./data/dev/app.db
 npm run start:preprod   # http://localhost:3001, base ./data/preprod/app.db
 npm run start:prod      # http://localhost:3002, base ./data/prod/app.db
 
-npm test                 # enchaîne les scripts scripts/test-*.js (node:assert/strict)
+npm test                 # enchaîne les scripts scripts/test-*.js (node:assert/strict + helper check())
+npm run lint              # ESLint (flat config eslint.config.js) — tourne aussi en CI
 npm run backup            # sauvegarde SQLite (VACUUM INTO)
 npm run build:artifact     # packaging d'un .tgz de déploiement
 ```

@@ -8,11 +8,17 @@ agents: [onboarder]
 
 ## Linting / formatage
 
-Aucune configuration ESLint ou Prettier n'est versionnée dans le dépôt : les
-seuls fichiers `.eslintrc*` trouvés appartiennent à des dépendances tierces
-dans `app/node_modules/` (ex. `minimist`, `busboy`, `jszip`...), pas au
-projet lui-même. Les conventions ci-dessous sont donc **observées dans le
-code réel**, pas outillées/imposées automatiquement. `CONFIRMÉ` — onboarder · 2026-07-07 · recherche `**/.eslintrc*` limitée à app/node_modules/**
+Une configuration **ESLint** (flat config `app/eslint.config.js`) est
+versionnée depuis le 2026-07-08 : règles recommandées ESLint (détecte les
+vrais problèmes — variables non utilisées/non définies, redéclarations,
+assignations mortes…), avec les globals Node (CommonJS) pour `src/`+`scripts/`
+et navigateur pour `src/public/`. Lancement via `npm run lint` (dans `app/`),
+exécuté aussi en CI. Un `.editorconfig` (racine) fixe l'indentation, les fins
+de ligne et l'encodage. Le **formatage pur** (Prettier) n'est volontairement
+pas verrouillé — un reformatage global du dépôt serait trop invasif ;
+`.editorconfig` + ESLint suffisent pour l'instant. Les conventions ci-dessous
+restent en partie **observées dans le code réel** au-delà de ce que le linter
+impose. `CONFIRMÉ` — 2026-07-08 · app/eslint.config.js, .editorconfig, app/package.json (script `lint`, devDependencies)
 
 ## Nommage
 

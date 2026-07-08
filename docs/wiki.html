@@ -343,7 +343,7 @@
       <p class="toc-group-title">Tests</p>
       <a class="toc-link" href="#tests-frameworks">Frameworks</a>
       <a class="toc-link" href="#tests-organisation">Organisation</a>
-      <a class="toc-link" href="#tests-incoherence">Incohérence doc/code</a>
+      <a class="toc-link" href="#tests-incoherence">CI &amp; cohérence doc/code</a>
       <a class="toc-link" href="#tests-couverture">Couverture</a>
       <a class="toc-link" href="#tests-philosophie">Philosophie</a>
     </div>
@@ -386,7 +386,7 @@
         <p><strong>app/src/referentiel.js</strong> — parsing du fichier Excel source (structure peu tabulaire) et logique de réconciliation ré-import non destructif/remplacement total. <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">onboarder · 2026-07-07 · app/src/referentiel.js:31-253</span></p>
       </div>
       <div class="fact accent">
-        <p><strong>app/src/radar-svg.js</strong> — génère un radar SVG calqué sur le rendu de <code>resultats.html</code> ("Mire le rendu de resultats.html") : deux implémentations du même visuel à faire évoluer en parallèle. <span class="tag tag-deduit">DÉDUIT</span><span class="fact-label">onboarder · 2026-07-07 · app/src/radar-svg.js:1-4,44</span></p>
+        <p><strong>app/src/radar-svg.js</strong> — génère un radar SVG calqué sur le rendu de <code>resultats.html</code> ("Mire le rendu de resultats.html") : deux implémentations du même visuel à faire évoluer en parallèle. Un test structurel (<code>app/scripts/test-radar.js</code>, dans <code>npm test</code>) verrouille la structure du SVG serveur. <span class="tag tag-deduit">DÉDUIT</span><span class="fact-label">onboarder · 2026-07-07 · app/src/radar-svg.js:1-4,44 · test-radar.js ajouté 2026-07-08</span></p>
       </div>
 
       <h2 id="points-critiques">Points critiques</h2>
@@ -404,13 +404,9 @@
 
       <h2 id="zones-ombre">Zones d'ombre</h2>
       <ul class="shadow-list">
-        <li>Aucune configuration ESLint/Prettier versionnée dans le dépôt (seules des <code>.eslintrc</code> internes à des dépendances tierces dans <code>node_modules</code> existent). <span class="tag tag-confirme">CONFIRMÉ</span></li>
-        <li><code>app/README.md</code> annonce des "assertions Node natives <code>node:assert/strict</code>" pour <code>npm test</code>, mais seuls 2 des 5 scripts l'utilisent réellement ; les 3 autres s'appuient sur un helper maison <code>check()</code>. <span class="tag tag-confirme">CONFIRMÉ</span></li>
-        <li>Aucun test ne couvre directement <code>radar-svg.js</code> — seul <code>test-export-ppt.py</code>, indépendant de <code>npm test</code>, vérifie la géométrie du PPT final côté Python. <span class="tag tag-confirme">CONFIRMÉ</span></li>
-        <li>Pas de CI visible dans le dépôt (aucun <code>.github/workflows</code> repéré lors de l'exploration). <span class="tag tag-incertain">INCERTAIN</span></li>
-        <li><code>correcteur.js</code> charge <code>dictionary-fr</code> (module ESM) via <code>import()</code> dynamique dans un projet <code>"type": "commonjs"</code> — fonctionne aujourd'hui mais reste un point de fragilité. <span class="tag tag-deduit">DÉDUIT</span></li>
-        <li>Le <code>.roadmap/roadmap.json</code> est présenté comme source de vérité versionnée, mais le README racine avertit lui-même qu'il "peut être en avance ou en retard sur le code réel". <span class="tag tag-confirme">CONFIRMÉ</span></li>
+        <li><strong>Limitation acceptée</strong> — le <code>.roadmap/roadmap.json</code> est présenté comme source de vérité versionnée, mais le README racine avertit lui-même qu'il "peut être en avance ou en retard sur le code réel". Inhérent à un artefact tenu à la main, non corrigeable par le code : <code>git log</code> et l'état réel du code font foi. <span class="tag tag-confirme">CONFIRMÉ</span></li>
       </ul>
+      <p class="fact-label"><strong>Résolues le 2026-07-08</strong> — incohérence documentation/tests (README aligné sur les deux styles d'assertion réels) ; absence de test sur <code>radar-svg.js</code> (<code>test-radar.js</code>) ; absence de CI (<code>.github/workflows/ci.yml</code> : <code>npm install</code>, lint, puis <code>npm test</code> sur push/PR) ; outillage de style (ESLint flat config + <code>.editorconfig</code>, <code>npm run lint</code>, intégré à la CI) ; risque de chargement ESM du correcteur, gardé par <code>test-correcteur.js</code>. Prettier volontairement écarté (reformatage global trop invasif).</p>
 
       <h2 id="roadmap">Roadmap</h2>
       <p>Statut d'après <code>.roadmap/roadmap.json</code> (source déclarée comme pouvant dériver du code réel — voir zones d'ombre). Intégré directement ici (pas un lien vers <code>.roadmap/roadmap.svg</code>, qui reste régénérable à la demande via le skill <code>roadmap-keeper</code> mais n'est plus la voie de consultation par défaut). <span class="tag tag-deduit">DÉDUIT</span><span class="fact-label">.roadmap/roadmap.json:1-206</span></p>
@@ -806,7 +802,7 @@
         </tbody>
       </table>
       </div>
-      <p><span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">app/package.json:21-28</span> — aucune <code>devDependencies</code> déclarée : pas de framework de test, pas de linter, pas de bundler. <span class="tag tag-confirme">CONFIRMÉ</span></p>
+      <p>Côté <code>devDependencies</code>, seul <strong>ESLint</strong> est déclaré (<code>eslint</code>, <code>@eslint/js</code>, <code>globals</code> — ajoutés le 2026-07-08) : toujours pas de framework de test (modules natifs Node), pas de bundler, pas de transpileur. <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">2026-07-08 · app/package.json (bloc devDependencies)</span></p>
 
       <h2 id="stack-hors-npm">Dépendances hors npm</h2>
       <ul>
@@ -927,7 +923,7 @@
         <div class="doc-meta"><span class="tag tag-deduit">mixed</span><span class="fact-label">agents: onboarder · updated: 2026-07-07</span></div>
       </div>
 
-      <p>Aucune configuration ESLint/Prettier n'est versionnée dans le dépôt — seuls des <code>.eslintrc*</code> internes à des dépendances tierces existent dans <code>app/node_modules/</code>. Les conventions ci-dessous sont donc observées dans le code réel, pas outillées automatiquement. <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">recherche <code>**/.eslintrc*</code> limitée à app/node_modules/**</span></p>
+      <p>Une configuration <strong>ESLint</strong> (flat config <code>app/eslint.config.js</code>, règles recommandées) est versionnée depuis le 2026-07-08 : globals Node/CommonJS pour <code>src/</code>+<code>scripts/</code>, navigateur pour <code>src/public/</code>. Lancée via <code>npm run lint</code> (dans <code>app/</code>) et en CI. Un <code>.editorconfig</code> racine fixe indentation, fins de ligne et encodage. Le formatage pur (Prettier) n'est volontairement pas verrouillé (reformatage global trop invasif). Les conventions ci-dessous restent en partie observées dans le code au-delà de ce que le linter impose. <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">2026-07-08 · app/eslint.config.js, .editorconfig, app/package.json</span></p>
 
       <h2 id="conv-nommage">Nommage</h2>
       <ul>
@@ -975,7 +971,7 @@
         <div class="doc-meta"><span class="tag tag-deduit">mixed</span><span class="fact-label">agents: onboarder · updated: 2026-07-07</span></div>
       </div>
 
-      <p>Aucun framework de test tiers (pas de Jest/Mocha/Vitest) : les tests JS s'appuient sur <code>node:assert/strict</code>, mais de façon inégale. <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">app/package.json (absence de devDependencies), app/README.md:244-245</span></p>
+      <p>Aucun framework de test tiers (pas de Jest/Mocha/Vitest). Deux styles d'assertion cohabitent, tous deux natifs et sans dépendance : <code>node:assert/strict</code> (<code>test-sessions.js</code>, <code>test-admin-ui.js</code>, <code>test-radar.js</code>) et un helper maison <code>check()</code> (<code>test-reimport.js</code>, <code>test-rappel.js</code>, <code>test-normalisation.js</code>). <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">app/package.json (absence de devDependencies), app/README.md:243-256</span></p>
       <p>Côté PPT, <code>scripts/test-export-ppt.py</code> est un script Python indépendant (assertions manuelles + vérification de géométrie). <span class="tag tag-confirme">CONFIRMÉ</span></p>
 
       <h2 id="tests-organisation">Organisation</h2>
@@ -984,7 +980,9 @@
   → node scripts/test-rappel.js
   → node scripts/test-normalisation.js
   → node scripts/test-sessions.js
-  → node scripts/test-admin-ui.js</div>
+  → node scripts/test-admin-ui.js
+  → node scripts/test-radar.js
+  → node scripts/test-correcteur.js</div>
       <p><span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">app/package.json:16, app/README.md:246-252</span></p>
 
       <div class="table-wrap">
@@ -992,19 +990,20 @@
         <thead><tr><th>Script</th><th>Style</th><th>Couverture</th></tr></thead>
         <tbody>
           <tr><td><code>test-reimport.js</code></td><td>Helper maison <code>check()</code>, DB SQLite temporaire</td><td>Ré-import non destructif / remplacement total (US1.2/US1.6)</td></tr>
-          <tr><td><code>test-rappel.js</code></td><td>Non relu en détail ; absent des résultats "assert"</td><td>Rappel des non-répondants (US2.5), à confirmer</td></tr>
-          <tr><td><code>test-normalisation.js</code></td><td>Idem, absent des résultats "assert"</td><td>Rapprochement tolérant département/équipe (US3.3)</td></tr>
+          <tr><td><code>test-rappel.js</code></td><td>Helper maison <code>check()</code></td><td>Rappel des non-répondants (US2.5)</td></tr>
+          <tr><td><code>test-normalisation.js</code></td><td>Helper maison <code>check()</code></td><td>Rapprochement tolérant département/équipe (US3.3)</td></tr>
           <tr><td><code>test-sessions.js</code></td><td><code>node:assert/strict</code></td><td>Formatage de libellé de session</td></tr>
           <tr><td><code>test-admin-ui.js</code></td><td><code>node:assert/strict</code> sur contenu texte brut HTML</td><td>Sélecteurs/scripts présents, régression texte — pas d'exécution DOM réelle</td></tr>
+          <tr><td><code>test-radar.js</code></td><td><code>node:assert/strict</code></td><td>Structure du radar SVG serveur (<code>radar-svg.js</code>) : <code>viewBox</code>, sommets, légende, comparaison, nettoyage/échappement des libellés, couleur cyclique</td></tr>
+          <tr><td><code>test-correcteur.js</code></td><td><code>node:assert/strict</code> (async)</td><td>Chargement ESM <code>dictionary-fr</code> via <code>import()</code> (<code>correcteur.js</code>) + corrections conservatrices ; ~6 s (charge le dico complet)</td></tr>
         </tbody>
       </table>
       </div>
-      <p><span class="tag tag-confirme">CONFIRMÉ</span> pour test-sessions.js / test-admin-ui.js / test-reimport.js ; <span class="tag tag-deduit">DÉDUIT</span> pour test-rappel.js / test-normalisation.js (non lus intégralement, absents des fichiers matchant "assert")</p>
+      <p><span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">2026-07-08 · app/scripts/test-*.js (relus)</span></p>
 
-      <h2 id="tests-incoherence">Incohérence documentation/code</h2>
-      <div class="critical">
-        <p>Le <code>app/README.md</code> décrit <code>npm test</code> comme enchaînant des "assertions Node natives <code>node:assert/strict</code>", mais <strong>seuls 2 des 5 scripts</strong> l'utilisent réellement ; les 3 autres s'appuient sur un helper <code>check()</code> maison (log <code>ok</code>/<code>FAIL</code>, compteur d'échecs, code de sortie final). Fonctionnellement équivalent pour <code>npm test</code>, mais la documentation sur-généralise le style réel. <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">app/README.md:244-245 vs recherche du motif "assert" dans app/scripts</span></p>
-      </div>
+      <h2 id="tests-incoherence">Intégration continue &amp; cohérence doc/code</h2>
+      <p>Un workflow GitHub Actions (<code>.github/workflows/ci.yml</code>) exécute <code>npm install</code>, puis <code>npm run lint</code> (ESLint), puis <code>npm test</code> (Node 22, <code>working-directory: app</code>) à chaque push sur <code>main</code> et sur chaque pull request. Couvre la partie JS ; l'export PPT (Python + rendu Chrome/PowerPoint) n'est pas testable en CI et reste vérifié manuellement. <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">2026-07-08 · .github/workflows/ci.yml</span></p>
+      <p>L'ancienne incohérence — le README annonçait des "assertions Node natives <code>node:assert/strict</code>" alors que 3 scripts sur 5 utilisaient un helper <code>check()</code> maison — a été corrigée : le README décrit désormais la cohabitation des deux styles. Une harmonisation future vers <code>node:assert/strict</code> (voire <code>node:test</code>) reste souhaitable mais non bloquante. <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">2026-07-08 · app/README.md:243-256</span></p>
 
       <h2 id="tests-couverture">Seuil de couverture</h2>
       <p>Aucun seuil de couverture défini ni mesuré (pas d'outil de coverage type <code>c8</code>/<code>istanbul</code> dans les dépendances). <span class="tag tag-confirme">CONFIRMÉ</span></p>
@@ -1014,7 +1013,7 @@
         <li>Tests d'intégration fonctionnels plutôt qu'unitaires isolés — vraie base SQLite temporaire, pas de mock de la couche DB. <span class="tag tag-deduit">DÉDUIT</span></li>
         <li>Tests de régression sur contenu HTML brut (<code>test-admin-ui.js</code>) plutôt que pilotés par un vrai navigateur. <span class="tag tag-confirme">CONFIRMÉ</span></li>
         <li>Vérification visuelle humaine obligatoire pour le PPT — la géométrie automatisée ne suffit pas à déclarer un design correct. <span class="tag tag-confirme">CONFIRMÉ</span></li>
-        <li>Aucun test n'exerce <code>radar-svg.js</code> directement, ni les routes HTTP via de vraies requêtes (pas de <code>supertest</code> observé). <span class="tag tag-confirme">CONFIRMÉ</span></li>
+        <li><code>radar-svg.js</code> est désormais couvert par <code>test-radar.js</code> (structure du SVG serveur). En revanche aucun test n'exerce les routes HTTP de <code>server.js</code> via de vraies requêtes (pas de <code>supertest</code> observé). <span class="tag tag-confirme">CONFIRMÉ</span></li>
         <li><code>capture-screenshots.js</code> est un outil de développement, pas un test — non invoqué par <code>npm test</code>. <span class="tag tag-confirme">CONFIRMÉ</span></li>
       </ul>
     </section>

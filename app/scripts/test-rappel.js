@@ -66,6 +66,6 @@ creerRepondant(s3, { email: null, soumis: true }); // ancien repondant sans emai
 const nr3 = getNonRepondants(s3).map((i) => i.email).sort();
 check(JSON.stringify(nr3) === JSON.stringify(['x@x.com', 'y@x.com']), 'sans email rapprochable -> rappel a tous les invites');
 
-try { fs.rmSync(process.env.DB_PATH); } catch {}
+try { fs.rmSync(process.env.DB_PATH); } catch { /* nettoyage best-effort */ }
 console.log(echecs === 0 ? '\nTOUS LES TESTS PASSENT' : `\n${echecs} TEST(S) EN ECHEC`);
 process.exit(echecs === 0 ? 0 : 1);

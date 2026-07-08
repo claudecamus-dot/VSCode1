@@ -13,7 +13,8 @@
     "build:artifact": "node scripts/build-artifact.js",
     "backup": "node scripts/backup-db.js",
     "restore": "node scripts/restore-db.js",
-    "test": "node scripts/test-reimport.js && node scripts/test-rappel.js && node scripts/test-normalisation.js && node scripts/test-sessions.js && node scripts/test-admin-ui.js"
+    "lint": "eslint .",
+    "test": "node scripts/test-reimport.js && node scripts/test-rappel.js && node scripts/test-normalisation.js && node scripts/test-sessions.js && node scripts/test-admin-ui.js && node scripts/test-radar.js && node scripts/test-correcteur.js"
   },
   "engines": {
     "node": ">=22"
@@ -25,5 +26,10 @@
     "multer": "^2.0.1",
     "nspell": "^2.1.5",
     "puppeteer-core": "^25.1.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.6.0",
+    "globals": "^17.7.0"
   }
 }

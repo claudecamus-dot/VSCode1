@@ -1,0 +1,36 @@
+name: CI
+
+# Exécute la suite de tests (app/scripts/test-*.js via `npm test`) à chaque push
+# sur main et sur chaque pull request. Couvre la partie JS ; l'export PPT
+# (Python + rendu Chrome/PowerPoint) n'est pas testable en CI et reste vérifié
+# manuellement (voir docs/wiki/technical/tests.md).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Pas de package-lock.json versionné dans ce projet → `npm install`
+      # (et non `npm ci`, qui exige un lockfile).
+      - name: Install dependencies
+        run: npm install
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test

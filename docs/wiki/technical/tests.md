@@ -9,9 +9,12 @@ agents: [onboarder]
 ## Frameworks
 
 Aucun framework de test tiers (pas de Jest/Mocha/Vitest dans les
-dépendances) : les tests JS s'appuient sur le module natif Node
-`node:assert/strict`, mais **de façon inégale** — voir "Incohérence
-documentation/code" ci-dessous. `CONFIRMÉ` — onboarder · 2026-07-07 · app/package.json (absence de devDependencies), app/README.md:244-245
+dépendances). Deux styles d'assertion cohabitent, tous deux natifs et sans
+dépendance : le module Node `node:assert/strict` (`test-sessions.js`,
+`test-admin-ui.js`, `test-radar.js`) et un helper maison `check()`
+(`test-reimport.js`, `test-rappel.js`, `test-normalisation.js`). Le README
+décrit désormais correctement cette cohabitation (auparavant sur-généralisée à
+`node:assert/strict`). `CONFIRMÉ` — 2026-07-08 · app/package.json (absence de devDependencies), app/README.md:243-256
 
 Côté PPT, `scripts/test-export-ppt.py` est un script Python indépendant, sans
 framework non plus (assertions manuelles + vérification de géométrie).
@@ -26,9 +29,11 @@ npm test
   → node scripts/test-normalisation.js
   → node scripts/test-sessions.js
   → node scripts/test-admin-ui.js
+  → node scripts/test-radar.js
+  → node scripts/test-correcteur.js
 ```
 
-`CONFIRMÉ` — onboarder · 2026-07-07 · app/package.json:16, app/README.md:246-252
+`CONFIRMÉ` — 2026-07-08 · app/package.json:16, app/README.md:246-252
 
 Chaque script est exécutable individuellement (`node scripts/test-xxx.js`) et
 se termine par un code de sortie non nul en cas d'échec
@@ -42,29 +47,37 @@ Style constaté par script :
 | Script | Style | Ce qu'il couvre |
 |---|---|---|
 | `test-reimport.js` | Helper maison `check(condition, message)`, base SQLite temporaire (`DB_PATH` surchargé vers `os.tmpdir()`) | Ré-import non destructif / remplacement total du référentiel (US1.2/US1.6) |
-| `test-rappel.js` | Non relu en détail lors de l'exploration ; absent des résultats de recherche `assert` | Rappel des non-répondants (US2.5), à confirmer |
-| `test-normalisation.js` | Idem — absent des résultats `assert` | Rapprochement tolérant département/équipe (US3.3) |
+| `test-rappel.js` | Helper maison `check()` | Rappel des non-répondants (US2.5) |
+| `test-normalisation.js` | Helper maison `check()` | Rapprochement tolérant département/équipe (US3.3) |
 | `test-sessions.js` | `node:assert/strict` (`assert.match`) | Formatage de libellé de session (`session-utils.js`) |
 | `test-admin-ui.js` | `node:assert/strict` (`assert.match` / `assert.doesNotMatch`) sur le **contenu texte brut** des fichiers `admin.html`/`resultats.html` | Présence de certains sélecteurs/scripts, absence de bandeau OCTO résiduel — test de régression sur chaîne, pas d'exécution DOM/navigateur réelle |
+| `test-radar.js` | `node:assert/strict` | Structure du radar SVG serveur (`radar-svg.js`) : dimensions du `viewBox`, un sommet par axe, une puce de légende par pilier, gestion de la comparaison, nettoyage des libellés, échappement XML, couleur cyclique par pilier |
+| `test-correcteur.js` | `node:assert/strict` (asynchrone) | Chargement du dictionnaire ESM `dictionary-fr` via `import()` depuis CommonJS (`correcteur.js`) + corrections conservatrices (majuscules/acronymes/vocabulaire métier préservés). Assertions déterministes, indépendantes des suggestions du dictionnaire. Charge le dico complet → ~6 s |
 
 </div>
 
-`CONFIRMÉ` — onboarder · 2026-07-07 · app/scripts/test-reimport.js:1-22, app/scripts/test-sessions.js:1-14, app/scripts/test-admin-ui.js:1-13 ; `DÉDUIT` pour test-rappel.js/test-normalisation.js (non lus intégralement, mais absents des fichiers matchant "assert" lors d'une recherche sur app/scripts)
+`CONFIRMÉ` — 2026-07-08 · app/scripts/test-reimport.js:1-22, test-rappel.js, test-normalisation.js (helper `check()`), test-sessions.js:1-14, test-admin-ui.js:1-13, test-radar.js
 
 Chaque script isole ses effets de bord : `test-reimport.js` pointe
 `DB_PATH` vers un fichier temporaire unique (`crypto.randomUUID()`) avant de
 charger `../src/db`, pour ne jamais toucher la vraie base de développement.
 `CONFIRMÉ` — onboarder · 2026-07-07 · app/scripts/test-reimport.js:1-11
 
-## Incohérence documentation/code
+## Intégration continue
 
-Le `app/README.md` décrit `npm test` comme enchaînant des "assertions Node
-natives `node:assert/strict`", mais **seuls 2 des 5 scripts** (`test-sessions.js`,
-`test-admin-ui.js`) utilisent réellement `assert` ; les 3 autres s'appuient
-sur un helper `check()` maison qui logge `ok`/`FAIL` sans lever d'exception —
-un `console.error` seul, avec compteur d'échecs et code de sortie final.
-Fonctionnellement équivalent pour l'usage `npm test`, mais la documentation
-sur-généralise le style réel des tests. `CONFIRMÉ` — onboarder · 2026-07-07 · app/README.md:244-245 vs recherche du motif `assert` dans app/scripts (2 fichiers sur 5)
+Un workflow GitHub Actions (`.github/workflows/ci.yml`) exécute `npm install`,
+puis `npm run lint` (ESLint), puis `npm test` (Node 22, `working-directory:
+app`) à chaque push sur `main` et sur chaque pull request. Il couvre la partie
+JS ; l'export PPT (Python + rendu Chrome/PowerPoint) n'est pas testable en CI
+et reste vérifié manuellement. `CONFIRMÉ` — 2026-07-08 · .github/workflows/ci.yml
+
+## Cohérence documentation/code
+
+L'ancienne incohérence — le README annonçait des "assertions Node natives
+`node:assert/strict`" alors que 3 scripts sur 5 utilisaient un helper `check()`
+maison — a été corrigée : le README décrit maintenant la cohabitation des deux
+styles. Une harmonisation future vers `node:assert/strict` (voire `node:test`)
+reste souhaitable mais non bloquante. `CONFIRMÉ` — 2026-07-08 · app/README.md:243-256
 
 ## Seuil de couverture
 
@@ -86,10 +99,12 @@ coverage — `c8`, `istanbul` — dans les dépendances). `CONFIRMÉ` — onboar
   `restitution-ppt` est explicite — la vérification géométrique automatisée
   (`test-export-ppt.py`) ne suffit pas à déclarer un design correct, un rendu
   réel via PowerPoint COM et une relecture à l'œil sont requis. `CONFIRMÉ` — onboarder · 2026-07-07 · .claude/skills/restitution-ppt/SKILL.md:51, 100
-- **Aucun test n'exerce `radar-svg.js` directement**, ni les routes HTTP de
-  `server.js` via de vraies requêtes (pas de `supertest`/équivalent observé) —
-  les tests présents couvrent des modules internes ciblés
-  (`referentiel.js`, `session-utils.js`) plutôt que la surface API complète.
-  `CONFIRMÉ` — onboarder · 2026-07-07 · absence de dépendance de test HTTP dans app/package.json, absence de fichier `test-radar*`/`test-server*` dans app/scripts
+- **`radar-svg.js` est désormais couvert par `test-radar.js`** (test
+  structurel du SVG produit), ce qui garde la structure du radar serveur alignée
+  sur celle du radar web. En revanche, **aucun test n'exerce les routes HTTP de
+  `server.js`** via de vraies requêtes (pas de `supertest`/équivalent observé) —
+  les tests présents couvrent des modules internes ciblés (`referentiel.js`,
+  `session-utils.js`, `radar-svg.js`) plutôt que la surface API complète.
+  `CONFIRMÉ` — 2026-07-08 · app/scripts/test-radar.js ; absence de dépendance de test HTTP dans app/package.json, absence de fichier `test-server*` dans app/scripts
 - **`capture-screenshots.js`** est un outil de développement (captures
   d'écran), pas un test — n'est pas invoqué par `npm test`. `CONFIRMÉ` — onboarder · 2026-07-07 · app/README.md:151, absence dans la chaîne `npm test` (app/package.json:16)

@@ -753,7 +753,7 @@ function construireBlocRestitution(session, filtre, type, nom, manager) {
     }))
   );
 
-  let departement = '';
+  let departement; // toujours affecte dans les deux branches ci-dessous
   let commentaire = '';
   let nbEquipes;
   if (type === 'equipe') {
@@ -854,9 +854,9 @@ app.get('/api/sessions/:id/export-ppt', async (req, res) => {
   if (!session) return res.status(404).json({ error: 'Session inconnue.' });
   const { scope, equipe, departement, manager } = req.query;
 
-  let blocs = [];
+  let blocs; // affecte dans chaque branche de scope (sinon reponse 400 avant usage)
   let nomFichier = 'Restitution.pptx';
-  let sousTitre = '';
+  let sousTitre; // idem : affecte dans chaque branche de scope
 
   if (scope === 'equipe') {
     if (!equipe) return res.status(400).json({ error: "Le parametre 'equipe' est requis." });

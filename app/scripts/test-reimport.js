@@ -158,7 +158,7 @@ check(refV4.length === 1 && refV4[0].nom === 'Pilier B', 'seul Pilier B subsiste
 check(textesV4.length === 1 && textesV4[0] === 'Question neuve', 'seule la nouvelle question subsiste (aucun residu archive)');
 
 // Nettoyage
-try { fs.rmSync(dbFile); } catch {}
+try { fs.rmSync(dbFile); } catch { /* nettoyage best-effort */ }
 
 console.log(echecs === 0 ? '\nTOUS LES TESTS PASSENT' : `\n${echecs} TEST(S) EN ECHEC`);
 process.exit(echecs === 0 ? 0 : 1);
