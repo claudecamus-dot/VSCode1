@@ -303,6 +303,12 @@
     </div>
 
     <div class="toc-group">
+      <p class="toc-group-title">TODO</p>
+      <a class="toc-link" href="#todo-ppt">Chantier deck PPT</a>
+      <a class="toc-link" href="#todo-tokens">Optimisation tokens</a>
+    </div>
+
+    <div class="toc-group">
       <p class="toc-group-title">Métier</p>
       <a class="toc-link" href="#metier-vue">Vue d'ensemble</a>
       <a class="toc-link" href="#personas">Personas</a>
@@ -688,6 +694,40 @@
         <li><strong>ux-designer</strong> — spécifier les nouveaux écrans (Epic 10 auth, Epic 11 sélecteur de client).</li>
         <li><strong>developer-migrator</strong> — pour l'US11.6 (migration des données vers un client par défaut).</li>
       </ul>
+    </section>
+
+    <!-- ============ TODO ============ -->
+    <section class="doc" id="todo-ppt">
+      <div class="doc-header">
+        <span class="doc-path">docs/wiki/todo.md</span>
+        <h1>TODO</h1>
+      </div>
+
+      <h2 id="todo-ppt-h">Chantier deck PPT — qualité &amp; fidélité charte</h2>
+      <p>Ouvert le 2026-07-08. Objectif : augmenter la qualité de l'export de restitution, respecter la charte du template OCTO, formes plus travaillées — en restant sur <code>python-pptx</code> (<code>PptxGenJS</code> écarté : ne sait pas recharger un <code>.pptx</code> existant). Détail et preuves : <a href="../export/points-amelioration-ppt.md"><code>export/points-amelioration-ppt.md</code></a>. Snapshot établi en cours de session — un agent <code>ppt-designer</code> peut être en train de faire avancer ces points : recroiser avec ce fichier avant de le tenir pour définitif. <span class="tag tag-deduit">DÉDUIT</span><span class="fact-label">2026-07-08</span></p>
+
+      <div class="decision-grid">
+        <div class="decision-row"><span class="decision-tag">fait</span><p><strong>#1 Police de marque</strong> — le contenu dessiné (barres, cartes, jauge, labels) était en Arial (police mineure de repli) alors que titres/placeholders portent Outfit ; détection <code>police_marque()</code> + application partout. Vérifié : 0 zone Arial au rendu PowerPoint COM (37 avant).</p></div>
+        <div class="decision-row"><span class="decision-tag">fait</span><p><strong>#2 Neutres + accent cyan depuis le thème</strong> — <code>pptx_deck.appliquer_theme()</code> lit <code>dk1/lt2/accent3/accent5/accent6</code> du thème du template et remplace les neutres codés en dur + introduit l'accent cyan (filet de section, barre du panneau commentaire). Vérifié par rendu réel avant/après (13 slides) ; aplats uniquement, aucune ombre/gradient. Bug trouvé et corrigé au passage : pistes de barres/jauge figées sur l'ancien gris (paramètre par défaut jamais réévalué par <code>appliquer_theme()</code>).</p></div>
+      </div>
+
+      <h3 id="todo-radar">⚠️ Radar de maturité (slide 3 de chaque bloc) — pas encore prêt</h3>
+      <p><strong>#3 radar vectoriel</strong> : le PNG Puppeteer est remplacé par du vectoriel natif python-pptx. Le feedback du 2026-07-08 est intégré (design aligné sur la trame du template, en-tête de section, parenthèses retirées <strong>partout</strong> via <code>joli_nom()</code>, réglette de paliers 0-3 au-dessus du cercle, coupures de mots composés longs corrigées avec un vrai trait d'union). Mais la slide n'est <strong>pas encore considérée « prête »</strong> : 2 points restent ouverts.</p>
+      <div class="critical">
+        <p><strong>1. Radar vs tableau — non tranché.</strong> 3 options rendues réellement (PowerPoint COM, mêmes données) : A = radar vectoriel actuel (lecture de silhouette globale, mais libellés contraints sur un radar dense) ; B = tableau 2 colonnes (delta par objectif, très lisible, perd la silhouette) ; C = barres groupées par pilier (même grammaire que la vue d'ensemble, mais plus haut). Prototypes B/C pas committés (scratch de session) — à régénérer sur demande pour arbitrage visuel.</p>
+        <p><strong>2. Contraste GOLD insuffisant.</strong> <code>D.PALETTE[3]</code> (<code>#b8860b</code>, pilier « Agilité à l'échelle ») sur fond blanc : 3.25:1, sous le seuil WCAG AA (4.5:1) pour les libellés d'axe du radar (texte normal). Pré-existant, partagé avec le radar web (<code>radar-svg.js</code>), révélé par la vectorisation. Décision palette à prendre (assombrir ce jaune, ou accepter tel quel) — pas tranchée.</p>
+      </div>
+
+      <div class="decision-grid">
+        <div class="decision-row"><span class="decision-tag">en cours</span><p><strong>#4 Icônes outline par pilier</strong> — pictogrammes en traits (jamais remplis, charte OCTO), navy/cyan, pour muscler l'infographie.</p></div>
+        <div class="decision-row"><span class="decision-tag">en cours</span><p><strong>#6 Cadres <code>round2DiagRect</code></strong> — utiliser les cadres photo du template (couverture/intercalaires) via le skill <code>pptx-framed-image</code>.</p></div>
+        <div class="decision-row"><span class="decision-tag">idée</span><p><strong>#7 Nouveaux patterns de slide</strong> — s'inspirer de <code>KPI_GRID</code>, <code>MATRICE_CONTEXTE_CARDS</code>, <code>COMPARAISON_2_OPTIONS</code> (design system OCTO) pour enrichir la restitution.</p></div>
+      </div>
+
+      <p><strong>Méthode (non négociable)</strong> : tout changement visuel se vérifie par <strong>rendu réel</strong> (PowerPoint COM sur ce poste), jamais sur la seule géométrie.</p>
+
+      <h2 id="todo-tokens">Optimisation tokens</h2>
+      <p class="fact-label">Chantier parallèle (<a href="../export/optimisation-tokens.md"><code>export/optimisation-tokens.md</code></a>) : mesure réelle faite (<code>rtk gain --history</code> : 20,4 % d'économie globale sur 1226 commandes, poste dominant <code>rtk read</code>) ; prototype <code>render_diff.py</code> (filtre pixel avant eye-check PPT, skill <code>pptx-verify</code>) livré et testé (9 tests unitaires + 6 fonctionnels). Restent à explorer : POC <code>params.json</code> + aperçu non-LLM, coût réel des sous-agents inline vs délégué.</p>
     </section>
 
     <!-- ============ BUSINESS ============ -->

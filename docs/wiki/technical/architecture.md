@@ -85,6 +85,16 @@ framework de migration dédié). `CONFIRMÉ` — onboarder · 2026-07-07 · app/
   script Python (`python-pptx`) construit le `.pptx` à partir du template
   OCTO. Un seul lancement de navigateur pour tous les radars d'un export
   (`rasteriserRadars`). `CONFIRMÉ` — onboarder · 2026-07-07 · app/src/server.js:812-845
+- **Deck construit SUR le template, pas de zéro** : le générateur ouvre le
+  `.pptx` OCTO et dessine par-dessus ses masters/layouts ; il **détecte la
+  police de marque** (Outfit) et **lit les couleurs du thème** (= charte OCTO
+  navy/cyan/slate) au lieu de les coder en dur — donc s'adapte à un autre
+  template fourni. Décision 2026-07-08 : le `.pptx` OCTO **fait foi**,
+  `PptxGenJS` écarté (ne charge pas un template existant). Références versionnées
+  dans `export/` : [`template-octo.md`](../../../export/template-octo.md) (spec
+  fidèle — 1 template = 1 md compagnon), [`design-system-octo.md`](../../../export/design-system-octo.md)
+  (principes visuels), [`points-amelioration-ppt.md`](../../../export/points-amelioration-ppt.md)
+  (backlog qualité). `CONFIRMÉ` — 2026-07-08 · app/scripts/pptx_deck.py (police_marque, theme_colors), app/scripts/export-restitution-ppt.py:construire
 - **Recalcul des agrégats à la demande, pas en batch** : `agregerResultats`
   interroge la base à chaque appel d'API résultats/consolidation/comparaison
   plutôt que de maintenir une table d'agrégats précalculés — cohérent avec

@@ -50,6 +50,9 @@ passage obligés pour toute évolution :
 | Architecture | [`technical/architecture.md`](technical/architecture.md) | Structure du code, modèle de données, décisions, fragilités |
 | Conventions | [`technical/conventions.md`](technical/conventions.md) | Nommage, git, secrets, patterns d'équipe |
 | Tests | [`technical/tests.md`](technical/tests.md) | Organisation des scripts de test, couverture, philosophie |
+| Export PPT (kit + charte) | [`../../export/`](../../export/) | Kit agent+skills (`ppt-toolkit.md`), spec template OCTO, design system, backlog qualité |
+| Optimisation tokens | [`../../export/optimisation-tokens.md`](../../export/optimisation-tokens.md) | Où les tokens Claude sont dépensés et comment les réduire (RTK, wiki, mémoires) |
+| TODO | [`todo.md`](todo.md) | Chantiers en cours/demandés/restants (deck PPT, optimisation tokens) |
 
 ## Points critiques
 
