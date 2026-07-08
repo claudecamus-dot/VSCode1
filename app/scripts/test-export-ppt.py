@@ -53,11 +53,44 @@ def piliers(vals):
     return [{"nom": n, "moyenne": v} for n, v in zip(noms, vals)]
 
 
+# Deux libelles avec un complement entre parentheses (comme le referentiel
+# Excel reel, ex. "Ressources humaines (formations, coaching agile, talent,
+# ...)") : doit s'afficher SANS la parenthese, partout ou le nom est affiche
+# (labels d'axe du radar ET legende) — regression deja signalee une fois.
+_NOMS_OBJECTIFS = [
+    ["Vision produit", "Découpage en user stories",
+     "Ressources humaines (formations, coaching agile, talent, ...)"],
+    ["Qualité et tests automatisés", "Intégration continue", "Architecture évolutive"],
+    ["Sponsorship et posture managériale", "Droit à l'erreur", "Collaboration transverse"],
+    ["Synchronisation inter-équipes",
+     "Fonctionnement agile à l'échelle (gestion des dépendances, méthodes, outils, ...)",
+     "Gouvernance à l'échelle"],
+]
+
+
+def objectifs(vals, avec_precedent=True):
+    """3 sous-categories par pilier (radar a 12 axes, comme un referentiel
+    reel) — dont un libelle anormalement long (stress-test du repli de police/
+    wrap du radar vectoriel) et, si `avec_precedent`, un axe SANS comparaison
+    (doit retomber sur sa valeur courante, pas s'effondrer a 0)."""
+    axes = []
+    for pilier_i, (noms, v) in enumerate(zip(_NOMS_OBJECTIFS, vals)):
+        for j, nom in enumerate(noms):
+            sans_comp = avec_precedent and pilier_i == 1 and j == 1
+            axes.append({
+                "nom": nom,
+                "moyenne": max(0.0, min(3.0, v + (j - 1) * 0.3)),
+                "precedent": None if (not avec_precedent or sans_comp) else max(0.0, v - 0.6),
+                "pilierIndex": pilier_i,
+            })
+    return axes
+
+
 def bloc_equipe(nom, vals, avec_comp=True, radar=None):
     b = {
         "type": "equipe", "nom": nom, "departement": "DSI Paiements", "effectif": 5,
         "piliers": piliers(vals),
-        "objectifs": [{"nom": "Obj", "moyenne": vals[0], "precedent": None, "pilierIndex": 0}],
+        "objectifs": objectifs(vals, avec_precedent=avec_comp),
         "dispersion": [
             {"texte": "Est-ce que le recrutement est adapte aux besoins de l'equipe ?",
              "ecartType": 1.0, "min": 1, "max": 3, "moyenne": 2.0, "contexte": "RH"},
@@ -111,6 +144,10 @@ def bloc_equipe(nom, vals, avec_comp=True, radar=None):
 
 def main():
     tmp = tempfile.mkdtemp(prefix="test-ppt-")
+    # radarImage n'est plus utilise par le generateur (radar desormais vectoriel,
+    # dessine depuis objectifs/piliers — voir _dessiner_radar) : ces PNG factices
+    # ne servent plus qu'a verifier qu'un champ radarImage encore envoye par le
+    # serveur (avant nettoyage cote server.js) reste sans effet, sans casser.
     radar_carre = os.path.join(tmp, "radar.png")
     radar_large = os.path.join(tmp, "radar-wide.png")
     png_factice(radar_carre, 520, 520)
@@ -141,6 +178,18 @@ def main():
             print("   -", p)
     check(not problemes, f"toutes les formes dans le cadre — {len(problemes)} probleme(s)")
 
+    print("Libelles pilier/objectif : jamais de parenthese affichee (verrou anti-regression) :")
+    tout_le_texte = []
+    for slide in prs.slides:
+        for shp in slide.shapes:
+            if shp.has_text_frame:
+                tout_le_texte.append(shp.text_frame.text)
+    texte_complet = "\n".join(tout_le_texte)
+    check("(formations" not in texte_complet,
+          "pas de complement parenthese residuel (ex. 'Ressources humaines (formations...')")
+    check("(gestion des" not in texte_complet,
+          "pas de complement parenthese residuel (ex. 'Fonctionnement agile ... (gestion des...')")
+
     print("Robustesse — bloc sans comparaison et valeurs manquantes :")
     data2 = {"couverture": None, "blocs": [{
         "type": "equipe", "nom": "Equipe Vide", "departement": "", "effectif": 0,
@@ -152,6 +201,19 @@ def main():
     prs2, pb2 = gen.construire(data2, gen.TEMPLATE, out2)
     check(len(prs2.slides) == 4, f"4 slides (pas de couverture) — recu {len(prs2.slides)}")
     check(not pb2, f"geometrie OK meme avec donnees partielles — {len(pb2)} probleme(s)")
+
+    print("Robustesse — radar vectoriel avec trop peu d'axes (< 3, illisible) :")
+    data3 = {"couverture": None, "blocs": [{
+        "type": "equipe", "nom": "Equipe Deux Axes", "departement": "", "effectif": 3,
+        "piliers": [{"nom": "P1", "moyenne": 2.0}, {"nom": "P2", "moyenne": 1.0}],
+        "objectifs": [{"nom": "Obj A", "moyenne": 2.0, "precedent": None, "pilierIndex": 0},
+                      {"nom": "Obj B", "moyenne": 1.0, "precedent": None, "pilierIndex": 1}],
+        "dispersion": [], "faibles": [], "hauts": [], "accords": [],
+        "commentaire": "Radar non affiche (2 axes seulement).", "comparaison": {"disponible": False},
+    }]}
+    out3 = os.path.join(tmp, "deck3.pptx")
+    prs3, pb3 = gen.construire(data3, gen.TEMPLATE, out3)
+    check(not pb3, f"geometrie OK avec seulement 2 axes (radar non dessine) — {len(pb3)} probleme(s)")
 
     print("\nTOUS LES TESTS PASSENT" if echecs == 0 else f"\n{echecs} TEST(S) EN ECHEC")
     sys.exit(0 if echecs == 0 else 1)

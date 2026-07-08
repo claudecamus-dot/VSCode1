@@ -31,6 +31,8 @@ Le serveur Node calcule tout et passe le JSON ; ce script ne touche pas a la bas
 import sys
 import os
 import json
+import math
+import re
 from pptx import Presentation
 from pptx.util import Inches
 from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
@@ -61,6 +63,9 @@ BORD_DROIT = 9.15
 # du template fourni (charte du modele). Les couleurs de pilier, elles, restent
 # alignees sur le radar et ne sont PAS derivees du theme.
 ACCENT = D.PALETTE[0]
+# Accent secondaire de marque (filets de section, barre du callout) : le cyan de
+# la charte. Sourcé du thème du template par construire() (D.appliquer_theme).
+CYAN = D.CYAN
 # Hauteur reelle d'une ligne de question (small 10.5pt) dans une carte : ~0.17in
 # de texte + un peu de marge. L'ancienne valeur (0.235) sur-estimait et creusait
 # un vide entre la question et le couple contexte/barre.
@@ -82,9 +87,21 @@ _ACCENTS = {"a": "à", "agilite": "agilité", "echelle": "échelle",
             "modele": "modèle", "delivery": "delivery", "ingenierie": "ingénierie"}
 
 
+def _nettoyer_label(texte):
+    """Retire le contenu entre parentheses d'un libelle pilier/objectif (ex.
+    « Ressources humaines (formations, coaching agile, talent, ...) » ->
+    « Ressources humaines ») — mire `nettoyerLabel` de radar-svg.js. Les noms
+    du referentiel Excel embarquent parfois un complement entre parentheses
+    qui alourdit l'affichage sans aider a la lecture rapide ; on l'enleve
+    PARTOUT ou joli_nom() est appele (barres, cartes, radar...), pas juste
+    a un endroit — un oubli ponctuel a deja ete signale par le passe."""
+    return re.sub(r"\s*\([^)]*\)", "", str(texte)).strip()
+
+
 def joli_nom(nom):
     if not nom:
         return nom
+    nom = _nettoyer_label(nom)
     mots = nom.replace("'", "' ").split()
     out = []
     premier = True
@@ -150,7 +167,7 @@ def _surtitre(slide, x, y, w, texte):
     """Petit label de section (capitales espacees) + filet fin dessous."""
     D.add_text(slide, x, y, w, 0.24,
                [(texte, {"size": D.TYPE["tiny"], "bold": True, "color": D.MUTED})])
-    D.add_rect(slide, x, y + 0.26, w, 0.014, fill=D.LINE)
+    D.add_rect(slide, x, y + 0.26, w, 0.014, fill=CYAN)   # filet d'accent charte
 
 
 def slide_vue_ensemble(prs, layouts, bloc):
@@ -279,21 +296,265 @@ def _chip(slide, x, y, w, prefixe, pilier, dot):
     r1.font.size = D.Pt(D.TYPE["small"]); r1.font.color.rgb = D.rgb(D.MUTED)
     r2 = p.add_run(); r2.text = f"{joli_nom(nom)} — {fmt(moy)} / 3"
     r2.font.size = D.Pt(D.TYPE["small"]); r2.font.bold = True; r2.font.color.rgb = D.rgb(D.INK)
+    if D.POLICE:                        # meme police de marque que le reste du deck
+        r1.font.name = D.POLICE
+        r2.font.name = D.POLICE
 
 
 # ----------------------------------------------------------------------------
 # Slide 2 : Radar par objectif + commentaire + evolution
 # ----------------------------------------------------------------------------
-def _png_size(path):
-    """Dimensions (w,h) d'un PNG sans dependance (lecture de l'entete IHDR)."""
-    try:
-        with open(path, "rb") as fp:
-            head = fp.read(24)
-        if head[:8] == b"\x89PNG\r\n\x1a\n":
-            return int.from_bytes(head[16:20], "big"), int.from_bytes(head[20:24], "big")
-    except Exception:
-        pass
-    return None
+# Radar VECTORIEL (formes python-pptx natives, pas un PNG rasterise par
+# Puppeteer) : reste net a toute resolution/impression et reste editable dans
+# PowerPoint. Mire le meme principe visuel que le radar web (voir
+# app/src/radar-svg.js, qui garde son propre role serveur/US6.2-US6.5 — on ne
+# le touche pas) : grille de niveaux + rayons, polygone "precedent" pointille
+# (comparaison), polygone "courant" en aire semi-transparente, une puce
+# couleur-pilier par sommet, libelles d'axe colores par pilier, legende a
+# droite. Echelle fixe 0..3 (les 4 niveaux de reponse du referentiel).
+RADAR_MAX = 3
+# Largeur de legende ABSOLUE (pas un ratio du cote du radar) : sous ~1.0-1.3in de
+# largeur de texte utile, un mot seul de pilier ("Excellence", "Priorisation")
+# n'a plus la place de tenir sur une ligne et PowerPoint le coupe au milieu (pas
+# de cesure) — c'est cette contrainte de mot qui pilote la valeur, pas une
+# esthetique de proportion. Le cote du radar est plafonne en consequence : au-
+# dela, le panneau de DROITE (commentaire + evolution par pilier, qui se partage
+# la meme largeur de slide) n'aurait plus assez de place pour ses propres noms
+# de pilier sans la meme coupure.
+RADAR_LEGEND_W = 1.30
+RADAR_COTE_MAX = 3.75
+RADAR_GAP_LEGENDE = 0.20     # entre le cercle et la colonne de legende
+# Hauteur de ligne REELLE (pas juste la taille de police) : mesuree au rendu,
+# comme LH_QUESTION (0.195 pour small 10.5pt) — proportionnelle a la taille
+# pour tiny (9pt). Sous-estimer ceci fait deborder le texte de sa boite sans
+# que le controle geometrique ne le voie (la FORME reste dans le cadre).
+RADAR_LH = 0.195 * 9 / 10.5   # ~0.167, hauteur de ligne tiny (9pt)
+# Bandeau de section (_surtitre, meme grammaire que "MATURITÉ PAR PILIER" sur
+# la vue d'ensemble) + reglette d'echelle 0..RADAR_MAX, reserves AU-DESSUS du
+# cercle — memes tailles/couleurs que la reglette sous les barres de
+# slide_vue_ensemble, pour donner un repere de lecture explicite du niveau
+# (les anneaux seuls ne disent pas "ceci = niveau 2").
+RADAR_HEADER_H = 0.42
+RADAR_ECHELLE_H = 0.30
+
+
+def _cote_radar(w, h):
+    """Cote (in) du carre du radar pour une boite (w, h) donnee — factorise
+    pour que slide_radar (reglette d'echelle) et _dessiner_radar (formes)
+    calculent EXACTEMENT la meme valeur, sans dupliquer la formule."""
+    return min(h, RADAR_COTE_MAX, w - RADAR_LEGEND_W - RADAR_GAP_LEGENDE)
+
+
+def _echelle_radar(slide, x0, y, cote):
+    """Reglette d'echelle 0..RADAR_MAX au-dessus du cercle : mire la reglette
+    deja utilisee sous les barres de la vue d'ensemble (meme taille/couleur de
+    trait et de texte) — un repere explicite de "a quel niveau correspond
+    quel anneau", que les anneaux seuls (juste des cercles concentriques) ne
+    donnent pas."""
+    D.add_text(slide, x0, y, cote, 0.16,
+               [("NIVEAU DE MATURITÉ", {"size": D.TYPE["tiny"], "bold": True, "color": D.MUTED})])
+    ligne_y = y + 0.16
+    for g in range(RADAR_MAX + 1):
+        gx = x0 + cote * (g / RADAR_MAX)
+        D.add_rect(slide, gx - 0.005, ligne_y, 0.01, 0.09, fill=D.LINE)
+        # Le repere 0 (extremite gauche) et RADAR_MAX (extremite droite) du
+        # cercle : boite decalee + alignee vers l'INTERIEUR pour ne pas
+        # deborder du cercle, plutot que centree sur le trait.
+        if g == 0:
+            box_x, align = gx, PP_ALIGN.LEFT
+        elif g == RADAR_MAX:
+            box_x, align = gx - 0.30, PP_ALIGN.RIGHT
+        else:
+            box_x, align = gx - 0.15, PP_ALIGN.CENTER
+        D.add_text(slide, box_x, ligne_y + 0.08, 0.30, 0.16,
+                   [(str(g), {"size": D.TYPE["tiny"], "color": D.MUTED, "align": align})])
+
+
+def _point_radar(cx, cy, rayon, i, n, valeur):
+    ang = -math.pi / 2 + i * (2 * math.pi / n)
+    r = rayon * max(0.0, min(RADAR_MAX, valeur if valeur is not None else 0)) / RADAR_MAX
+    return (cx + r * math.cos(ang), cy + r * math.sin(ang))
+
+
+def _lignes_radar(texte, largeur_in, taille=None):
+    taille = taille if taille is not None else D.TYPE["tiny"]
+    return max(1, D.estimer_lignes(texte, max(0.3, largeur_in), taille))
+
+
+def _taille_libelle_axe(nom_axe, box_w, taille_max=None, taille_min=7.0,
+                        cpi_ref=11.0, taille_ref=10.5):
+    """Reduit la taille de police jusqu'a ce que le mot le plus long de
+    `nom_axe` (separe sur espace ET tiret — un tiret existant est deja un
+    point de coupure sur) tienne dans `box_w`. Necessaire car D.estimer_lignes
+    (repli mot-a-mot par nombre de caracteres) sous-estime le nombre de lignes
+    reel quand un seul mot compose francais ("Fonctionnement",
+    "Synchronisation") depasse a lui seul la largeur de la boite : PowerPoint
+    le coupe alors au milieu, SANS trait d'union, sur un radar dense (10-12
+    axes, boites de libelle etroites). Repli sur `taille_min` si meme a cette
+    taille le mot ne tient pas (mot exceptionnellement long — voir
+    `_forcer_cesure`, appele par l'appelant dans ce cas)."""
+    taille_max = taille_max if taille_max is not None else D.TYPE["tiny"]
+    mots = [m for m in re.split(r"[ \-]", nom_axe) if m]
+    plus_long = max((len(m) for m in mots), default=0)
+    taille = taille_max
+    while taille > taille_min:
+        cpi = cpi_ref * (taille_ref / taille)
+        if plus_long <= box_w * cpi:
+            break
+        taille = round(taille - 0.5, 2)
+    return max(taille, taille_min)
+
+
+def _forcer_cesure(nom_axe, box_w, taille, cpi_ref=11.0, taille_ref=10.5,
+                   min_prefixe=3):
+    """Insere un vrai trait d'union dans tout mot de `nom_axe` encore trop
+    long pour `box_w` a `taille` (meme apres le plancher de
+    `_taille_libelle_axe`) — au point ou PowerPoint le couperait de toute
+    facon, mais avec un tiret plutot qu'une coupure brute. Un mot deja
+    cesure ("inter-équipes") n'est jamais retouche (deja un point de coupure
+    propre). Sans effet si tous les mots tiennent deja."""
+    cpi = cpi_ref * (taille_ref / taille)
+    max_chars = max(min_prefixe + 1, int(box_w * cpi))
+
+    def _cesurer_mot(mot):
+        if len(mot) <= max_chars or "-" in mot:
+            return mot
+        coupe = max(min_prefixe, max_chars - 1)
+        coupe = min(coupe, len(mot) - 1)
+        return mot[:coupe] + "-" + mot[coupe:]
+
+    return " ".join(_cesurer_mot(m) for m in nom_axe.split(" "))
+
+
+def _dessiner_radar(slide, x, y, w, h, axes, piliers):
+    """Dessine le radar + sa legende dans la boite (x, y, w, h). `axes` =
+    [{nom, moyenne, precedent, pilierIndex}], `piliers` = [nom, ...] pour la
+    legende. Le radar est carre (cote plafonne a RADAR_COTE_MAX, cf. sa note),
+    aligne en haut a gauche de la boite, la legende (largeur fixe
+    RADAR_LEGEND_W) occupant le reste de la largeur. Les libelles d'axe et la
+    legende sont dimensionnes a leur contenu reel (pas une hauteur/largeur de
+    boite fixe devinee) pour ne jamais se chevaucher, quelle que soit la
+    longueur des noms de pilier/objectif."""
+    n = len(axes)
+    if n < 3:
+        return  # radar illisible sous 3 axes : rien plutot qu'une forme deformee
+    cote = _cote_radar(w, h)
+    x0, y0 = x, y + (h - cote) / 2   # centre verticalement si la largeur est la contrainte
+    cx, cy = x0 + cote / 2, y0 + cote / 2
+    rayon = cote * 0.27   # un peu retrait (vs 0.31) : laisse de la marge aux libelles d'axe
+    lx0 = x0 + cote + RADAR_GAP_LEGENDE   # abscisse de depart de la colonne de legende
+
+    has_prev = any(a.get("precedent") is not None for a in axes)
+
+    # Grille (niveaux 1..MAX) + rayons, ton neutre discret (theme).
+    for niveau in range(1, RADAR_MAX + 1):
+        pts = [_point_radar(cx, cy, rayon, i, n, niveau) for i in range(n)]
+        D.add_polygon(slide, pts, line=D.LINE, line_w=0.75)
+    for i in range(n):
+        px_, py_ = _point_radar(cx, cy, rayon, i, n, RADAR_MAX)
+        D.add_line(slide, cx, cy, px_, py_, D.LINE, width=0.75)
+
+    # Polygone "session precedente" (pointille, sans remplissage). Un axe sans
+    # comparaison reprend sa valeur courante (evite un effondrement a 0 qui
+    # laisserait croire a une regression totale la ou il n'y a simplement pas
+    # de comparaison possible) — mire le meme choix que radar-svg.js.
+    if has_prev:
+        pts_prec = [_point_radar(cx, cy, rayon, i, n,
+                                 a.get("precedent") if a.get("precedent") is not None
+                                 else a.get("moyenne")) for i, a in enumerate(axes)]
+        D.add_polygon(slide, pts_prec, line=D.MUTED, line_w=1.5, dash=D.DASH.DASH)
+
+    # Polygone "courant" : aire semi-transparente, couleur neutre du radar
+    # (palette pilier n°0 — comme radar-svg.js, ce n'est pas une couleur de
+    # marque) ; la couleur de CHAQUE pilier vit sur sa puce et son libelle.
+    couleur_aire = D.couleur_pilier(0)
+    pts_cour = [_point_radar(cx, cy, rayon, i, n, a.get("moyenne")) for i, a in enumerate(axes)]
+    D.add_polygon(slide, pts_cour, fill=couleur_aire, alpha=27, line=couleur_aire, line_w=2)
+    for i, a in enumerate(axes):
+        px_, py_ = pts_cour[i]
+        d = max(0.06, cote * 0.014)
+        D.add_dot(slide, px_ - d / 2, py_ - d / 2, d, D.couleur_pilier(a.get("pilierIndex", 0)))
+
+    # Libelles d'axe : petite zone de texte centree sur le sommet exterieur,
+    # alignee selon le cote du radar (gauche/centre/droite selon le signe du
+    # cosinus) — mire le text-anchor start/middle/end du radar web. Largeur
+    # et hauteur de boite calculees (pas devinees) pour ne jamais chevaucher
+    # ni la colonne de legende (a droite) ni le bord de la zone (a gauche).
+    # Cap a 3 lignes (ellipse au-dela, D.tronquer_a_lignes) : sur un radar dense
+    # (10-12 axes), un libelle demesurement long empieterait sinon sur les
+    # libelles voisins (peu d'espace vertical entre sommets adjacents). Le
+    # budget de hauteur ajoute une demi-ligne de marge : l'estimateur de repli
+    # mot-a-mot (D.estimer_lignes) sous-estime le nombre de lignes reel quand
+    # un seul mot (compose, frequent en francais — "Fonctionnement",
+    # "Synchronisation") depasse a lui seul la largeur de la boite.
+    LARGEUR_MAX_LABEL, MAX_LIGNES_LABEL = 1.35, 3
+    for i, a in enumerate(axes):
+        ang = -math.pi / 2 + i * (2 * math.pi / n)
+        cosang = math.cos(ang)
+        lx = cx + (rayon + cote * 0.05) * cosang
+        ly = cy + (rayon + cote * 0.05) * math.sin(ang)
+        nom_axe = joli_nom(a.get("nom", ""))
+        if cosang > 0.2:
+            box_w = max(0.65, min(LARGEUR_MAX_LABEL, lx0 - lx - 0.08))
+            box_x, align = lx, PP_ALIGN.LEFT
+        elif cosang < -0.2:
+            box_w = max(0.65, min(LARGEUR_MAX_LABEL, lx - x0 - 0.08))
+            box_x, align = lx - box_w, PP_ALIGN.RIGHT
+        else:
+            box_w = min(LARGEUR_MAX_LABEL, (lx0 - x0) - 0.16)
+            box_x, align = lx - box_w / 2, PP_ALIGN.CENTER
+        box_x = max(0.02, min(box_x, 10 - box_w - 0.02))
+        # Reduit la taille AVANT le repli mot-a-mot si un mot seul ne tiendrait
+        # pas dans box_w a la taille normale (cf. note _taille_libelle_axe) —
+        # evite que PowerPoint coupe ce mot au milieu sans trait d'union.
+        taille_axe = _taille_libelle_axe(nom_axe, box_w)
+        nom_axe = _forcer_cesure(nom_axe, box_w, taille_axe)
+        lh_axe = RADAR_LH * (taille_axe / D.TYPE["tiny"])
+        nom_axe = D.tronquer_a_lignes(nom_axe, box_w, taille_axe, MAX_LIGNES_LABEL)
+        box_h = max(0.20, (min(MAX_LIGNES_LABEL, _lignes_radar(nom_axe, box_w, taille_axe)) + 0.5)
+                    * lh_axe + 0.06)
+        D.add_text(slide, box_x, ly - box_h / 2, box_w, box_h,
+                   [(nom_axe, {"size": taille_axe, "bold": True,
+                      "color": D.couleur_pilier(a.get("pilierIndex", 0)),
+                      "align": align, "line_spacing": 0.95})],
+                   anchor=MSO_ANCHOR.MIDDLE, align=align)
+
+    # Legende : panneau vertical a droite du radar (puce + nom de pilier),
+    # puis "session courante"/"session precedente" si comparaison disponible.
+    # Chaque ligne est dimensionnee a son propre nombre de lignes reel (un nom
+    # court n'herite pas de la hauteur d'un nom long empile juste apres).
+    lw = (x + w) - lx0
+    if lw <= 0.50:
+        return
+    lignes_legende = [(i, joli_nom(nom),
+                       max(0.24, _lignes_radar(joli_nom(nom), lw - 0.26) * RADAR_LH + 0.09))
+                      for i, nom in enumerate(piliers)]
+    hauteur_comp = 0.62 if has_prev else 0.0
+    total_h = sum(rh for _, _, rh in lignes_legende) + hauteur_comp
+    if total_h > cote:  # garde-fou : ne jamais deborder de la bande (cas extreme,
+        echelle = cote / total_h                        # ex. tres nombreux piliers)
+        lignes_legende = [(i, t, rh * echelle) for i, t, rh in lignes_legende]
+        hauteur_comp *= echelle
+        total_h = cote
+    ly = y0 + max(0.0, (cote - total_h) / 2)
+    for i, txt, rh in lignes_legende:
+        D.add_dot(slide, lx0, ly + (min(rh, 0.30) - 0.14) / 2, 0.14, D.couleur_pilier(i))
+        D.add_text(slide, lx0 + 0.24, ly, lw - 0.24, rh,
+                   [(txt, {"size": D.TYPE["tiny"], "line_spacing": 1.0})],
+                   anchor=MSO_ANCHOR.MIDDLE)
+        ly += rh
+    if has_prev:
+        ly += 0.10
+        D.add_line(slide, lx0, ly + 0.11, lx0 + 0.30, ly + 0.11, couleur_aire, width=2.5)
+        D.add_text(slide, lx0 + 0.38, ly, max(0.1, lw - 0.38), 0.22,
+                   [("Session courante", {"size": D.TYPE["tiny"], "color": D.MUTED})],
+                   anchor=MSO_ANCHOR.MIDDLE)
+        ly += 0.26
+        D.add_line(slide, lx0, ly + 0.11, lx0 + 0.30, ly + 0.11, D.MUTED, width=2.5,
+                   dash=D.DASH.DASH)
+        D.add_text(slide, lx0 + 0.38, ly, max(0.1, lw - 0.38), 0.22,
+                   [("Session précédente", {"size": D.TYPE["tiny"], "color": D.MUTED})],
+                   anchor=MSO_ANCHOR.MIDDLE)
 
 
 def _hauteur_commentaire(texte, largeur_in):
@@ -314,26 +575,30 @@ def slide_radar(prs, layouts, bloc):
     slide = titre_slide(prs, layouts, f"{bloc['nom']} — Radar de maturité")
 
     # Radar aligne a gauche (marge), dimensionne a sa hauteur disponible ; le
-    # panneau de texte a droite demarre juste apres la largeur REELLE de
-    # l'image (calculee ci-dessous), pas a une frontiere fixe — ce qui evite
-    # tout vide entre le radar et le texte quel que soit son ratio.
-    img = bloc.get("radarImage")
-    max_h = CONTENU_BOTTOM - CONTENU_TOP
-    gauche_w_max = 7.5   # large : la hauteur reste quasi-toujours la contrainte
+    # panneau de texte a droite demarre juste apres la largeur REELLE occupee
+    # par le radar (calculee ci-dessous), pas a une frontiere fixe — ce qui
+    # evite tout vide entre le radar et le texte quel que soit son ratio.
+    # Vectoriel (pptx_deck.add_polygon/add_line) a partir des memes donnees
+    # (objectifs/piliers) que celles utilisees pour rasteriser le PNG cote
+    # serveur — plus net qu'un PNG a toute resolution/impression, et editable.
+    axes = bloc.get("objectifs") or []
+    piliers_legende = [p.get("nom", "") for p in (bloc.get("piliers") or [])]
+    disponible_h = CONTENU_BOTTOM - CONTENU_TOP
+    # Largeur du radar+legende bornee par RADAR_COTE_MAX (cf. sa note) — pas
+    # juste par la hauteur disponible — pour garantir au panneau de droite
+    # (evolution par pilier) une colonne de noms utilisable.
+    gauche_w_max = RADAR_COTE_MAX + RADAR_GAP_LEGENDE + RADAR_LEGEND_W
     w = 0
-    if img and os.path.exists(img):
-        size = _png_size(img)
-        if size and size[0] and size[1]:
-            aspect = size[0] / size[1]
-            w, h = gauche_w_max, gauche_w_max / aspect
-            if h > max_h:
-                h, w = max_h, max_h * aspect
-        else:
-            w = h = max_h
-        left = MARGE_X
-        top = CONTENU_TOP + (max_h - h) / 2
-        slide.shapes.add_picture(img, Inches(left), Inches(top),
-                                 width=Inches(w), height=Inches(h))
+    if len(axes) >= 3:
+        # Bandeau de section + reglette d'echelle reserves AU-DESSUS du cercle
+        # (memes tailles/couleurs que le reste du deck — voir leurs notes).
+        radar_h = disponible_h - RADAR_HEADER_H - RADAR_ECHELLE_H
+        w = min(gauche_w_max, radar_h + RADAR_GAP_LEGENDE + RADAR_LEGEND_W)
+        cote = _cote_radar(w, radar_h)
+        _surtitre(slide, MARGE_X, CONTENU_TOP, w, "MATURITÉ PAR OBJECTIF")
+        _echelle_radar(slide, MARGE_X, CONTENU_TOP + RADAR_HEADER_H, cote)
+        top_radar = CONTENU_TOP + RADAR_HEADER_H + RADAR_ECHELLE_H
+        _dessiner_radar(slide, MARGE_X, top_radar, w, radar_h, axes, piliers_legende)
 
     GAP_RADAR_TEXTE = 0.30
     px = MARGE_X + w + GAP_RADAR_TEXTE if w else 7.4
@@ -346,13 +611,31 @@ def slide_radar(prs, layouts, bloc):
     comp = bloc.get("comparaison", {})
     n_ev = len(comp.get("piliers", [])) if comp.get("disponible") else 0
 
+    # Colonnes de la liste d'evolution (calculees ici, avant la reservation de
+    # hauteur du commentaire, car cette derniere doit tenir compte de la
+    # hauteur REELLE des lignes — un nom de pilier long se replie sur
+    # plusieurs lignes dans name_w, qui peut etre etroit) :
+    # le cluster numerique est cale a droite mais s'arrete avant le badge
+    # n° de slide (coin bas-droit) => right_lim.
+    delta_w, avap_w = 0.80, 0.95
+    right_lim = px + pw - 0.30
+    delta_x = right_lim - delta_w
+    avap_x = delta_x - avap_w
+    name_w = avap_x - (px + 0.22)
+    LH_EV = LH_QUESTION   # hauteur de ligne reelle (small 10.5pt) — voir sa note plus haut
+    piliers_ev = comp.get("piliers", []) if n_ev else []
+    lignes_ev = [max(1, D.estimer_lignes(joli_nom(p.get("nom", "")), name_w, D.TYPE["small"]))
+                for p in piliers_ev]
+    hauteurs_ev = [max(0.30, nl * LH_EV + 0.14) for nl in lignes_ev]
+
     # Hauteur du commentaire : adaptee au texte. Avec evolution, on borne le
-    # commentaire pour lui reserver la place ; SANS evolution, le callout occupe
-    # toute la bande (et le texte y est centre verticalement => pas de grand vide).
+    # commentaire pour lui reserver la place (mesuree sur les hauteurs REELLES
+    # ci-dessus, pas une estimation fixe par ligne) ; SANS evolution, le
+    # callout occupe toute la bande (texte centre verticalement => pas de vide).
     h_comm = _hauteur_commentaire(commentaire, txt_in)
     reste = CONTENU_BOTTOM - py
     if n_ev:
-        place_ev_min = 0.38 + n_ev * 0.34 + 0.30   # entete + lignes serrees + gap
+        place_ev_min = 0.38 + sum(hauteurs_ev) + 0.30   # entete + lignes + gap
         h_comm = max(0.95, min(h_comm, reste - place_ev_min))
         ancre = MSO_ANCHOR.TOP
         panel_top = py
@@ -367,7 +650,7 @@ def slide_radar(prs, layouts, bloc):
     # Callout : barre d'accent a gauche + panneau clair.
     D.add_rect(slide, px, panel_top, pw, h_comm, fill=FOND_PANNEAU, line=D.LINE,
                line_w=0.75, rounded=True, radius=RADIUS)
-    D.add_rect(slide, px, panel_top, 0.07, h_comm, fill=ACCENT, rounded=True, radius=0.5)
+    D.add_rect(slide, px, panel_top, 0.07, h_comm, fill=CYAN, rounded=True, radius=0.5)
     lignes = [("COMMENTAIRE DE RESTITUTION",
                {"size": D.TYPE["tiny"], "bold": True, "color": D.MUTED, "space_after": 5})]
     if commentaire:
@@ -382,23 +665,22 @@ def slide_radar(prs, layouts, bloc):
     D.add_text(slide, px + 0.26, ty, txt_in, th, lignes, anchor=ancre)
 
     # ---- Evolution par pilier : lignes alignees (dot · nom · av→ap · delta) ----
+    # Hauteur de CHAQUE ligne calculee sur son propre nombre de lignes reel
+    # (hauteurs_ev, cf. plus haut) : un nom de pilier court n'herite pas de la
+    # hauteur d'un nom long empile juste apres (meme principe que le radar).
     if n_ev:
         ey = py + h_comm + 0.28
         _surtitre(slide, px, ey, pw, f"ÉVOLUTION VS {comp.get('precedenteDate', '')}".upper())
         rows_top = ey + 0.40
         bottom = CONTENU_BOTTOM - 0.18         # marge au-dessus du n° de slide
-        piliers_ev = comp.get("piliers", [])
-        row_h = min(0.44, (bottom - rows_top) / max(1, len(piliers_ev)))
-        # Colonnes : le cluster numerique est cale a droite mais s'arrete avant
-        # le badge n° de slide (coin bas-droit) => right_lim.
-        delta_w, avap_w = 0.80, 0.95
-        right_lim = px + pw - 0.30
-        delta_x = right_lim - delta_w
-        avap_x = delta_x - avap_w
-        name_w = avap_x - (px + 0.22)
+        dispo = max(0.10, bottom - rows_top)
+        total_h = sum(hauteurs_ev)
+        if total_h > dispo:   # garde-fou : ne jamais deborder (ex. beaucoup de piliers)
+            echelle = dispo / total_h
+            hauteurs_ev = [hh * echelle for hh in hauteurs_ev]
         y = rows_top
-        for i, p in enumerate(piliers_ev):
-            D.add_dot(slide, px, y + (row_h - 0.11) / 2, 0.11, D.couleur_pilier(i))
+        for i, (p, row_h) in enumerate(zip(piliers_ev, hauteurs_ev)):
+            D.add_dot(slide, px, y + (min(row_h, 0.24) - 0.11) / 2, 0.11, D.couleur_pilier(i))
             D.add_text(slide, px + 0.22, y, name_w, row_h,
                        [(joli_nom(p["nom"]), {"size": D.TYPE["small"], "bold": True,
                                               "line_spacing": 0.95})],
@@ -673,8 +955,15 @@ def construire(data, template_path, out_path):
     prs = Presentation(template_path)
     # Charte du modele : on prend la couleur primaire du theme (dk1) comme accent
     # de marque ; repli sur le bleu de la palette si le theme est illisible.
-    global ACCENT
-    ACCENT = D.theme_colors(prs).get("dk1") or D.PALETTE[0]
+    global ACCENT, CYAN, FOND_PANNEAU
+    # Aligne tout le deck sur la charte du template : police de marque (Outfit) +
+    # neutres navy/slate + accent cyan, lus dans le theme (= charte OCTO). Sans ca
+    # le texte heritait d'Arial et les neutres etaient des gris generiques codes en
+    # dur. Detecte, pas code en dur : s'adapte a un autre template fourni.
+    marque = D.appliquer_theme(prs)
+    ACCENT = marque.get("navy") or D.PALETTE[0]   # accent principal = navy (jauge)
+    CYAN = marque.get("cyan") or ACCENT           # accent secondaire = cyan
+    FOND_PANNEAU = D.TRACK                          # fond d'encart = slate 100 du theme
     layouts = prs.slide_masters[0].slide_layouts
     nb_template = len(prs.slides)
 

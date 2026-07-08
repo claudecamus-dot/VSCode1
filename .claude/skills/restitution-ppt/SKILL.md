@@ -14,6 +14,7 @@ Infographic restitution deck for the agile/product maturity questionnaire
 - Generator: `app/scripts/export-restitution-ppt.py` — CLI `python export-restitution-ppt.py <data.json> <out.pptx> [modele.pptx]`. **The Node server calls it with 2 args** (`app/src/server.js`, route `GET /api/sessions/:id/export-ppt`) → falls back to the default OCTO template, so that path stays stable. The optional 3rd arg (or `$TEMPLATE_PPTX`) swaps the base template.
 - Helpers: `app/scripts/pptx_deck.py` (project copy of the pptx-deck lib).
 - Test: `app/scripts/test-export-ppt.py` — synthetic payload + geometry check + edge cases.
+- Test (charte graphique) : `app/scripts/test-ppt-charte.py` — builds a deck on the REAL OCTO template and checks what geometry can't: brand font applied everywhere, font sizes within legibility bounds, colors limited to the approved palette, WCAG AA text/background contrast, and "table" row alignment (pilier bars, evolution rows). Run it after any color/typography/layout change — `python app/scripts/test-ppt-charte.py`.
 - Template: `template ppt/template.pptx` (OCTO theme, 10×5.625", layout 8 = cover, layout 5 = title-only).
 
 ## Deck structure
@@ -21,7 +22,7 @@ Infographic restitution deck for the agile/product maturity questionnaire
 1. **Couverture** — OCTO template cover (layout 8): `titre`, `sousTitre`, "OCTO Technology", `date`. Kept as-is — it's good.
 2. Per **bloc** (an `equipe`, or a `departement` consolidating ≥2 teams), 3 slides on the title-only layout (keeps OCTO logo/footer/page number):
    - **Vue d'ensemble** — gauge "moyenne globale" + evolution, per-pilier colored bars (radar palette) with ▲=▼ trend, bottom chips "point fort / à renforcer".
-   - **Radar de maturité** — radar image (web-style SVG rasterized by the server) fitted left, commentaire de restitution callout + per-pilier evolution right.
+   - **Radar de maturité** — **vector radar** (native python-pptx shapes: `D.add_polygon`/`D.add_line`, not a rasterized PNG — see `_dessiner_radar` and the "Radar vectoriel" section below) fitted left, with a "MATURITÉ PAR OBJECTIF" section header + a 0–3 level ruler above it, commentaire de restitution callout + per-pilier evolution right.
    - **Points d'attention** — cards: strongest disagreements (dispersion, range bar + mean marker) and weakest scores (score bar).
 
 ## Payload contract (built by server.js)
@@ -38,7 +39,10 @@ Infographic restitution deck for the agile/product maturity questionnaire
     "faibles":   [{ "texte", "moyenne", "contexte" }],      // top 3
     "commentaire": "free text, \n-separated",
     "comparaison": { "disponible", "precedenteDate", "piliers": [{ "nom", "courant", "precedent", "delta" }] },
-    "radarImage": "/abs/path.png"                           // set by server (puppeteer)
+    "radarImage": "/abs/path.png"           // set by server (puppeteer) — NOT used by the
+                                            // generator anymore (radar is vectorial, drawn
+                                            // straight from objectifs/piliers); kept in the
+                                            // payload/server for now, harmless if unused.
   }]
 }
 ```
@@ -47,7 +51,7 @@ Global score = mean of non-null `piliers[].moyenne`; global delta from `comparai
 ## Workflow
 
 - **Regenerate from a payload:** `python app/scripts/export-restitution-ppt.py data.json out.pptx`. Prints slide count + geometry status.
-- **Verify (always):** `python app/scripts/test-export-ppt.py` — must print `TOUS LES TESTS PASSENT` (asserts no shape out of frame).
+- **Verify (always):** `python app/scripts/test-export-ppt.py` — must print `TOUS LES TESTS PASSENT` (asserts no shape out of frame) — **and** `python app/scripts/test-ppt-charte.py` — font/color/contrast/table-alignment on the real template.
 - **See it (Windows + PowerPoint):** render the .pptx to PNG via PowerPoint COM (see the pptx-deck skill) and eye-check. Do not claim the design is good from the geometry check alone.
 
 ## Layout invariants (eyeball-verified — don't regress these)
@@ -77,6 +81,29 @@ See the pptx-deck skill's "Defects the geometry check will NOT catch" list.
 - **Spell out labels, no jargon abbreviations** (`écart-type`, not `é-t`); don't repeat
   in text what a shape already shows (the min–max range is drawn by the bar). See the
   project memory `feedback-pas-d-abreviations-cryptiques`.
+- **Strip parenthetical suffixes from pilier/objectif names** — `joli_nom()` calls
+  `_nettoyer_label()` first (mirrors `radar-svg.js`'s `nettoyerLabel`): referentiel
+  names sometimes carry a descriptive suffix (`"Ressources humaines (formations,
+  coaching agile, talent, ...)"`) that must never render. This was folded into
+  `joli_nom()` itself (not a one-off on the radar slide) precisely because it had
+  already regressed once — every caller benefits automatically.
+- **Radar legend/label width must be an absolute floor, not a ratio.** Below
+  ~0.8-1.0in of *actual text width* (box width minus its internal padding) at
+  `tiny` (9pt) bold, a single French word (`"Excellence"`, `"l'entreprise"`) no
+  longer fits on one line and PowerPoint force-breaks it *mid-word* (no hyphen) —
+  `D.estimer_lignes` does not model this (it's a word-wrap simulator, not a
+  pixel-metrics one), so it will silently underestimate lines in narrow boxes.
+  `RADAR_LEGEND_W` / `RADAR_COTE_MAX` (absolute inches, not a width ratio) exist
+  specifically to keep both the radar's own legend column and the right-panel
+  "évolution par pilier" name column above that floor. Same root cause hit both
+  places independently — check both if you touch either.
+- **Track/piste color: never `def foo(..., track=TRACK)`.** A default parameter
+  bound to a module-level color constant is frozen at *function-definition* time
+  (module import), not at call time — if `appliquer_theme()` later reassigns the
+  global (theme-derived), callers that don't pass `track=` explicitly silently
+  keep the *old* value. Found by `test-ppt-charte.py`'s palette check (invisible
+  to the eye — `#eef1f7` vs `#E7E9EE` look identical in a screenshot). Fix:
+  `track=None`, then `if track is None: track = TRACK` inside the function body.
 
 ## Template & charte couleurs (s'inspirer d'un modèle)
 

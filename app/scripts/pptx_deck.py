@@ -10,7 +10,8 @@ Les coordonnees des helpers sont exprimees en POUCES (float) pour la lisibilite.
 from pptx.util import Inches, Pt, Emu
 from pptx.dml.color import RGBColor
 from pptx.enum.text import MSO_ANCHOR, PP_ALIGN, MSO_AUTO_SIZE
-from pptx.enum.shapes import MSO_SHAPE
+from pptx.enum.shapes import MSO_SHAPE, MSO_CONNECTOR
+from pptx.enum.dml import MSO_LINE_DASH_STYLE
 from pptx.oxml.ns import qn
 
 # --- Echelle typographique (pt) — une seule source de verite ---
@@ -27,9 +28,13 @@ INK = "#1c2330"
 MUTED = "#6b7280"
 LINE = "#e6e8ee"
 TRACK = "#eef1f7"
+CYAN = "#00d2dd"    # accent (repli) ; remplace par accent3 du theme via appliquer_theme
 OK = "#1e6b34"
 WARN = "#b3261e"
 GOLD = "#b8860b"
+
+# Alias pratique pour les contours pointilles (add_polygon/add_line, dash=...).
+DASH = MSO_LINE_DASH_STYLE
 
 
 def rgb(hexa):
@@ -38,6 +43,61 @@ def rgb(hexa):
 
 def couleur_pilier(i):
     return PALETTE[i % len(PALETTE)]
+
+
+# --- Police de marque -------------------------------------------------------
+# Police appliquee au contenu DESSINE (barres, cartes, jauge, labels...). Par
+# defaut None : le texte herite alors de la police mineure du theme (souvent un
+# repli generique, ex. Arial), ce qui fait cohabiter DEUX familles avec les
+# titres/placeholders du template (portes, eux, par la charte — ex. Outfit).
+# L'appelant appelle set_police(police_marque(prs)) pour aligner tout le deck sur
+# la police de marque DETECTEE dans le template fourni (pas codee en dur : reste
+# juste si on fournit un autre modele).
+POLICE = None
+
+# Suffixes de poids nommes des familles de police (ex. "Outfit SemiBold") : on
+# les retire pour retrouver la famille de base ("Outfit"), a laquelle le drapeau
+# bold/italic de python-pptx s'applique ensuite normalement.
+_SUFFIXES_POIDS = (" SemiBold", " Semibold", " Semi Bold", " ExtraBold",
+                   " Extra Bold", " Bold", " Medium", " Light", " Regular",
+                   " Black", " Thin", " ExtraLight", " Extra Light")
+
+
+def set_police(nom):
+    global POLICE
+    POLICE = nom or None
+
+
+def _famille_police(typeface):
+    for suf in _SUFFIXES_POIDS:
+        if typeface.endswith(suf):
+            return typeface[: -len(suf)].strip()
+    return typeface
+
+
+def police_marque(prs):
+    """Detecte la police de marque du template : la famille (suffixe de poids
+    retire) la plus frequente sur les placeholders des layouts.
+
+    Pourquoi les placeholders et pas le fontScheme du theme : dans les templates
+    OCTO, les titres/sous-titres portent la charte (Outfit, decline en poids
+    nommes) alors que le fontScheme peut n'etre qu'un repli generique (Arial).
+    Les references de theme (+mn-lt / +mj-lt) sont ignorees. Renvoie None si rien
+    d'exploitable (l'appelant garde alors l'heritage par defaut)."""
+    import re
+    from collections import Counter
+    try:
+        layouts = prs.slide_masters[0].slide_layouts
+    except Exception:
+        return None
+    compte = Counter()
+    for lay in layouts:
+        for ph in lay.placeholders:
+            for tf in re.findall(r'<a:latin typeface="([^"]+)"', ph._element.xml):
+                if tf.startswith("+"):
+                    continue
+                compte[_famille_police(tf)] += 1
+    return compte.most_common(1)[0][0] if compte else None
 
 
 def _no_shadow(shape):
@@ -76,6 +136,9 @@ def add_text(slide, l, t, w, h, lignes, anchor=MSO_ANCHOR.TOP, align=PP_ALIGN.LE
         f.bold = opts.get("bold", False)
         f.italic = opts.get("italic", False)
         f.color.rgb = rgb(opts.get("color", INK))
+        nom = opts.get("font", POLICE)   # police de marque du deck (cf. set_police)
+        if nom:
+            f.name = nom
     return box
 
 
@@ -104,8 +167,15 @@ def add_rect(slide, l, t, w, h, fill=None, line=None, line_w=1.0, rounded=False,
     return shp
 
 
-def add_hbar(slide, l, t, w, h, frac, fill, track=TRACK):
-    """Barre de progression horizontale (piste + remplissage), coins arrondis."""
+def add_hbar(slide, l, t, w, h, frac, fill, track=None):
+    """Barre de progression horizontale (piste + remplissage), coins arrondis.
+    `track=None` (pas `track=TRACK`) : un defaut lie a la variable TRACK au
+    moment de la DEFINITION resterait fige sur sa valeur d'alors — si
+    `appliquer_theme()` reassigne TRACK plus tard (thème du modele), les
+    appelants qui ne passent pas `track=` explicitement heriteraient quand
+    meme de l'ANCIENNE valeur. Resoudre TRACK ici, a l'APPEL, evite ce piege."""
+    if track is None:
+        track = TRACK
     frac = max(0.0, min(1.0, float(frac)))
     add_rect(slide, l, t, w, h, fill=track, rounded=True, radius=0.5)
     if frac > 0:
@@ -113,11 +183,15 @@ def add_hbar(slide, l, t, w, h, frac, fill, track=TRACK):
         add_rect(slide, l, t, wv, h, fill=fill, rounded=True, radius=0.5)
 
 
-def add_gauge(slide, l, t, size, frac, fill, track=TRACK, hole=62):
+def add_gauge(slide, l, t, size, frac, fill, track=None, hole=62):
     """Jauge circulaire (anneau) via un graphique doughnut a 2 segments.
-    Renvoie le GraphicFrame. Le libelle central est a poser separement."""
+    Renvoie le GraphicFrame. Le libelle central est a poser separement.
+    `track=None` : voir la note de add_hbar (defaut fige sur TRACK a la
+    definition, pas a l'appel — piege avec appliquer_theme())."""
     from pptx.chart.data import CategoryChartData
     from pptx.enum.chart import XL_CHART_TYPE
+    if track is None:
+        track = TRACK
     frac = max(0.0, min(1.0, float(frac)))
     data = CategoryChartData()
     data.categories = ["v", "r"]
@@ -159,11 +233,63 @@ def add_dot(slide, x, y, d, color):
     return add_rect(slide, x, y, d, d, fill=color, rounded=True, radius=0.5)
 
 
+def add_polygon(slide, points_in, fill=None, alpha=None, line=None, line_w=1.0,
+                dash=None, closed=True):
+    """Forme vectorielle libre (freeform) a partir d'une liste de points
+    `(x, y)` en pouces, coordonnees ABSOLUES sur la slide. Contrairement a un
+    PNG rasterise, la forme reste nette a toute resolution/impression et est
+    editable dans PowerPoint. `alpha` (0..100) ajoute une transparence de
+    remplissage — un simple canal alpha (aplat semi-transparent), PAS un
+    degrade : sert a superposer une aire de dataviz a une grille sans la
+    masquer (ex. radar). `dash` accepte un membre de MSO_LINE_DASH_STYLE pour
+    un contour pointille (ex. serie "precedente" d'une comparaison)."""
+    x0, y0 = points_in[0]
+    reste = [(round((x - x0) * 1000), round((y - y0) * 1000)) for x, y in points_in[1:]]
+    fb = slide.shapes.build_freeform(start_x=0, start_y=0, scale=Inches(1) / 1000)
+    fb.add_line_segments(reste, close=closed)
+    shp = fb.convert_to_shape(origin_x=Inches(x0), origin_y=Inches(y0))
+    _no_shadow(shp)
+    shp.text_frame.paragraphs[0].text = ""
+    if fill is None:
+        shp.fill.background()
+    else:
+        shp.fill.solid()
+        shp.fill.fore_color.rgb = rgb(fill)
+        if alpha is not None:
+            srgb = shp.fill.fore_color._xFill.find(qn("a:srgbClr"))
+            if srgb is not None:
+                el = srgb.makeelement(qn("a:alpha"), {"val": str(int(alpha * 1000))})
+                srgb.append(el)
+    if line is None:
+        shp.line.fill.background()
+    else:
+        shp.line.color.rgb = rgb(line)
+        shp.line.width = Pt(line_w)
+        if dash is not None:
+            shp.line.dash_style = dash
+    return shp
+
+
+def add_line(slide, x1, y1, x2, y2, color, width=1.0, dash=None):
+    """Segment de droite (connecteur) — grille/rayons d'un radar vectoriel, etc."""
+    shp = slide.shapes.add_connector(MSO_CONNECTOR.STRAIGHT, Inches(x1), Inches(y1),
+                                     Inches(x2), Inches(y2))
+    _no_shadow(shp)
+    shp.line.color.rgb = rgb(color)
+    shp.line.width = Pt(width)
+    if dash is not None:
+        shp.line.dash_style = dash
+    return shp
+
+
 def add_range_bar(slide, l, t, w, h, mn, mx, scale_max, fill, marker=None,
-                  track=TRACK):
+                  track=None):
     """Barre d'amplitude min..max sur une echelle 0..scale_max (piste complete +
     segment colore couvrant la plage). `marker` (ex. moyenne) pose un repere
-    vertical. Sert a montrer une dispersion sur l'echelle reelle, pas en relatif."""
+    vertical. Sert a montrer une dispersion sur l'echelle reelle, pas en relatif.
+    `track=None` : voir la note de add_hbar (piege du defaut fige sur TRACK)."""
+    if track is None:
+        track = TRACK
     add_rect(slide, l, t, w, h, fill=track, rounded=True, radius=0.5)
     fa = max(0.0, min(1.0, mn / scale_max))
     fb = max(0.0, min(1.0, mx / scale_max))
@@ -303,3 +429,23 @@ def theme_colors(prs):
         if mm:
             out[name] = "#" + (mm.group(1) or mm.group(2)).upper()
     return out
+
+
+def appliquer_theme(prs):
+    """Aligne le deck sur la charte du template : police de marque + neutres
+    (navy/slate) et accent CYAN lus dans le THEME (voir theme_colors). Chez OCTO
+    le nuancier du theme EST la charte (dk1=navy, accent3=cyan, slate reparti sur
+    lt2/accent5/accent6). Les couleurs de DONNEES restent inchangees : PALETTE par
+    pilier (alignee radar) et OK/WARN/GOLD (semantiques). Renvoie un dict avec au
+    moins 'navy' et 'cyan' (accent de marque) pour l'appelant ; chaque override
+    est conditionnel pour retomber proprement sur les repères par defaut si le
+    theme du template fourni est incomplet."""
+    global INK, MUTED, LINE, TRACK, CYAN
+    set_police(police_marque(prs))
+    t = theme_colors(prs)
+    if t.get("dk1"):     INK = t["dk1"]        # texte principal = navy
+    if t.get("lt2"):     MUTED = t["lt2"]      # texte secondaire = slate 600
+    if t.get("accent5"): LINE = t["accent5"]   # filets / bordures = slate 200
+    if t.get("accent6"): TRACK = t["accent6"]  # pistes de barres / fonds clairs = slate 100
+    if t.get("accent3"): CYAN = t["accent3"]   # accent de marque = cyan
+    return {"navy": t.get("dk1"), "cyan": t.get("accent3"), **t}

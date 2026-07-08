@@ -78,8 +78,9 @@ de mise en page** : `TROIS_CARDS_ETAPES`, `COMPARAISON_2_OPTIONS`, `KPI_GRID`,
 - ✅ Pas d'ombre (`_no_shadow`), coins arrondis cohérents, échelle typo unique,
   labels uppercase, contrôle géométrique.
 - ✅ Police de marque appliquée au contenu (2026-07-08).
-- ⏳ Neutres sourcés du thème (navy/slate) + accent cyan — voir backlog.
-- ⏳ Icônes outline par pilier, radar vectoriel, cadres `round2DiagRect`.
+- ✅ Neutres sourcés du thème (navy/slate) + accent cyan (2026-07-08) — voir backlog.
+- ✅ Radar vectoriel natif (formes python-pptx, plus de PNG rasterisé) (2026-07-08).
+- ⏳ Icônes outline par pilier, cadres `round2DiagRect`.
 
 *Lié : [`template-octo.md`](template-octo.md), [`ppt-toolkit.md`](ppt-toolkit.md),
 [`points-amelioration-ppt.md`](points-amelioration-ppt.md).*
