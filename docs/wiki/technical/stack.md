@@ -50,9 +50,12 @@ bundler, pas de transpileur. `CONFIRMÉ` — 2026-07-08 · app/package.json (blo
 Sans ces deux dépendances correctement configurées, le reste de l'application
 fonctionne normalement ; seul l'export PPT échoue. `CONFIRMÉ` — onboarder · 2026-07-07 · app/README.md:37-41, 258-269
 
-La version exacte de Python et de `python-pptx` requise n'est pas figée
-(aucun fichier de verrouillage type `requirements.txt` ou `Pipfile` repéré
-lors de l'exploration). `INCERTAIN` — onboarder · 2026-07-07 · non observé dans app/ lors de l'exploration
+La version de `python-pptx` est désormais épinglée dans `app/requirements.txt`
+(`python-pptx==1.0.2`, alignée sur la version installée sur ce poste) :
+`pip install -r requirements.txt`. Résout la zone d'ombre précédente (absence
+de fichier de verrouillage). Python 3 lui-même reste sans version épinglée
+(dépendance système, hors du périmètre d'un `requirements.txt`).
+`CONFIRMÉ` — 2026-07-08 · app/requirements.txt
 
 ## Variables d'environnement
 

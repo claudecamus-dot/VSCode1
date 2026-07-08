@@ -807,10 +807,10 @@
       <h2 id="stack-hors-npm">Dépendances hors npm</h2>
       <ul>
         <li><strong>Chrome/Chromium</strong> installé sur la machine (<code>CHROME_PATH</code>), piloté en headless par <code>puppeteer-core</code>.</li>
-        <li><strong>Python 3</strong> avec <code>python-pptx</code> (<code>pip install python-pptx</code>) — génère le <code>.pptx</code> final.</li>
+        <li><strong>Python 3</strong> avec <code>python-pptx</code> (version épinglée dans <code>app/requirements.txt</code> : <code>pip install -r requirements.txt</code>) — génère le <code>.pptx</code> final.</li>
       </ul>
       <p>Sans ces deux dépendances correctement configurées, le reste de l'application fonctionne normalement ; seul l'export PPT échoue. <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">app/README.md:37-41, 258-269</span></p>
-      <p>Aucun fichier de verrouillage (<code>requirements.txt</code>/<code>Pipfile</code>) n'a été repéré pour figer la version de Python/python-pptx. <span class="tag tag-incertain">INCERTAIN</span></p>
+      <p><code>app/requirements.txt</code> épingle <code>python-pptx==1.0.2</code> (aligné sur la version installée sur ce poste), résolvant l'ancienne absence de fichier de verrouillage. Python 3 lui-même reste sans version épinglée (dépendance système). <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">2026-07-08 · app/requirements.txt</span></p>
 
       <h2 id="stack-env">Variables d'environnement</h2>
       <div class="table-wrap">

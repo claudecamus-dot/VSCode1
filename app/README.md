@@ -37,7 +37,7 @@ parcours, epics/US), voir [`../cadrage/`](../cadrage/).
 ## Prérequis
 
 - Node.js ≥ 22 (`node:sqlite` n'existe pas avant).
-- Pour l'**export PPT** uniquement : Chrome/Chromium installé, et Python 3 avec `python-pptx` installé (`pip install python-pptx`).
+- Pour l'**export PPT** uniquement : Chrome/Chromium installé, et Python 3 avec `python-pptx` installé (version épinglée dans `requirements.txt` : `pip install -r requirements.txt`).
 - Aucun autre service externe (pas de serveur de base de données à installer, pas de dépendance réseau tierce en fonctionnement normal).
 
 ## Installation et démarrage
