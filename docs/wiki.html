@@ -358,7 +358,7 @@
         <h1>Vue d'ensemble</h1>
         <div class="doc-meta">
           <span class="tag tag-deduit">mixed</span>
-          <span class="fact-label">agents: onboarder · updated: 2026-07-07</span>
+          <span class="fact-label">agents: onboarder · updated: 2026-07-08</span>
         </div>
       </div>
 
@@ -764,7 +764,7 @@
       <div class="doc-header">
         <span class="doc-path">docs/wiki/technical/stack.md</span>
         <h1>Stack technique</h1>
-        <div class="doc-meta"><span class="tag tag-confirme">confirmed</span><span class="fact-label">agents: onboarder · updated: 2026-07-07</span></div>
+        <div class="doc-meta"><span class="tag tag-confirme">confirmed</span><span class="fact-label">agents: onboarder · updated: 2026-07-08</span></div>
       </div>
 
       <div class="stat-strip">
@@ -920,7 +920,7 @@
       <div class="doc-header">
         <span class="doc-path">docs/wiki/technical/conventions.md</span>
         <h1>Conventions de code</h1>
-        <div class="doc-meta"><span class="tag tag-deduit">mixed</span><span class="fact-label">agents: onboarder · updated: 2026-07-07</span></div>
+        <div class="doc-meta"><span class="tag tag-deduit">mixed</span><span class="fact-label">agents: onboarder · updated: 2026-07-08</span></div>
       </div>
 
       <p>Une configuration <strong>ESLint</strong> (flat config <code>app/eslint.config.js</code>, règles recommandées) est versionnée depuis le 2026-07-08 : globals Node/CommonJS pour <code>src/</code>+<code>scripts/</code>, navigateur pour <code>src/public/</code>. Lancée via <code>npm run lint</code> (dans <code>app/</code>) et en CI. Un <code>.editorconfig</code> racine fixe indentation, fins de ligne et encodage. Le formatage pur (Prettier) n'est volontairement pas verrouillé (reformatage global trop invasif). Les conventions ci-dessous restent en partie observées dans le code au-delà de ce que le linter impose. <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">2026-07-08 · app/eslint.config.js, .editorconfig, app/package.json</span></p>
@@ -968,7 +968,7 @@
       <div class="doc-header">
         <span class="doc-path">docs/wiki/technical/tests.md</span>
         <h1>Tests</h1>
-        <div class="doc-meta"><span class="tag tag-deduit">mixed</span><span class="fact-label">agents: onboarder · updated: 2026-07-07</span></div>
+        <div class="doc-meta"><span class="tag tag-deduit">mixed</span><span class="fact-label">agents: onboarder · updated: 2026-07-08</span></div>
       </div>
 
       <p>Aucun framework de test tiers (pas de Jest/Mocha/Vitest). Deux styles d'assertion cohabitent, tous deux natifs et sans dépendance : <code>node:assert/strict</code> (<code>test-sessions.js</code>, <code>test-admin-ui.js</code>, <code>test-radar.js</code>) et un helper maison <code>check()</code> (<code>test-reimport.js</code>, <code>test-rappel.js</code>, <code>test-normalisation.js</code>). <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">app/package.json (absence de devDependencies), app/README.md:243-256</span></p>
