@@ -1,0 +1,8 @@
+# Dépendance Python de l'export PowerPoint (US6.4) — voir README « Export PowerPoint ».
+# Le reste de l'application (Node.js) n'a AUCUNE dépendance Python : ce fichier ne
+# concerne que la génération du .pptx (scripts/export-restitution-ppt.py).
+#
+# Version épinglée pour rendre l'export reproductible d'un poste à l'autre — jusqu'ici
+# python-pptx était installé « au fil de l'eau » sans version figée (fragilité relevée
+# dans docs/wiki/technical/stack.md). Installer avec :  pip install -r requirements.txt
+python-pptx==1.0.2

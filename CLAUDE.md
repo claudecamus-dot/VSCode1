@@ -14,10 +14,12 @@ session) vs **répondant** ; **session** (une campagne d'évaluation pour une
 équipe) ; **pilotage** (vue consolidée par département).
 
 Documentation de cadrage fonctionnel (personas, parcours, découpage
-Epics/US) : voir [`cadrage/`](cadrage/). Statut d'avancement du projet : voir
-[`.roadmap/roadmap.svg`](.roadmap/roadmap.svg) — **peut être en avance ou en
-retard sur le code réel**, vérifier contre `git log`/`git status` avant de
-lui faire confiance.
+Epics/US) : voir [`cadrage/`](cadrage/). Vue d'ensemble consultable par
+défaut (métier, technique, roadmap) : [`docs/wiki.html`](docs/wiki.html) —
+la roadmap y est intégrée directement (graphique + détail par Epic), source
+éditable `.roadmap/roadmap.json`. **Peut être en avance ou en retard sur le
+code réel**, vérifier contre `git log`/`git status` avant de lui faire
+confiance.
 
 ## Commandes
 

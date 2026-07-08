@@ -42,7 +42,7 @@ passage obligés pour toute évolution :
 ## Carte des domaines
 
 | Domaine | Où | Description |
-|---|---|---|
+| --- | --- | --- |
 | Métier (cadrage) | [`business/index.md`](business/index.md) | Personas, parcours utilisateur, vocabulaire, découpage Epics/US |
 | Stack technique | [`technical/stack.md`](technical/stack.md) | Runtime, dépendances, variables d'environnement |
 | Architecture | [`technical/architecture.md`](technical/architecture.md) | Structure du code, modèle de données, décisions, fragilités |
@@ -90,22 +90,42 @@ ce stade. `CONFIRMÉ` — onboarder · 2026-07-07 · app/README.md:183-184 ; cad
 <li>Le <code>.roadmap/roadmap.json</code> est présenté comme source de vérité versionnée de l'avancement, mais le README racine avertit lui-même qu'il "peut être en avance ou en retard sur le code réel" — à recouper avec <code>git log</code>/l'état du code avant de s'y fier pour une décision. `CONFIRMÉ` — onboarder · 2026-07-07 · CLAUDE.md:17-20</li>
 </ul>
 
-## Frise de roadmap (Réflexion / Conception / Réalisation)
+## Roadmap
 
 Statut d'après `.roadmap/roadmap.json` (source déclarée comme pouvant dériver
-du code réel — voir zones d'ombre). `DÉDUIT` — onboarder · 2026-07-07 · .roadmap/roadmap.json:1-206
+du code réel — voir zones d'ombre). Intégrée ici directement (plus de lien
+vers `.roadmap/roadmap.svg`, qui reste régénérable à la demande via le skill
+`roadmap-keeper` mais n'est plus la voie de consultation par défaut).
+`DÉDUIT` — onboarder · 2026-07-07 · .roadmap/roadmap.json:1-206
 
-<div class="mvp-timeline">
-  <div class="mvp-step"><span class="mvp-label">Réflexion</span> Analyse de la grille Excel V3.2, personas, experience map (8 étapes), difficultés de réalisation — <strong>terminé</strong>.</div>
-  <div class="mvp-step"><span class="mvp-label">Conception</span> Découpage en 11 Epics / ~40 US, périmètre MVP retenu (Epics 1-6) — <strong>terminé</strong>.</div>
-  <div class="mvp-step"><span class="mvp-label">Réalisation 1 — Collecte</span> Import/ré-import Excel, sessions, identification répondant, parcours de réponse, invitations — <strong>livré</strong> (Epics 1-4).</div>
-  <div class="mvp-step"><span class="mvp-label">Réalisation 2 — Résultats bruts</span> Écran animateur accordéon par pilier, détail nominatif, filtre manager, recalcul temps réel — <strong>livré</strong> (Epic 5).</div>
-  <div class="mvp-step"><span class="mvp-label">Réalisation 3 — Restitution</span> Radar, pré-analyses, commentaire libre, export PPT, comparaison historique — <strong>livré</strong> (Epic 6), ainsi qu'Epic 7 (consolidation multi-équipes) livré en avance du séquencement initial.</div>
-  <div class="mvp-step future"><span class="mvp-label">Backlog — Epic 8</span> Packaging & déploiement (artefact, Docker, cloud) — non démarré, phase réflexion.</div>
-  <div class="mvp-step future"><span class="mvp-label">Backlog — Epic 9</span> Environnements DEV/PRE-PROD/PROD sur le même poste — non démarré, phase réflexion.</div>
-  <div class="mvp-step future"><span class="mvp-label">Backlog — Epic 10</span> Authentification et gestion des accès — non démarré, phase réflexion.</div>
-  <div class="mvp-step future"><span class="mvp-label">Backlog — Epic 11</span> Multi-clients (organisations) avec cloisonnement des données — non démarré, phase réflexion.</div>
-</div>
+**Réflexion** (terminé) → **Conception** (terminé) → **Réalisation** : Epics 1
+à 7 livrés (Epic 7, hors MVP initial, livré en avance) → **Backlog** : Epics 8
+à 11, non démarrés, phase réflexion.
+
+Avancement global : **63 %** (39 US livrées sur 62), 7 Epics livrés sur 11.
+
+Le graphique complet (grille Epic × phase Réflexion/Conception/Réalisation,
+détail des US par colonne, ligne "aujourd'hui") est intégré directement dans
+[`docs/wiki.html`](../wiki.html#roadmap) — c'est la version graphique de
+référence, à consulter en priorité. Le tableau ci-dessous en est l'équivalent
+texte pour cette source Markdown.
+
+| Epic | US livrées | Statut |
+| --- | --- | --- |
+| Epic 1 — Référentiel de questions (import Excel) | 7/7 | Livré |
+| Epic 2 — Lancement et gestion d'une session | 6/6 | Livré |
+| Epic 3 — Identification du répondant | 7/7 | Livré |
+| Epic 4 — Parcours de réponse au questionnaire | 7/7 | Livré |
+| Epic 5 — Agrégation et consultation des résultats | 4/4 | Livré |
+| Epic 6 — Analyse et restitution | 5/5 | Livré |
+| Epic 7 — Consolidation multi-équipes (hors MVP initial, livré en avance) | 3/3 | Livré |
+| Epic 8 — Packaging et déploiement | 0/6 | Réflexion |
+| Epic 9 — Environnements DEV / PRE-PROD / PROD | 0/5 | Réflexion |
+| Epic 10 — Authentification et gestion des accès | 0/6 | Réflexion |
+| Epic 11 — Gestion de plusieurs clients (organisations) | 0/6 | Réflexion |
+
+`DÉDUIT` — onboarder · 2026-07-07 · calcul (US livrées / US totales) par Epic
+depuis .roadmap/roadmap.json:86-205
 
 ## Inventaire des agents projet (`.claude/agents/`)
 
@@ -118,7 +138,7 @@ du code réel — voir zones d'ombre). `DÉDUIT` — onboarder · 2026-07-07 · 
   <div class="agent-card"><strong>auditor</strong> / <strong>auditor-subagent</strong> — audit multi-domaine (sécurité, performance, architecture...).</div>
   <div class="agent-card"><strong>onboarder</strong> / <strong>documentarian</strong> / <strong>pathfinder</strong> — découverte de projet, wiki vivant, reconnaissance rapide.</div>
   <div class="agent-card"><strong>ux-designer</strong> / <strong>ui-designer</strong> — flows et systèmes visuels, ne codent jamais.</div>
-  <div class="agent-card"><strong>ppt-designer</strong> — génération/amélioration du support PPT de restitution (US6.4), skill dédié <code>restitution-ppt</code>.</div>
+  <div class="agent-card"><strong>ppt-designer</strong> — génération/amélioration du support PPT de restitution (US6.4). S'appuie sur un stack de skills : <code>pptx-deck</code> (mise en page + garde-fou géométrie), <code>pptx-verify</code> (rendu réel), <code>restitution-deck-design</code> (système de design), <code>pptx-framed-image</code> (image encadrée), <code>slide-text-polish</code> (qualité rédactionnelle + linter) et le skill projet <code>restitution-ppt</code>. Kit portable : <a href="../../export/ppt-toolkit.md"><code>export/ppt-toolkit.md</code></a>.</div>
 </div>
 
 ### Agents recommandés pour la suite du projet

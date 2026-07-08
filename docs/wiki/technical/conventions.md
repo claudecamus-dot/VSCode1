@@ -68,6 +68,13 @@ code réel**, pas outillées/imposées automatiquement. `CONFIRMÉ` — onboarde
 
 ## Patterns d'équipe / outillage projet
 
+- **Stack de skills PPT réutilisable** piloté par l'agent `ppt-designer` —
+  global : `pptx-deck` (mise en page + garde-fou géométrie), `pptx-verify`
+  (rendu réel), `restitution-deck-design` (système de design) ; projet :
+  `pptx-framed-image` (image encadrée aux coins presets), `slide-text-polish`
+  (qualité rédactionnelle + linter), `restitution-ppt` (deck concret). Regroupé
+  en kit portable `export/ppt-toolkit.md` pour réemploi sur d'autres projets.
+  `CONFIRMÉ` — 2026-07-08 · .claude/agents/ppt-designer.md, .claude/skills/, ~/.claude/skills/
 - **Skill projet dédié** `.claude/skills/restitution-ppt/` pour la génération/
   amélioration du PPT (US6.4), avec invariants de mise en page documentés
   (ex. bord droit "safe" pour ne pas chevaucher le numéro de page du template

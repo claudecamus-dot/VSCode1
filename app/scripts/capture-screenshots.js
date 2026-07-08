@@ -1,7 +1,9 @@
 const puppeteer = require('puppeteer-core');
 const path = require('node:path');
 
-const CHROME_PATH = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+// Respecte CHROME_PATH comme le fait server.js (rasteriserRadars) : évite un chemin
+// Windows en dur non portable — même variable d'environnement partagée par tout le pipeline.
+const CHROME_PATH = process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const OUT_DIR = process.env.CAPTURES_OUT || path.join(__dirname, '..', '..', 'cadrage', 'captures');
 
 const SESSION_RESULTATS = process.argv[2];
