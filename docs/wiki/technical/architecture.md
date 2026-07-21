@@ -80,11 +80,12 @@ framework de migration dédié). `CONFIRMÉ` — onboarder · 2026-07-07 · app/
   des réponses, supprimée sinon. Le mode `remplacer` est une purge totale
   irréversible (référentiel + toutes les données collectées), atomique (une
   seule transaction), à réserver à un repart de zéro. `CONFIRMÉ` — onboarder · 2026-07-07 · app/src/referentiel.js:93-253
-- **Export PPT en deux étapes** : Puppeteer (Chrome/Chromium headless, pas
-  Puppeteer complet — `puppeteer-core`) rasterise le radar SVG en PNG, puis un
-  script Python (`python-pptx`) construit le `.pptx` à partir du template
-  OCTO. Un seul lancement de navigateur pour tous les radars d'un export
-  (`rasteriserRadars`). `CONFIRMÉ` — onboarder · 2026-07-07 · app/src/server.js:812-845
+- **Export PPT — un seul script Python** : un script Python (`python-pptx`)
+  construit le `.pptx` à partir du template OCTO, **radar compris, en vectoriel
+  natif** (formes python-pptx). Depuis le 2026-07-21 l'export ne dépend plus de
+  Chrome/Puppeteer : le module `radar-svg.js` et la rasterisation
+  (`rasteriserRadars`), devenus morts après le passage au radar vectoriel, ont été
+  retirés. `CONFIRMÉ` — 2026-07-21 · app/src/server.js (route export-ppt) + app/scripts/export-restitution-ppt.py
 - **Deck construit SUR le template, pas de zéro** : le générateur ouvre le
   `.pptx` OCTO et dessine par-dessus ses masters/layouts ; il **détecte la
   police de marque** (Outfit) et **lit les couleurs du thème** (= charte OCTO

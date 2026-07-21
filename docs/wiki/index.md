@@ -34,12 +34,13 @@ passage obligés pour toute évolution :
   peu tabulaire : cellules d'en-tête `PILIER - OBJECTIF`, symboles, texte
   concaténé) et toute la logique de réconciliation ré-import non
   destructif/remplacement total. `CONFIRMÉ` — onboarder · 2026-07-07 · app/src/referentiel.js:31-253
-- **`app/src/radar-svg.js`** — génère un radar SVG dont le rendu est
-  volontairement calqué sur celui de `resultats.html` ("Mire le rendu de
-  resultats.html") : deux implémentations du même visuel (front web + génération
-  serveur pour le PPT) à faire évoluer en parallèle. Un test structurel
-  (`app/scripts/test-radar.js`, dans `npm test`) verrouille la structure du SVG
-  serveur pour détecter une dérive. `DÉDUIT` — onboarder · 2026-07-07 · app/src/radar-svg.js:1-4,44 ; `CONFIRMÉ` — 2026-07-08 · app/scripts/test-radar.js
+- **~~`app/src/radar-svg.js`~~ (retiré le 2026-07-21)** — ce module serveur générait
+  un radar SVG rasterisé en PNG pour le PPT. Devenu **code mort** après le passage du
+  radar PPT au vectoriel natif (`_dessiner_radar` ; le PNG n'était plus consommé), il
+  a été supprimé avec son test `test-radar.js` et la rasterisation Puppeteer. Le radar
+  vit désormais sur deux surfaces : web (inline dans `resultats.html`/`pilotage.html`)
+  et PPT (`_dessiner_radar`, vectoriel) — cohérence des couleurs vérifiée par
+  `test-contraste-radar.js`. `CONFIRMÉ` — 2026-07-21 · git log
 
 ## Carte des domaines
 

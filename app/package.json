@@ -14,7 +14,7 @@
     "backup": "node scripts/backup-db.js",
     "restore": "node scripts/restore-db.js",
     "lint": "eslint .",
-    "test": "node scripts/test-reimport.js && node scripts/test-rappel.js && node scripts/test-normalisation.js && node scripts/test-sessions.js && node scripts/test-mode.js && node scripts/test-admin-ui.js && node scripts/test-radar.js && node scripts/test-contraste-radar.js && node scripts/test-correcteur.js"
+    "test": "node scripts/test-reimport.js && node scripts/test-rappel.js && node scripts/test-normalisation.js && node scripts/test-sessions.js && node scripts/test-mode.js && node scripts/test-admin-ui.js && node scripts/test-contraste-radar.js && node scripts/test-correcteur.js"
   },
   "engines": {
     "node": ">=22"
@@ -24,8 +24,7 @@
     "exceljs": "^4.4.0",
     "express": "^4.21.2",
     "multer": "^2.0.1",
-    "nspell": "^2.1.5",
-    "puppeteer-core": "^25.1.0"
+    "nspell": "^2.1.5"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

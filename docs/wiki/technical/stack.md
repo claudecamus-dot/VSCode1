@@ -27,7 +27,9 @@ agents: [onboarder]
 | `multer` | `^2.0.1` | Upload de fichiers (stockage mémoire, limite 10 Mo) |
 | `nspell` | `^2.1.5` | Correction orthographique conservatrice du référentiel importé |
 | `dictionary-fr` | `^3.0.0` | Dictionnaire français utilisé par `nspell` |
-| `puppeteer-core` | `^25.1.0` | Pilote un Chrome/Chromium déjà installé pour rasteriser le radar SVG en PNG (export PPT) |
+
+> `puppeteer-core` a été **retiré le 2026-07-21** : l'export PPT dessine le radar en
+> vectoriel natif (python-pptx), la rasterisation Chrome/Puppeteer n'existe plus.
 
 </div>
 
@@ -40,9 +42,9 @@ bundler, pas de transpileur. `CONFIRMÉ` — 2026-07-08 · app/package.json (blo
 
 ## Dépendances hors npm (contrat externe, non versionnées dans le projet)
 
-- **Chrome/Chromium** installé sur la machine (chemin configurable via
-  `CHROME_PATH`), piloté en headless par `puppeteer-core` pour rasteriser le
-  radar SVG en PNG avant l'export PPT.
+- ~~**Chrome/Chromium**~~ : **plus requis depuis 2026-07-21** — l'export PPT
+  dessine le radar en vectoriel natif (python-pptx) ; la rasterisation Puppeteer
+  (et le module `radar-svg.js`) ont été retirés. Seul Python reste nécessaire (ci-dessous).
 - **Python 3** avec `python-pptx` (`pip install python-pptx`) — génère le
   fichier `.pptx` final (`app/scripts/export-restitution-ppt.py`) à partir du
   template `template ppt/template.pptx`.

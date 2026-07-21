@@ -65,12 +65,15 @@ Décisions non redérivables du code :
   (pas supprimées) si elles portent des réponses. Le mode `remplacer` est une
   purge totale irréversible, à confirmer côté UI avec les compteurs de
   `GET /api/referentiel/stats`.
-- **Export PPT en deux étapes** : Puppeteer (Chrome/Chromium headless, pas
-  Puppeteer complet) rasterise le radar SVG en PNG, puis un script Python
-  (`python-pptx`) construit le `.pptx` à partir du template OCTO
-  (`template ppt/template.pptx`). Sans Chrome/Python correctement
-  configurés, le reste de l'application fonctionne normalement — seul cet
-  export échoue.
+- **Export PPT — un seul script Python** : un script Python (`python-pptx`)
+  construit le `.pptx` à partir du template OCTO (`template ppt/template.pptx`),
+  **radar compris, dessiné en vectoriel natif** (plus de rasterisation). Depuis le
+  2026-07-21 l'export **ne dépend plus de Chrome/Puppeteer** : le module serveur
+  `radar-svg.js` et sa rasterisation (`rasteriserRadars`), devenus morts après le
+  passage au radar vectoriel, ont été retirés, ainsi que la dépendance
+  `puppeteer-core` devenue inutile (désinstallée). Sans
+  Python (`python-pptx`) configuré, le reste de l'application fonctionne
+  normalement — seul cet export échoue.
 - **Aucune authentification** à ce stade (voir `cadrage/epics-us.md`, Epic
   10 — non implémenté) : ne pas supposer de contrôle d'accès dans le code
   existant.

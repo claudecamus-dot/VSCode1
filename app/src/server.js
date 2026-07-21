@@ -5,17 +5,12 @@ const fs = require('node:fs');
 const { execFile } = require('node:child_process');
 const express = require('express');
 const multer = require('multer');
-const puppeteer = require('puppeteer-core');
 
 const db = require('./db');
 const { importFromBuffer, getReferentiel } = require('./referentiel');
 const { importInvitesFromBuffer, replaceInvites, getInvites, getNonRepondants, looksLikeEmail } = require('./invites');
 const { valeurCanonique } = require('./normalisation');
-const { construireRadarSVG } = require('./radar-svg');
 const { estModeDemo } = require('./mode');
-
-// Chrome headless pour rasteriser les radars SVG en PNG (export PPT, US6.4).
-const CHROME_PATH = process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -813,47 +808,12 @@ function nomFichierSur(nom) {
   return String(nom).replace(/[\\/:*?"<>|-]+/g, ' ').replace(/\s+/g, ' ').trim() || 'restitution';
 }
 
-// Rasterise le radar de chaque bloc (SVG facon web) en PNG, pose bloc.radarImage.
-// Renvoie la liste des PNG (a nettoyer). Un seul lancement de navigateur.
-async function rasteriserRadars(blocs) {
-  const pngs = [];
-  const browser = await puppeteer.launch({
-    executablePath: CHROME_PATH,
-    headless: true,
-    args: ['--no-sandbox', '--disable-gpu'],
-  });
-  try {
-    const page = await browser.newPage();
-    for (const bloc of blocs) {
-      const axes = bloc.objectifs.map((o) => ({
-        label: o.nom,
-        pilierIndex: o.pilierIndex,
-        courant: o.moyenne,
-        precedent: o.precedent,
-      }));
-      const svg = construireRadarSVG(axes, bloc.piliers.map((p) => p.nom));
-      // SVG inline statique (aucune ressource reseau) : 'load' suffit et evite
-      // que 'networkidle0' ne se bloque (timeout) lors de rasterisations en
-      // serie comme l'export departement (plusieurs radars d'affilee).
-      await page.setContent(`<!DOCTYPE html><html><body style="margin:0">${svg}</body></html>`, { waitUntil: 'load' });
-      const el = await page.$('svg');
-      const png = path.join(os.tmpdir(), `radar-${crypto.randomUUID()}.png`);
-      await el.screenshot({ path: png });
-      bloc.radarImage = png;
-      pngs.push(png);
-    }
-  } finally {
-    await browser.close();
-  }
-  return pngs;
-}
-
 // Export PPT scope par ecran (US6.4) :
 //  - scope=equipe       -> couverture + 2 slides de l'equipe (bouton resultats).
 //  - scope=departement  -> couverture + 2 slides du departement + 2 slides par
 //                          equipe du departement (bouton vue pilotage).
 // Radar = image SVG facon web ; genere via Python (python-pptx + template OCTO).
-app.get('/api/sessions/:id/export-ppt', async (req, res) => {
+app.get('/api/sessions/:id/export-ppt', (req, res) => {
   const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session inconnue.' });
   const { scope, equipe, departement, manager } = req.query;
@@ -902,19 +862,16 @@ app.get('/api/sessions/:id/export-ppt', async (req, res) => {
   const outPath = path.join(os.tmpdir(), `restit-${crypto.randomUUID()}.pptx`);
   const script = path.join(__dirname, '..', 'scripts', 'export-restitution-ppt.py');
   const python = process.env.PYTHON || 'python';
-  let pngs = [];
   const nettoyer = () => {
     fs.promises.unlink(jsonPath).catch(() => {});
     fs.promises.unlink(outPath).catch(() => {});
-    for (const p of pngs) fs.promises.unlink(p).catch(() => {});
   };
 
   try {
-    pngs = await rasteriserRadars(blocs);
     fs.writeFileSync(jsonPath, JSON.stringify(payload), 'utf-8');
   } catch (err) {
     nettoyer();
-    return res.status(500).json({ error: 'Preparation de l\'export (radar) impossible.', detail: String(err.message).slice(0, 500) });
+    return res.status(500).json({ error: 'Preparation de l\'export impossible.', detail: String(err.message).slice(0, 500) });
   }
 
   execFile(python, [script, jsonPath, outPath], (err, stdout, stderr) => {

@@ -32,12 +32,12 @@ parcours, epics/US), voir [`../cadrage/`](../cadrage/).
 - **Import du référentiel** : [ExcelJS](https://github.com/exceljs/exceljs) (lecture du fichier Excel de la grille de maturité).
 - **Upload de fichiers** : [Multer](https://github.com/expressjs/multer) (stockage en mémoire, limite 10 Mo).
 - **Correction orthographique du référentiel importé** : [`nspell`](https://github.com/wooorm/nspell) + dictionnaire français (`dictionary-fr`), avec une liste blanche de vocabulaire agile/produit (`src/correcteur.js`).
-- **Export PPT** : [`puppeteer-core`](https://pptr.dev/) pilote un Chrome/Chromium déjà installé sur la machine pour rasteriser le radar SVG en PNG, puis un script **Python** (`python-pptx`) génère le fichier `.pptx` à partir du template OCTO (voir [Export PowerPoint](#export-powerpoint-dépendance-python)).
+- **Export PPT** : un script **Python** (`python-pptx`) génère le fichier `.pptx` à partir du template OCTO, **radar compris (vectoriel natif)**. Depuis le 2026-07-21 l'export ne dépend plus de Chrome/Puppeteer — la rasterisation a été retirée (voir [Export PowerPoint](#export-powerpoint-dépendance-python)).
 
 ## Prérequis
 
 - Node.js ≥ 22 (`node:sqlite` n'existe pas avant).
-- Pour l'**export PPT** uniquement : Chrome/Chromium installé, et Python 3 avec `python-pptx` installé (version épinglée dans `requirements.txt` : `pip install -r requirements.txt`).
+- Pour l'**export PPT** uniquement : Python 3 avec `python-pptx` installé (version épinglée dans `requirements.txt` : `pip install -r requirements.txt`). Chrome/Chromium **n'est plus requis** depuis le 2026-07-21 (radar vectoriel, rasterisation retirée).
 - Aucun autre service externe (pas de serveur de base de données à installer, pas de dépendance réseau tierce en fonctionnement normal).
 
 ## Installation et démarrage
@@ -135,7 +135,7 @@ app/
 │   ├── invites.js         # import de la liste d'invités (CSV/Excel), calcul des non-répondants
 │   ├── normalisation.js   # rapprochement tolérant des libellés département/équipe (casse, accents, espaces)
 │   ├── correcteur.js      # correction orthographique conservatrice du référentiel importé (nspell)
-│   ├── radar-svg.js        # génération du radar en SVG (affiché à l'écran et rasterisé pour le PPT)
+│   ├── mode.js            # mode démo/réel courant (lu du cookie) — garde-fou de séparation des données
 │   ├── session-utils.js   # formatage d'un libellé de session
 │   └── public/            # pages front (vanilla JS/HTML/CSS, aucun build)
 │       ├── admin.html      # espace animateur (page par défaut)
@@ -248,12 +248,12 @@ node scripts/test-rappel.js
 node scripts/test-normalisation.js
 node scripts/test-sessions.js
 node scripts/test-admin-ui.js
-node scripts/test-radar.js
+node scripts/test-mode.js
 node scripts/test-correcteur.js
 ```
 
 Deux styles d'assertion cohabitent, tous deux sans dépendance externe :
-`test-sessions.js`, `test-admin-ui.js`, `test-radar.js` et `test-correcteur.js`
+`test-sessions.js`, `test-admin-ui.js`, `test-mode.js` et `test-correcteur.js`
 utilisent les assertions Node natives (`node:assert/strict`) ; `test-reimport.js`,
 `test-rappel.js` et `test-normalisation.js` s'appuient sur un petit helper
 maison `check()`. Une harmonisation vers `node:assert/strict` (voire
@@ -279,15 +279,18 @@ ligne et encodage.
 ## Export PowerPoint (dépendance Python)
 
 L'export (`GET /api/sessions/:id/export-ppt`) :
-1. rasterise le radar SVG en PNG via Chrome headless piloté par Puppeteer (`CHROME_PATH`) ;
-2. écrit un JSON temporaire décrivant le contenu du support ;
-3. invoque `scripts/export-restitution-ppt.py` (Python, `python-pptx`, `PYTHON`)
+1. écrit un JSON temporaire décrivant le contenu du support ;
+2. invoque `scripts/export-restitution-ppt.py` (Python, `python-pptx`, `PYTHON`)
    qui construit le fichier `.pptx` à partir du template
-   [`../template ppt/template.pptx`](../template%20ppt/template.pptx) ;
-4. renvoie le fichier au téléchargement puis nettoie les fichiers temporaires.
+   [`../template ppt/template.pptx`](../template%20ppt/template.pptx), **radar compris,
+   dessiné en vectoriel natif** (python-pptx) ;
+3. renvoie le fichier au téléchargement puis nettoie les fichiers temporaires.
 
-Sans Chrome ni Python correctement configurés, le reste de l'application
-fonctionne normalement ; seul cet export échoue.
+Depuis le 2026-07-21 l'export **ne dépend plus de Chrome/Puppeteer** : le radar est
+vectoriel, et la rasterisation (`rasteriserRadars`) + le module serveur `radar-svg.js`
+ont été retirés, ainsi que la dépendance `puppeteer-core` devenue inutile (désinstallée).
+Sans Python (`python-pptx`) configuré, le reste de l'application fonctionne
+normalement ; seul cet export échoue.
 
 ## Sauvegarde / restauration de la base
 
