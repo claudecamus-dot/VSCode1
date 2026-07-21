@@ -1,12 +1,14 @@
 ---
 name: pptx-framed-image
-description: Insert an image into a PowerPoint template "frame" so it takes the frame's EXACT shape (rounded/diagonal corners) by cloning the frame's prstGeom onto the picture — not by rounding the PNG in PIL. Ships a procedural fun/nature (summer) placeholder-image generator. Use when filling the OCTO "cadre blanc" visual placeholders (the « ici mettre une Photo » frames, round2DiagRect), when inserted images don't respect the frame's rounded borders, or when you need on-brand placeholder imagery without an image API.
+description: Insert an image into a PowerPoint template "frame" so it takes the frame's EXACT shape (rounded/diagonal corners) by cloning the frame's prstGeom onto the picture — not by rounding the PNG in PIL. Ships a real-photo fetcher (Openverse, CC0, no API key) plus a procedural fun/nature (summer) placeholder-image generator as an offline fallback. Use when filling the OCTO "cadre blanc" visual placeholders (the « ici mettre une Photo » frames, round2DiagRect), when inserted images don't respect the frame's rounded borders, or when you need on-brand imagery without paying for a stock-photo API key.
 ---
 
 # pptx-framed-image
 
 Fills a template's shaped photo frame with an image that follows the frame's
-corners exactly, and generates fun summer/nature placeholder images to drop in.
+corners exactly. Prefers a real royalty-free photo (Openverse, CC0) over a
+generated placeholder — see Step 4 — with the procedural summer/nature
+generator kept as an offline fallback.
 
 ## Why geometry-cloning, not PIL rounding
 
@@ -77,9 +79,25 @@ to drop a border (match a clean reference frame that has fill + `ln=noFill`), or
 delete/hide the stray connector. A layout is often shared by 2+ slides — check
 `layout -> slides` before editing so you don't disturb another slide.
 
-### Step 4 — fun / nature placeholder images (optional)
-When you have no real photo yet, generate an on-theme summer placeholder
-(« L'Été de l'IA ») instead of leaving « ici mettre une Photo »:
+### Step 4 — fill the frame: a real photo first, a generated placeholder as fallback
+Prefer a **real royalty-free photo** over a procedurally generated one — flat
+vector "landscapes" read as cheap next to real client-facing content (found
+by comparing a generated deck against the real REX reference deck that
+inspired this skill: its chapter/content frames are all real photography).
+
+```python
+from stock_images import fetch_to
+# aspect_ratio: "square" | "wide" | "tall" — pick the one matching the frame
+fetch_to("mountains.jpg", "mountains landscape", seed=0, aspect_ratio="square",
+          manifest_path="_img/manifest.json")   # provenance log, not required by the license
+```
+Source: **Openverse** (`api.openverse.org`), filtered to `license=cc0` (public
+domain — zero attribution required). No API key needed for read access — this
+*is* the API's documented behavior (verified by repeating a query and getting
+a stable, non-cached result each time), unlike an earlier dead end below.
+
+If there's no network access (offline session, sandboxed run), fall back to
+the procedural generator instead of failing the whole slide:
 
 ```python
 from nature_images import generate_to
@@ -87,6 +105,29 @@ from nature_images import generate_to
 generate_to("sunset.png", "sunset", 900, 1286, seed=0)
 ```
 Scenes: `sunset`, `ocean`, `mountains`, `forest`, `tropical`, `meadow`.
+
+> **Screen every result before using it — keyword search has no judgment.**
+> A query like `"ocean waves aerial"` returned, among clean seascapes, an
+> aerial beach photo crowded with sunbathers (a `people` tag was present but
+> easy to miss without reading it); a bikini/beach shot is not what a
+> professional consulting deck needs. Fetching an image is not the same as
+> approving it — render/open every candidate and look before wiring it into
+> the deck, same discipline as the rest of this skill's "verify by real
+> render" rule. Prefer queries that describe the *shot* over the *place*
+> (`"ocean waves aerial"` pulled tourist beaches; a more specific phrase or a
+> different `seed` away from the top few results usually finds a clean,
+> people-free option — check `tags` in the API response for a `people` flag
+> as a first pass, but confirm by eye, tags aren't a reliable filter alone).
+
+> **Dead end, worth remembering:** an earlier attempt used the Pexels API
+> (`api.pexels.com`) without a key and got a real-looking result for one query
+> — real rate-limit headers and all. It was a **stale Cloudflare cache hit**
+> (`cf-cache-status: HIT`, the exact same photo every time) on that one
+> specific query string, not a working no-key path: a different query
+> immediately returned `401 Missing API key`. **Lesson: a single successful
+> no-key request to a paid API is not proof of access — repeat it with a
+> query that can't already be cached (or a cache-busting param) before
+> building on it.** Openverse's no-key access held up under that same test.
 
 ### Step 5 — verify by real render
 Geometry checks are not enough for visuals: render the deck to images

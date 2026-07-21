@@ -61,9 +61,30 @@ géométrie passe mais que le deck a l'air amateur.
 ### Skill `pptx-framed-image`
 Insère une image dans un **cadre** du template en lui donnant la forme exacte
 du cadre (coins arrondis/diagonaux) via clonage du `prstGeom` du cadre sur la
-picture — pas d'arrondi PIL approximatif. Fournit aussi un générateur d'images
-d'illustration procédurales (scènes nature/été) et un audit des obstructions
-de cadre (bordures, lignes parasites).
+picture — pas d'arrondi PIL approximatif. Fournit aussi un audit des
+obstructions de cadre (bordures, lignes parasites).
+
+Deux sources d'image, dans cet ordre de préférence :
+- **`stock_images.py`** (nouveau) — vraie photo libre de droit via Openverse
+  (`api.openverse.org`, filtré `license=cc0`, pas de clé API requise). Une
+  vraie photo se lit mieux qu'un aplat vectoriel généré à côté d'un contenu
+  client réel (constat fait en comparant un deck généré au REX "⛱️ L'Été de
+  l'IA" — ses cadres photo sont tous de vraies photos, pas des formes). **La
+  recherche par mot-clé n'a aucun jugement** : screener chaque résultat par
+  rendu réel avant de le garder (un `"ocean waves aerial"` a renvoyé, parmi
+  des paysages propres, une photo de plage bondée de vacanciers — le tag
+  `people` était présent mais facile à manquer sans le lire).
+- **`nature_images.py`** — générateur procédural de secours (scènes
+  nature/été), utile hors-ligne ou si l'API n'est pas joignable.
+
+> **Un no-key réel testé et confirmé, un autre écarté :** avant d'adopter un
+> accès sans clé API à un service payant, répéter la requête avec un
+> paramètre différent — un premier essai sur l'API Pexels sans clé avait
+> semblé fonctionner (en-têtes de rate-limit crédibles inclus) mais s'est
+> révélé être un simple hit de cache Cloudflare sur cette requête précise
+> (`cf-cache-status: HIT`, toujours la même photo) ; une autre requête a
+> immédiatement renvoyé `401`. Openverse, lui, a tenu cette même épreuve de
+> répétition.
 
 ### Skill `slide-text-polish`
 Qualité rédactionnelle : titre = une affirmation (pas une étiquette), une idée
@@ -84,7 +105,11 @@ retour d'expérience.
 ## 3. Dépendances et environnement
 
 - **Python** : `python-pptx`, `Pillow` (pour `pptx-framed-image` et le
-  générateur d'images). Pas de réseau, pas d'API image.
+  générateur d'images).
+- **Réseau** *(optionnel)* : `stock_images.py` appelle Openverse en HTTPS,
+  sans clé API. Sans réseau (ou si l'API est indisponible), repli automatique
+  sur `nature_images.py` (procédural, hors-ligne) — ne jamais laisser échouer
+  toute la slide pour ça.
 - **Node/Chrome headless** *(optionnel)* : uniquement si un visuel (radar,
   graphe) doit être rasterisé en amont côté serveur — spécifique au projet
   d'origine, pas requis par le kit lui-même.
@@ -138,6 +163,52 @@ retour d'expérience.
      géométrie ne voit pas » de `pptx-deck` + `pptx-verify`).
 5. **Rapporter** ce qui a changé et pointer les images rendues. Ne jamais
    déclarer « qualité / vérifié » sur la seule géométrie.
+
+---
+
+## 6. Tests fonctionnels du deck du projet (recommandé, pas juste "au cas où")
+
+`test-export-ppt.py`/`test-ppt-charte.py` (ce projet) et
+`test_export_pptx_renders_cleanly_in_a_real_engine` (projet frère VSCode2,
+app web) montrent le même besoin sous deux formes : un script/test rejouable
+qui **automatise ce qu'un œil humain vérifierait**, pas seulement la
+géométrie. Recette portée sur un troisième projet (VSCode3, deck script,
+2026-07-15) : un `test_generate_deck.py` à côté du générateur, avec un simple
+`check(cond, msg)` (pas besoin de pytest pour un script autonome) :
+
+1. **Structure** — nombre de slides, `verifier_geometrie` sans problème,
+   fichier écrit d'une taille plausible.
+2. **Cadres photo — alignement exact, pas juste "une image existe quelque
+   part"** : pour chaque slide utilisant `pptx-framed-image`, retrouver le
+   cadre attendu (`frame_geometry`/équivalent) et asserter que l'image posée
+   a **exactement** les mêmes bornes (left/top/width/height) et porte le bon
+   `prstGeom` cloné. Né d'un vrai defect signalé "image pas bien calée" sur
+   une slide — qui s'est révélé être une photo trop pâle se fondant dans le
+   fond (un problème de contenu, pas de géométrie), mais qui a montré qu'il
+   n'existait aucun test capable de le confirmer/infirmer d'un coup d'œil
+   programmatique. Ce test ne juge pas la qualité esthétique d'une photo
+   (ça reste à l'œil humain) — il garantit que le **cadrage géométrique**
+   ne dérive jamais silencieusement.
+3. **Aucun cadre laissé vide** — le texte gabarit du template (« ici mettre
+   une Photo ») ne doit apparaître nulle part dans le texte du deck généré.
+4. **Verrous anti-régression** ciblés sur chaque bug déjà trouvé au rendu
+   (ex. l'encart numéro de chapitre qui hérite un retrait de puce, §ci-
+   dessus §pptx-framed-image) — un test qui aurait échoué avant le fix et
+   passe après, pas une assertion générique.
+5. **`frame_obstructions` en liste blanche** — les obstructions attendues
+   (décor du template) sont nommées explicitement ; toute obstruction NON
+   attendue fait échouer le test (une vraie nouvelle régression, pas du
+   bruit).
+6. **Rendu réel automatisé** — convertir en PDF via LibreOffice
+   (`soffice --headless --convert-to pdf`) et compter les pages produites
+   contre le nombre de slides exportées (regex `/Type\s*/Page`, pas de
+   dépendance de lecture PDF) : détecte un fichier que python-pptx parse
+   sans erreur mais qu'aucun moteur n'ouvrirait proprement — la même classe
+   de bug que le test VSCode2 éponyme.
+
+Étape 4 de la section précédente (« créer le skill deck du projet ») devrait
+systématiquement se terminer par ce test-là, pas seulement par la vérification
+manuelle au rendu — les deux se complètent, ils ne se remplacent pas.
 
 ---
 
