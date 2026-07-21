@@ -42,9 +42,9 @@ choisi la flotte canonique.
 | --- | --- | --- | --- | --- |
 | `run` | Lancer/screenshoter l'app, vérifier un changement UI réel | Synchrone | (session) | Éprouvé (×2) |
 | `revue-increment` | Definition-of-done : fin d'incrément, avant commit | Synchrone, étape terminale obligatoire des plans de dev | (session) | Jamais invoquée (comme skill) malgré le rappel SessionStart — à réhabiliter via l'orchestrateur |
-| `pptx-framed-image` | Remplir les cadres photo d'un template PPT — étape conditionnelle du playbook `export-ppt-verifie` | Synchrone | (session) | Jamais utilisée — pertinence réelle : `reference_octo_cadre_frame_layout.md` (cadre = shape du slideLayout) |
-| `slide-text-polish` | Lint de la qualité rédactionnelle des slides — étape conditionnelle du playbook `export-ppt-verifie` | Synchrone | (session) | Jamais utilisée — pertinence réelle : `feedback_pas_d_abreviations_cryptiques.md` (indicateurs en clair dans les livrables client) |
-| `restitution-ppt` | Générer/améliorer le PPT de restitution (US6.4) — recoupe le sous-agent `ppt-designer` (voir plus bas) | Synchrone | (session) | Jamais invoquée (comme skill) — la génération réelle est passée par `ppt-designer` |
+| `pptx-framed-image` | Remplir les cadres photo d'un template PPT — étape conditionnelle du playbook `export-ppt-verifie` | Synchrone | (session) | **Bibliothèque du bundle `ppt-designer`** — n=0 en direct ≠ mort (usage via le sous-agent, § Bundle PPT) ; pertinence : `reference_octo_cadre_frame_layout.md` (cadre = shape du slideLayout) |
+| `slide-text-polish` | Lint de la qualité rédactionnelle des slides — étape conditionnelle du playbook `export-ppt-verifie` | Synchrone | (session) | **Bibliothèque du bundle `ppt-designer`** — n=0 en direct ≠ mort (usage via le sous-agent, § Bundle PPT) ; pertinence : `feedback_pas_d_abreviations_cryptiques.md` (indicateurs en clair dans les livrables client) |
+| `restitution-ppt` | Générer/améliorer le PPT de restitution (US6.4) — structure du deck lue par le sous-agent `ppt-designer` (§ Bundle PPT) | Synchrone | (session) | **Référence du bundle `ppt-designer`** — n=0 en direct ≠ mort : la génération réelle passe par le sous-agent (§ Bundle PPT) |
 | `agent-orchestrator` | Point d'entrée des demandes multi-étapes/multi-agents (invocation manuelle — hook non branché) | Synchrone | (session) | Neuf (import 2026-07-21) |
 | `agent-supervisor` | Diagnostic qualitatif des agents (étage 2) — depuis `revue-increment` ou sur signal SessionStart | Synchrone, ≤ 1×/14 j | (session) | Neuf (import 2026-07-21) |
 
@@ -55,8 +55,8 @@ choisi la flotte canonique.
 | `roadmap-keeper` | Mettre à jour/rendre la roadmap (`.roadmap/roadmap.json`) | Synchrone | (session) | Éprouvé (×4) |
 | `skill-creator` | Créer/modifier un skill | Synchrone | (session) | Éprouvé (×3) |
 | `pptx-verify` | Vérifier un export PPT en rendu réel — obligatoire après toute génération/modif du deck | Synchrone | (session) | Utilisé (×1) — colonne vertébrale du playbook `export-ppt-verifie` |
-| `pptx-deck` | Générer un deck avec les helpers python-pptx du skill (échelle typographique, gauge, cartes…) | Synchrone | (session) | Jamais invoquée directement — le projet a son propre code de génération (`app/scripts/pptx_deck.py`, `export-restitution-ppt.py`) et route surtout via le sous-agent `ppt-designer` |
-| `restitution-deck-design` | Deck techniquement correct mais visuellement pauvre | Synchrone | (session) | Jamais utilisée — pertinence réelle : `reference_octo_design_system_html.md` + `project_fidelite_charte_ppt.md` (fidélité charte OCTO) |
+| `pptx-deck` | Générer un deck avec les helpers python-pptx du skill (échelle typographique, gauge, cartes…) | Synchrone | (session) | **Bibliothèque du bundle `ppt-designer`** — n=0 en direct ≠ mort : le projet génère via son propre code (`app/scripts/pptx_deck.py`, `export-restitution-ppt.py`) et route via le sous-agent (§ Bundle PPT) |
+| `restitution-deck-design` | Deck techniquement correct mais visuellement pauvre — passe design du bundle `ppt-designer` (§ Bundle PPT) | Synchrone | (session) | **Référence du bundle `ppt-designer`** — n=0 en direct ≠ mort (passe design via le sous-agent) ; pertinence : `reference_octo_design_system_html.md` + `project_fidelite_charte_ppt.md` (fidélité charte OCTO) |
 | `dataviz` | Concevoir un graphique/tableau de bord cohérent | Synchrone | (session) | Jamais invoquée à ce jour |
 | `code-review` / `verify` / `simplify` | Revue du diff / vérification bout-en-bout / nettoyage | Synchrone, fin de plan de dev | (session) | Builtins |
 
