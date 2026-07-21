@@ -306,6 +306,7 @@
       <p class="toc-group-title">TODO</p>
       <a class="toc-link" href="#todo-ppt">Chantier deck PPT</a>
       <a class="toc-link" href="#todo-tokens">Optimisation tokens</a>
+      <a class="toc-link" href="#todo-session">Reprise de session</a>
     </div>
 
     <div class="toc-group">
@@ -728,6 +729,29 @@
 
       <h2 id="todo-tokens">Optimisation tokens</h2>
       <p class="fact-label">Chantier parallèle (<a href="../export/optimisation-tokens.md"><code>export/optimisation-tokens.md</code></a>) : mesure réelle faite (<code>rtk gain --history</code> : 20,4 % d'économie globale sur 1226 commandes, poste dominant <code>rtk read</code>) ; prototype <code>render_diff.py</code> (filtre pixel avant eye-check PPT, skill <code>pptx-verify</code>) livré et testé (9 tests unitaires + 6 fonctionnels). Restent à explorer : POC <code>params.json</code> + aperçu non-LLM, coût réel des sous-agents inline vs délégué.</p>
+
+      <h2 id="todo-session">Reprise de session</h2>
+      <p>Distinct du chantier deck PPT ci-dessus (un backlog de <em>contenu</em>) : ce pense-bête git-versionné est complémentaire à la mémoire auto de Claude Code (<code>~/.claude/projects/.../memory/</code>) — la mémoire survit d'une session à l'autre mais n'est pas visible dans le dépôt ni relue par un humain qui ouvre juste <code>docs/wiki.html</code>. Cette section est la version « lisible dans le repo » du même besoin de continuité. Pattern repris tel quel d'un projet frère (VSCode3, <code>export/claude-code-setup-export.md</code> §6.3).</p>
+
+      <div class="critical">
+        <span class="fact-label">Quand mettre à jour cette section</span>
+        <ul style="margin:6px 0 0; padding-left:18px;">
+          <li>En fin de session, si le quota d'usage approche ou atteint 100 % et que la session s'arrête avant d'avoir pu conclure une tâche — noter l'état exact d'avancement, pas juste « en cours ».</li>
+          <li>Avant toute fin de session laissant un fichier modifié mais non committé (voir <code>git status</code>), ou une décision prise à l'oral sans être écrite nulle part ailleurs.</li>
+          <li>En reprise de session : lire cette table <em>avant</em> de redemander à l'utilisateur où en était le travail — c'est tout l'intérêt de la section.</li>
+        </ul>
+      </div>
+
+      <h3>Items ouverts</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Item</th><th>État</th><th>Contexte / prochaine action</th></tr></thead>
+          <tbody id="todo-session-rows">
+            <tr><td colspan="3" style="color:var(--ink-faint); font-style:italic;">Aucun item ouvert actuellement.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="color:var(--ink-faint); font-size:0.85rem;">Table volontairement courte — un item qui traîne sans propriétaire ni prochaine action clairement identifiable ne doit pas y rester : soit il est résolu, soit il migre vers le chantier deck PPT ci-dessus ou <code>.roadmap/roadmap.json</code> (avancement projet) qui ont déjà un mécanisme de suivi dédié.</p>
     </section>
 
     <!-- ============ BUSINESS ============ -->

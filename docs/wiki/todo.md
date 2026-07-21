@@ -59,6 +59,49 @@ avant de la considérer terminée —
 **Méthode** : toujours vérifier par **rendu réel** (avant/après), jamais sur la
 seule géométrie.
 
+## Dispositif Claude Code (agents / skills / config) — réalignement post-BMAD
+
+> Ouvert 2026-07-16, après l'install de **BMAD-METHOD v6.10.0** sur tous les
+> projets VSCode et un audit config/skills/agents transverse. Rubrique de suivi
+> centrale (certaines actions concernent des dépôts frères, étiquetées comme
+> telles).
+
+**Fait & vérifié** (ce projet, VSCode1) :
+
+- BMAD installé (`_bmad/`, 46 skills `bmad-*` → `.claude/skills/`).
+- `_bmad-output/` ajouté au `.gitignore` (sorties générées, pas du contenu).
+- Hook `guard_destructive_git.py` **durci et unifié** sur les 4 projets :
+  fusion du parsing `shlex` (gère `VAR=value git push --force`, trou réel des
+  anciennes versions regex) + schéma de sortie correct
+  (`hookSpecificOutput.permissionDecision`). Pipe-testé sur 6 cas.
+- Hook `SessionStart` (`remind_revue_increment.py`) + skill `revue-increment`
+  posés et rendus **BMAD-aware** (délèguent à `bmad-code-review` /
+  `bmad-retrospective`, routent vers `bmad-help`).
+- Section « Skills & agents — comment ça se lance » ajoutée au `CLAUDE.md`.
+
+**TODO — à trancher (VSCode1)** :
+
+1. **Trois flottes d'agents se recouvrent** — à réduire à **une flotte
+   canonique** :
+   - `.claude/agents/` (17 agents custom : orchestrator, developer, reviewer,
+     auditor, planner, ux/ui-designer, ppt-designer…) ;
+   - `.opencode/agents` (même flotte, pilotée par la CLI externe `opencode`) ;
+   - agents **BMAD** (`bmad-agent-*` : Amelia dev, John PM, Winston archi,
+     Sally UX, Mary analyste, Paige tech-writer).
+   Les trois couvrent les mêmes rôles → risque de lancer deux systèmes
+   concurrents sur la même tâche. Décision produit à prendre (pas tranchée
+   automatiquement). Une fois choisie : retirer les deux autres, mettre à jour
+   la section « Skills & agents » du `CLAUDE.md`.
+2. **Committer** le réalignement (install BMAD + config) une fois la flotte
+   canonique décidée — actuellement non commité.
+
+**TODO — dépôts frères (rappel, à traiter dans leur repo)** :
+
+- **VSCode** : gros diff BMAD non commité (réinstall par-dessus un BMAD déjà
+  committé le 2026-06-08) + 1 fichier déjà tracké dans `_bmad-output/`
+  (`git rm --cached`, le `.gitignore` n'agit que sur le futur).
+- **VSCode2** : `external/openhub_clone/` supprimé (staged) — à committer.
+
 ## Optimisation tokens
 
 Chantier parallèle (détail dans

@@ -185,7 +185,7 @@ depuis .roadmap/roadmap.json:86-205
 
 Constats automatiques du superviseur d'agents (usage mesuré dans les transcripts de session) :
 
-- **Skills projet sans usage** : `agent-orchestrator` — vérifier pertinence et déclencheurs.
+- _(aucun constat automatique)_
 
 Tableau de bord complet : [technical/agents-supervision.md](technical/agents-supervision.md) — régénéré à chaque session.
 <!-- TODO-AGENTS:END -->

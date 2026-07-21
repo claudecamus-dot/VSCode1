@@ -1,6 +1,7 @@
 # Points d'amélioration — export PPT de restitution
 
-> État au **2026-07-08**. Objectif : augmenter la qualité du deck, respecter le
+> État au **2026-07-08**, complété le **2026-07-15** (#6, #9 — retours d'un
+> projet frère réutilisant ce même kit). Objectif : augmenter la qualité du deck, respecter le
 > template OCTO, formes plus travaillées — **sans quitter python-pptx** (le
 > `.pptx` OCTO fait foi). Priorisé impact / effort. Se lit avec
 > [`template-octo.md`](template-octo.md) et [`design-system-octo.md`](design-system-octo.md).
@@ -54,6 +55,7 @@ retour utilisateur avant d'éventuellement remplacer l'option A dans le deck.
 | # | Amélioration | Détail | Effort | Statut |
 | --- | --- | --- | --- | --- |
 | 8 | **Contraste GOLD insuffisant** | `D.PALETTE[3]` (`#b8860b`, or/goldenrod — 4ᵉ couleur de pilier) sur fond blanc : contraste **3.25:1**, sous le seuil WCAG AA 4.5:1 pour du texte normal (passe le seuil 3.0:1 « large texte » des cartes, mais PAS celui des libellés d'axe radar, désormais du vrai texte vectoriel testable — invisible tant que le radar était un PNG opaque). Pré-existant (même couleur utilisée côté web `radar-svg.js`), révélé par la vectorisation, pas une régression du radar lui-même. Nécessite une décision palette (assombrir ce jaune, ou accepter pour ce cas précis) — pas tranché ici. | S | 🔍 trouvé, pas décidé |
+| 9 | **Encart numéro du layout « 50 - Chapitre » : "01" passe à la ligne quel que soit le corps de police** | Trouvé sur un projet frère en réutilisant ce même layout via python-pptx : le placeholder idx=1 (le petit encart numéro, 0.55×0.47in) hérite du style de liste `lvl1pPr` du master (`marL=457200` + `indent=-317500`, un retrait de puce de 0.5in prévu pour de larges encarts de contenu ailleurs dans ce master) — dans un encart aussi étroit, ce retrait mange presque toute la largeur, donc "0" et "1" wrappent chacun sur leur ligne, peu importe la taille de police (testé jusqu'à 8pt). Corrigé en forçant `marL=0`/`indent=0`/`buNone` au niveau du paragraphe (pas du run) — python-pptx n'expose pas ces attributs, manipulation XML directe requise. Concerne potentiellement toute réutilisation de ce layout via python-pptx (pas seulement le projet frère) puisque le master est le même fichier `template-octo.pptx`. | S | ✅ trouvé + corrigé (ailleurs) — à vérifier si ce projet réutilise un jour ce layout |
 
 ## Backlog (ordre impact / effort)
 
@@ -61,7 +63,7 @@ retour utilisateur avant d'éventuellement remplacer l'option A dans le deck.
 | --- | --- | --- | --- | --- |
 | 5 | **Décision palette (tranchée)** | Chrome = thème OCTO (navy/cyan/slate) ; **données = palette par pilier** conservée (radar). Pas de fusion. | — | ✅ décidé, appliqué avec #2 |
 | 4 | **Icônes outline par pilier** | Pictogrammes stroke (charte : jamais filled), navy/cyan, pour muscler l'infographie. | M | ⏳ |
-| 6 | **Cadres `round2DiagRect`** | Utiliser les cadres photo du template (couverture/intercalaires) via `pptx-framed-image`. | S-M | ⏳ |
+| 6 | **Cadres `round2DiagRect`** | Utiliser les cadres photo du template (couverture/intercalaires) via `pptx-framed-image`. **Approche validée sur un projet frère (2026-07-15)** : le skill a gagné `stock_images.py` (vraie photo libre de droit via Openverse CC0, sans clé API, repli sur `nature_images.py` procédural hors-ligne) — testé sur les 3 slides « 50 - Chapitre » + un layout « cadre blanc » d'un autre deck sur ce même template, rendu réel vérifié. Reste ⏳ pour **ce** projet : `export-restitution-ppt.py` n'utilise pas encore ces cadres lui-même. | S-M | ⏳ (skill enrichi, application au deck de ce projet non faite) |
 | 7 | **Nouveaux patterns de slide** | S'inspirer de `KPI_GRID`, `MATRICE_CONTEXTE_CARDS`, `COMPARAISON_2_OPTIONS` (design system) pour enrichir la restitution. | M-L | 💡 idée |
 
 ## Rappels de méthode (non négociables)

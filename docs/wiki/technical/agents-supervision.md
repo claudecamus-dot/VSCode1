@@ -9,7 +9,7 @@ generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, ét
 > **Ne pas éditer à la main** — toute modification serait écrasée au prochain scan.
 > Conception et phasage : [../../reflexions/agent-superviseur.md](../../reflexions/agent-superviseur.md).
 
-Dernier scan : 2026-07-21T12:17:22+02:00 · **14 sessions** (transcripts) · **13** invocations de skills · **9** lancements de sous-agents.
+Dernier scan : 2026-07-21T14:46:24+02:00 · **14 sessions** (transcripts) · **15** invocations de skills · **11** lancements de sous-agents.
 
 ## Skills — usage réel
 
@@ -17,28 +17,26 @@ Dernier scan : 2026-07-21T12:17:22+02:00 · **14 sessions** (transcripts) · **1
 | --- | --- | --- | --- | --- |
 | `roadmap-keeper` | global | 4 | 2026-06-22 | 2026-07-01 |
 | `skill-creator` | global | 3 | 2026-06-24 | 2026-07-07 |
+| `revue-increment` | projet | 2 | 2026-07-21 | 2026-07-21 |
 | `run` | (builtin/session) | 2 | 2026-06-22 | 2026-07-01 |
+| `agent-orchestrator` | projet | 1 | 2026-07-21 | 2026-07-21 |
 | `agent-supervisor` | projet | 1 | 2026-07-21 | 2026-07-21 |
 | `artifact-design` | (builtin/session) | 1 | 2026-07-07 | 2026-07-07 |
 | `pptx-verify` | global | 1 | 2026-07-01 | 2026-07-01 |
-| `revue-increment` | projet | 1 | 2026-07-21 | 2026-07-21 |
 
 ## Sous-agents
 
 | Sous-agent | Lancements | Premier | Dernier |
 | --- | --- | --- | --- |
-| `ppt-designer` | 2 | 2026-06-24 | 2026-07-08 |
+| `ppt-designer` | 3 | 2026-06-24 | 2026-07-21 |
 | `ui-designer` | 2 | 2026-07-01 | 2026-07-01 |
 | `ux-designer` | 2 | 2026-07-01 | 2026-07-01 |
 | `Explore` | 1 | 2026-07-08 | 2026-07-08 |
 | `documentarian` | 1 | 2026-07-01 | 2026-07-01 |
 | `onboarder` | 1 | 2026-07-07 | 2026-07-07 |
+| `reviewer` | 1 | 2026-07-21 | 2026-07-21 |
 
 ## Jamais utilisés
-
-**projet** — 1/6 jamais invoqués :
-
-`agent-orchestrator`
 
 **BMAD** — 46/46 jamais invoqués :
 
@@ -56,7 +54,7 @@ _Consommés en lisant/exécutant leurs `scripts/`, ou via un sous-agent qui les 
 
 ## TODO agents (constats automatiques)
 
-1. **Skills projet sans usage** : `agent-orchestrator` — vérifier pertinence et déclencheurs.
+_(aucun constat — rien à signaler sur les données actuelles)_
 
 ## Arbitrages enregistrés
 
