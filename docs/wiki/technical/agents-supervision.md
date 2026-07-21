@@ -9,7 +9,7 @@ generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, ét
 > **Ne pas éditer à la main** — toute modification serait écrasée au prochain scan.
 > Conception et phasage : [../../reflexions/agent-superviseur.md](../../reflexions/agent-superviseur.md).
 
-Dernier scan : 2026-07-21T11:11:24+02:00 · **14 sessions** (transcripts) · **11** invocations de skills · **9** lancements de sous-agents.
+Dernier scan : 2026-07-21T11:29:18+02:00 · **14 sessions** (transcripts) · **12** invocations de skills · **9** lancements de sous-agents.
 
 ## Skills — usage réel
 
@@ -18,6 +18,7 @@ Dernier scan : 2026-07-21T11:11:24+02:00 · **14 sessions** (transcripts) · **1
 | `roadmap-keeper` | global | 4 | 2026-06-22 | 2026-07-01 |
 | `skill-creator` | global | 3 | 2026-06-24 | 2026-07-07 |
 | `run` | (builtin/session) | 2 | 2026-06-22 | 2026-07-01 |
+| `agent-supervisor` | projet | 1 | 2026-07-21 | 2026-07-21 |
 | `artifact-design` | (builtin/session) | 1 | 2026-07-07 | 2026-07-07 |
 | `pptx-verify` | global | 1 | 2026-07-01 | 2026-07-01 |
 
@@ -34,9 +35,9 @@ Dernier scan : 2026-07-21T11:11:24+02:00 · **14 sessions** (transcripts) · **1
 
 ## Jamais utilisés
 
-**projet** — 6/6 jamais invoqués :
+**projet** — 5/6 jamais invoqués :
 
-`agent-orchestrator`, `agent-supervisor`, `pptx-framed-image`, `restitution-ppt`, `revue-increment`, `slide-text-polish`
+`agent-orchestrator`, `pptx-framed-image`, `restitution-ppt`, `revue-increment`, `slide-text-polish`
 
 **BMAD** — 46/46 jamais invoqués :
 
@@ -53,12 +54,20 @@ Dernier scan : 2026-07-21T11:11:24+02:00 · **14 sessions** (transcripts) · **1
 ## TODO agents (constats automatiques)
 
 1. **Trier les skills BMAD** : 46 installés, 0 invocation à ce jour — décider lesquels garder, customiser ou désinstaller.
-2. **`revue-increment` jamais invoquée** malgré le rappel SessionStart à chaque session — revoir son déclencheur (l'ancrer au flux de commit ?) ou la simplifier.
-3. **Skills projet sans usage** : `agent-orchestrator`, `agent-supervisor`, `pptx-framed-image`, `restitution-ppt`, `slide-text-polish` — vérifier pertinence et déclencheurs.
+2. **Skills projet sans usage** : `agent-orchestrator`, `pptx-framed-image`, `restitution-ppt`, `slide-text-polish` — vérifier pertinence et déclencheurs.
+
+## Arbitrages enregistrés
+
+_Constats clos par décision humaine (`.claude/supervision/arbitrages.json`) — l'usage réel reste mesuré ci-dessus._
+
+- **`revue-increment`** (2026-07-21) : Constat #1 (vérif de fin d'incrément systématiquement sautée) accepté. Réponse retenue : un garde-fou au COMMIT plutôt que de forcer l'invocation de revue-increment — hook PreToolUse .claude/hooks/warn_verif_before_commit.py, non bloquant, ciblé app/, silencieux si une vraie vérif (npm test / pptx-verify / revue-increment) a tourné dans la session. La vérif est ainsi rappelée au bon instant ; l'usage réel de revue-increment reste mesuré et re-challengeable.
 
 ## Diagnostic qualitatif (étage 2 — `agent-supervisor`)
 
-_Jamais lancé — invoquer la skill `agent-supervisor` (intégrée à `revue-increment`) pour un diagnostic qualitatif (KO répétés, efficacité, interactions entre agents)._
+_Diagnostic à jour._
+
+1. **Les skills PPT (restitution-ppt, pptx-framed-image, slide-text-polish, pptx-deck, restitution-deck-design) apparaissent « jamais utilises » mais ne sont probablement PAS morts : le compteur etage 1 ne voit que le thread principal, pas les invocations internes au sous-agent ppt-designer.** — Ne PAS desinstaller les skills PPT sur le seul signal n=0 ; les traiter « couverts par sous-agent » et non « morts » tant que la mesure ne voit pas l'interieur des sous-agents. · **Proposition** : Soit faire loguer par ppt-designer les skills qu'il invoque (leve l'angle mort de mesure), soit sortir les skills « a usage principalement sous-agent » de la liste jamais_utilises du wiki, pour eviter une decision de desinstallation basee sur une mesure aveugle.
+2. **46 skills BMAD a 0 usage en 5 jours : trop tot pour les declarer morts, le vrai blocage est l'arbitrage de flotte non tranche (CLAUDE.md), pas une inutilite intrinseque.** — Ne pas trancher par desinstallation maintenant ; fixer une echeance de decision (30 j -> 2026-08-16) et tester le cycle BMAD une fois via bmad-help sur la prochaine feature, sinon basculer BMAD en_sommeil en bloc. · **Proposition** : Consigner dans arbitrages.json une decision datee « flotte canonique = .claude/agents jusqu'au 2026-08-16, BMAD en observation » ; si toujours 0 usage a l'echeance, desinstaller/en_sommeil en bloc plutot que skill par skill.
 
 ---
 

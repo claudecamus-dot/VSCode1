@@ -9,6 +9,12 @@
             "command": "py \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard_destructive_git.py\"",
             "timeout": 10,
             "statusMessage": "Checking for destructive git operations..."
+          },
+          {
+            "type": "command",
+            "command": "py \"$CLAUDE_PROJECT_DIR/.claude/hooks/warn_verif_before_commit.py\"",
+            "timeout": 10,
+            "statusMessage": "Verif de fin d'increment avant commit (app/)..."
           }
         ]
       }
