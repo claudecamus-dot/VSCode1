@@ -21,21 +21,18 @@ agents: [onboarder]
    applicative (`app/`) — passer par le playbook `dev-verifie` (tests + rendu
    réel via `run`).
 
-2. **Revue de design du RADAR de maturité — sur les DEUX surfaces.** Le radar
-   se rend à deux endroits, à traiter de façon **cohérente** (même langage :
-   palette pilier, silhouette) :
-   - **Page web** — l'écran de consultation (`app/src/public/` + `radar-svg.js`).
-   - **Export PPT** — la slide radar du deck (`_dessiner_radar` dans
-     `app/scripts/export-restitution-ppt.py`).
-   Lancer `agent-orchestrator` pour cette revue design, en élargissant aussi aux
-   autres écrans front. ⚠️ **Les propositions faites à ce jour ne conviennent pas
-   à l'utilisateur** — les 3 options PPT rendues le 2026-07-21 (A radar numéroté /
-   B liste / C barres groupées, cf.
-   [artifact d'arbitrage](https://claude.ai/code/artifact/322bf277-f117-412f-8d77-b0b367ed4419))
-   sont **écartées**. Repartir d'une exploration plus large (pas re-proposer
-   A/B/C), sur le rendu **réel** des deux surfaces (screenshot via `run`/puppeteer
-   pour le web, `pptx-verify` pour le deck), pas sur maquette ASCII. La décision
-   « radar vs tableau » (ci-dessous) reste donc **ouverte**, à ré-instruire.
+2. **Revue de design du RADAR de maturité — sur les DEUX surfaces.** ✅ **Traité le
+   2026-07-21** (arbitrage utilisateur sur rendu réel, A/B/C écartées, exploration
+   repartie large). Direction : **radar conservé et amélioré**. Sur les deux surfaces
+   — web (radar inline dans `app/src/public/resultats.html` et `pilotage.html`) et
+   PPT (`_dessiner_radar` dans `app/scripts/export-restitution-ppt.py`) — libellés
+   d'axe en **foncé neutre** + **pastille couleur du pilier** sur l'axe (au lieu de
+   colorer le texte) : règle le contraste GOLD (voir section radar ci-dessous) et le
+   bruit visuel, même motif que la légende. Vérifié au rendu réel (screenshot web +
+   PowerPoint COM), garde-fou `app/scripts/test-contraste-radar.js`. **Résidu** :
+   rendus web comparaison + pilotage non re-vérifiés (données DEV absentes) ; ellipse
+   possible sur un libellé très long en PPT (repli volontaire). Détail :
+   [`../../export/points-amelioration-ppt.md`](../../export/points-amelioration-ppt.md).
 
 3. **Lancer `agent-supervisor` pour investiguer les axes d'amélioration.**
    Diagnostic étage 2 sur les données du superviseur (usage, runs d'orchestration
@@ -63,31 +60,30 @@ thème du template (= charte OCTO) ; palette par pilier gardée pour les donnée
    barres/jauge figées sur l'ancien gris (paramètre par défaut jamais
    réévalué par `appliquer_theme()`).
 
-### ⚠️ Radar de maturité (slide 3 de chaque bloc) — pas encore prêt
+### ✅ Radar de maturité (slide 3 de chaque bloc) — décisions tranchées (2026-07-21)
 
 **#3 radar vectoriel** : PNG Puppeteer remplacé par du vectoriel natif
-python-pptx. Le feedback du 2026-07-08 est intégré (design aligné sur la
-trame du template, en-tête de section, parenthèses retirées **partout** via
-`joli_nom()`, réglette de paliers 0-3 au-dessus du cercle, coupures de mots
-composés longs corrigées avec un vrai trait d'union). **Mais la slide n'est
-pas encore considérée « prête »** : 2 points restent ouverts, à trancher
-avant de la considérer terminée —
+python-pptx (design aligné sur la trame du template, en-tête de section,
+parenthèses retirées **partout** via `joli_nom()`, réglette de paliers 0-3,
+césures propres). Les **2 décisions qui restaient ouvertes sont tranchées le
+2026-07-21** (arbitrage utilisateur sur rendu réel des deux surfaces) —
 
-1. **Radar vs tableau** — non tranché. 3 options rendues réellement
-   (PowerPoint COM, mêmes données) : A = radar vectoriel actuel (lecture de
-   silhouette globale, mais libellés contraints sur un radar dense) ; B =
-   tableau 2 colonnes (delta par objectif, très lisible, perd la silhouette) ;
-   C = barres groupées par pilier (même grammaire que la vue d'ensemble, mais
-   plus haut). Prototypes B/C pas committés (scratch de session) — à
-   régénérer sur demande pour arbitrage visuel.
-2. **Contraste GOLD insuffisant** — `D.PALETTE[3]` (`#b8860b`, pilier
-   « Agilité à l'échelle ») sur fond blanc : 3.25:1, sous le seuil WCAG AA
-   (4.5:1) pour les libellés d'axe du radar (texte normal). Pré-existant,
-   partagé avec le radar web (`radar-svg.js`), révélé par la vectorisation
-   (le radar a maintenant du vrai texte testable). Décision palette à
-   prendre (assombrir ce jaune, ou accepter tel quel) — pas tranchée.
+1. **Radar vs tableau** → **radar conservé et amélioré** (A/B/C écartées,
+   exploration repartie large). Sur les DEUX surfaces (web
+   `resultats.html`/`pilotage.html`, PPT `_dessiner_radar`) : libellés d'axe en
+   **foncé neutre** + **pastille couleur du pilier** sur l'axe (au lieu de
+   colorer le texte), même motif que la légende.
+2. **Contraste GOLD** → **résolu** : la couleur du pilier ne colore plus le
+   texte mais la **pastille** (objet graphique, seuil WCAG 3:1, gold à 3.25:1
+   OK) ; les libellés passent en foncé neutre (texte, ~15:1). Codifié par
+   `app/scripts/test-contraste-radar.js` (vérifie aussi que les 3 palettes —
+   `resultats.html`, `pilotage.html`, `pptx_deck.py` — restent identiques).
 
-**TODO — à reprendre après ces 2 décisions** :
+Vérifié au rendu réel (screenshot web + PowerPoint COM). **Résidu** : rendus web
+comparaison + pilotage non re-vérifiés (données DEV absentes) ; ellipse possible
+sur un libellé très long en PPT (repli volontaire, jamais de coupure silencieuse).
+
+**TODO — débloqué, à reprendre** :
 
 1. **#4 icônes outline** par pilier.
 2. **#6 cadres `round2DiagRect`** sur la couverture (skill `pptx-framed-image`).

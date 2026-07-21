@@ -236,10 +236,12 @@ def _couples_a_verifier():
     blanc = "#ffffff"
     panneau = gen.FOND_PANNEAU
     couples = []
-    # Libelles d'axe du radar : couleur du pilier, tiny (9pt) gras, sur blanc.
-    for i, coul in enumerate(D.PALETTE):
-        couples.append((f"radar: libelle axe pilier {i} ({coul}) sur blanc",
-                        coul, D.TYPE["tiny"], True, blanc))
+    # Libelles d'axe du radar : depuis 2026-07-21 en D.INK (fonce neutre, deja tres
+    # contraste — non teste ici, comme INK/MUTED). La couleur du pilier est passee du
+    # TEXTE a la PASTILLE (objet graphique) : le gold #b8860b echouait en texte
+    # (3.25:1 < AA 4.5:1) mais passe comme pastille (seuil graphique 3:1). Le contraste
+    # des libelles ET des 6 pastilles pilier, sur les DEUX surfaces (web + PPT, depuis
+    # la meme palette), est verifie par scripts/test-contraste-radar.js.
     # Valeurs colorees (ecart-type, scores) : h3 (14pt) gras, sur blanc (carte).
     for nom, coul in (("OK", D.OK), ("WARN", D.WARN), ("GOLD", D.GOLD)):
         couples.append((f"valeur carte {nom} ({coul}) sur blanc",

@@ -513,9 +513,17 @@ def _dessiner_radar(slide, x, y, w, h, axes, piliers):
         nom_axe = D.tronquer_a_lignes(nom_axe, box_w, taille_axe, MAX_LIGNES_LABEL)
         box_h = max(0.20, (min(MAX_LIGNES_LABEL, _lignes_radar(nom_axe, box_w, taille_axe)) + 0.5)
                     * lh_axe + 0.06)
+        # Pastille pilier sur l'axe, juste avant le libellé : la couleur passe du
+        # TEXTE a la pastille — libellés en D.INK (lisibilité + contraste WCAG ; le
+        # gold #b8860b en texte échouait a 3.25:1), non gras (moins lourd, moins de
+        # collisions). Mire le radar web (pastille + texte foncé, comme la légende).
+        dd = max(0.07, cote * 0.015)
+        drx = cx + (rayon + cote * 0.028) * cosang
+        dry = cy + (rayon + cote * 0.028) * math.sin(ang)
+        D.add_dot(slide, drx - dd / 2, dry - dd / 2, dd, D.couleur_pilier(a.get("pilierIndex", 0)))
         D.add_text(slide, box_x, ly - box_h / 2, box_w, box_h,
-                   [(nom_axe, {"size": taille_axe, "bold": True,
-                      "color": D.couleur_pilier(a.get("pilierIndex", 0)),
+                   [(nom_axe, {"size": taille_axe, "bold": False,
+                      "color": D.INK,
                       "align": align, "line_spacing": 0.95})],
                    anchor=MSO_ANCHOR.MIDDLE, align=align)
 

@@ -26,10 +26,19 @@
 | 2 | **Neutres + accent depuis le thème** — `pptx_deck.appliquer_theme()` lit `dk1/lt2/accent3/accent5/accent6` du thème et remplace `INK/MUTED/LINE/TRACK` + introduit `CYAN` (accent) ; filet de `_surtitre` et barre du panneau commentaire radar passés en cyan. | ✅ Fait | Rendu PowerPoint COM avant/après (13 slides, gabarit `test-export-ppt.py`) : `D.INK=#0E2356` (navy), `D.MUTED=#586586` (slate 600), `D.LINE=#CFD3DD` (slate 200/accent5), `D.TRACK=#E7E9EE` (slate 100/accent6), `D.CYAN=#00D2DD` (accent3) — conforme à la table de `design-system-octo.md`. Filet sous « MATURITÉ PAR PILIER »/« ÉVOLUTION VS » et barre du panneau « COMMENTAIRE DE RESTITUTION » visiblement cyan (navy avant). Aucun résidu Arial. Aucune ombre/gradient. **Bug trouvé et corrigé pendant la vérification** : `add_hbar/add_gauge/add_range_bar` avaient `track=TRACK` en défaut de paramètre — figé à la valeur de `TRACK` **au chargement du module**, donc jamais mis à jour par `appliquer_theme()` pour les appelants qui ne passaient pas `track=` explicitement (quasi tous) → toutes les pistes de barres/jauge restaient sur l'ancien gris `#eef1f7` au lieu du slate 100 du thème (`#E7E9EE`), invisible à l'œil (couleurs très proches) mais détecté par `test-ppt-charte.py` (assertion palette). Corrigé en `track=None` + résolution de `TRACK` à l'appel. `test-ppt-charte.py` : palette 100% conforme après correction. |
 | 3 | **Radar vectoriel** — remplace le PNG rasterisé par Puppeteer par des formes natives python-pptx (`pptx_deck.add_polygon` en freeform + `add_line` en connecteurs) : grille de niveaux, polygone « précédent » pointillé, polygone « courant » en aire semi-transparente (alpha OOXML), puce + libellé colorés par pilier, légende. `radar-svg.js`/`test-radar.js` inchangés (rôle web conservé) ; `radarImage` n'est plus consommé par le générateur. | ✅ Fait | `test-export-ppt.py` (radar à 12 axes réalistes + libellé long + cas <3 axes) : `TOUS LES TESTS PASSENT`. `test-ppt-charte.py` : police/tailles/palette/alignement OK (1 point ouvert, voir #8 ci-dessous). Rendu PowerPoint COM (avant/après plusieurs itérations) : grille + polygones + puces + légende nets à toute résolution, aucun chevauchement de libellés, badge n° de slide dégagé, cas sans comparaison toujours centré. **Itéré sur plusieurs défauts trouvés uniquement au rendu** (RG, pas géométrie) : légende du radar et liste « évolution » qui se chevauchaient (largeurs devinées vs largeur réelle nécessaire), mots seuls trop longs pour tenir sans coupure (« Excellence », « l'entreprise ») → largeur de légende **absolue** (`RADAR_LEGEND_W`) + cote du cercle plafonné (`RADAR_COTE_MAX`) au lieu d'un ratio, hauteurs de ligne recalculées sur le contenu réel. **4 retours complémentaires du coordinateur, tous traités** : (1) en-tête de section « MATURITÉ PAR OBJECTIF » + réglette d'échelle 0-3 au-dessus du cercle (`_surtitre` + `_echelle_radar`, même grammaire que la vue d'ensemble) ; (2) parenthèses de libellé (« Ressources humaines (formations, ...) ») retirées **partout** via `_nettoyer_label()` intégré dans `joli_nom()` (donc valable sur toutes les slides, pas seulement le radar) — verrouillé par un test anti-régression ; (3) réglette 0/1/2/3 ajoutée ; (4) voir « Décision ouverte » ci-dessous (non tranchée). **Résidu trouvé par relecture du rendu et corrigé** : « Fonctionnement »/« Synchronisation » (mots composés longs) se coupaient encore au milieu SANS trait d'union sur les libellés d'axe côté gauche (le plancher `box_w=0.65in` ne suffisait pas, même après le fix légende) — ajout de `_taille_libelle_axe()` (réduction bornée à 7pt du libellé concerné) puis `_forcer_cesure()` (insère un vrai trait d'union au point de coupure si même le plancher de taille ne suffit pas). Revérifié par rendu réel : coupure désormais propre (« Fonctionne-ment agile à l'échelle », « Synchroni-sation inter-équipes »). |
 
-## Décision ouverte (point 4 du retour coordinateur — PAS tranchée)
+## Décision tranchée (2026-07-21) — radar conservé et amélioré
 
-**Radar vs tableau pour présenter les objectifs ?** 3 options réelles rendues
-(PowerPoint COM, même donnée Squad Paiement 12 objectifs) pour arbitrage :
+**Radar vs tableau ?** → **radar conservé** (arbitrage utilisateur du 2026-07-21 sur
+rendu réel des deux surfaces ; les options A/B/C ci-dessous avaient été écartées, la
+revue est repartie d'une exploration large). Le radar est **amélioré** plutôt que
+remplacé : libellés d'axe en **foncé neutre** (`#14233b` web / `D.INK` PPT) + **pastille
+couleur du pilier** posée sur l'axe (au lieu de colorer le texte) — même motif que la
+légende ; cela règle d'un coup le contraste GOLD (#8) et le bruit visuel. Appliqué aux
+deux surfaces (web `resultats.html`/`pilotage.html`, PPT `_dessiner_radar`), vérifié au
+rendu réel (screenshot web + PowerPoint COM), garde-fou `scripts/test-contraste-radar.js`.
+
+Historique — 3 options réelles rendues (PowerPoint COM, Squad Paiement 12 objectifs)
+lors de l'arbitrage initial, **toutes écartées** :
 
 - **A — Radar vectoriel** (actuel, dans le deck). Lecture globale de la forme
   (déséquilibres visibles d'un coup d'œil) ; libellés d'axe contraints en
@@ -45,16 +54,17 @@
   scannable, mais aussi 1 seule colonne = plus de hauteur par ligne (12 lignes
   serrées).
 
-Rendus : slide 1 (radar, référence) + slide 2 (B) + slide 3 (C) générés par un
-script de prototype (déplacé hors du repo dans le scratch de session — pas
-committé, à régénérer sur demande). **Pas de choix imposé** : à trancher avec
-retour utilisateur avant d'éventuellement remplacer l'option A dans le deck.
+Rendus A/B/C : prototypes de session non committés. **Tranché le 2026-07-21** — radar
+conservé et amélioré (voir ci-dessus) ; A/B/C écartées. Résidu connu : sur un radar
+dense, un libellé très long peut encore finir en **ellipse visible** (repli volontaire,
+cf. « Rappels de méthode » — jamais de coupure silencieuse). Réduire l'ellipse = arbitrage
+layout (plus de lignes / cercle réduit) à investir séparément si besoin.
 
 ## Nouveau point trouvé (accessibilité, pas encore traité)
 
 | # | Amélioration | Détail | Effort | Statut |
 | --- | --- | --- | --- | --- |
-| 8 | **Contraste GOLD insuffisant** | `D.PALETTE[3]` (`#b8860b`, or/goldenrod — 4ᵉ couleur de pilier) sur fond blanc : contraste **3.25:1**, sous le seuil WCAG AA 4.5:1 pour du texte normal (passe le seuil 3.0:1 « large texte » des cartes, mais PAS celui des libellés d'axe radar, désormais du vrai texte vectoriel testable — invisible tant que le radar était un PNG opaque). Pré-existant (même couleur utilisée côté web `radar-svg.js`), révélé par la vectorisation, pas une régression du radar lui-même. Nécessite une décision palette (assombrir ce jaune, ou accepter pour ce cas précis) — pas tranché ici. | S | 🔍 trouvé, pas décidé |
+| 8 | **Contraste GOLD insuffisant** | `D.PALETTE[3]` (`#b8860b`, or/goldenrod — 4ᵉ couleur de pilier) sur fond blanc : contraste **3.25:1**, sous le seuil WCAG AA 4.5:1 pour du texte normal (passe le seuil 3.0:1 « large texte » des cartes, mais PAS celui des libellés d'axe radar, désormais du vrai texte vectoriel testable — invisible tant que le radar était un PNG opaque). Pré-existant (même couleur utilisée côté web `radar-svg.js`), révélé par la vectorisation, pas une régression du radar lui-même. **Résolu le 2026-07-21** : la couleur du pilier ne colore plus le TEXTE mais une PASTILLE (objet graphique, seuil WCAG 1.4.11 = 3:1, que le gold passe à 3.25:1) ; les libellés d'axe passent en foncé neutre (texte, seuil 4.5:1 largement tenu à ~15:1). Appliqué web + PPT, codifié par `scripts/test-contraste-radar.js` (vérifie aussi que les 3 palettes restent identiques). | S | ✅ résolu (2026-07-21) |
 | 9 | **Encart numéro du layout « 50 - Chapitre » : "01" passe à la ligne quel que soit le corps de police** | Trouvé sur un projet frère en réutilisant ce même layout via python-pptx : le placeholder idx=1 (le petit encart numéro, 0.55×0.47in) hérite du style de liste `lvl1pPr` du master (`marL=457200` + `indent=-317500`, un retrait de puce de 0.5in prévu pour de larges encarts de contenu ailleurs dans ce master) — dans un encart aussi étroit, ce retrait mange presque toute la largeur, donc "0" et "1" wrappent chacun sur leur ligne, peu importe la taille de police (testé jusqu'à 8pt). Corrigé en forçant `marL=0`/`indent=0`/`buNone` au niveau du paragraphe (pas du run) — python-pptx n'expose pas ces attributs, manipulation XML directe requise. Concerne potentiellement toute réutilisation de ce layout via python-pptx (pas seulement le projet frère) puisque le master est le même fichier `template-octo.pptx`. | S | ✅ trouvé + corrigé (ailleurs) — à vérifier si ce projet réutilise un jour ce layout |
 
 ## Backlog (ordre impact / effort)
