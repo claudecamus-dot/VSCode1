@@ -89,13 +89,19 @@ Décisions non redérivables du code :
   au fil des sessions.
 - `.claude/hooks/guard_destructive_git.py` bloque `git push --force` (sans
   `--force-with-lease`) et `git reset --hard` — garde-fou déterministe,
-  fail-open en cas d'erreur de parsing.
+  fail-open en cas d'erreur de parsing. Parsing `shlex` (gère `VAR=value git
+  push --force`), tests versionnés dans `.claude/hooks/tests/`.
 - `.claude/hooks/warn_verif_before_commit.py` **avertit sans bloquer** avant un
   `git commit` touchant `app/**` si aucune vérif réelle (`npm test`, rendu
   `pptx-verify`, ou `revue-increment`) n'a tourné dans la session — ancre la
   discipline « definition of done » au bon instant. Fail-open, détection de
   vérif par le transcript. Issu du constat #1 du superviseur d'agents (voir
   `.claude/supervision/`, tests dans `.claude/hooks/tests/`).
+- `.claude/hooks/orchestrator_gate.py` (`UserPromptSubmit`, **branché le
+  2026-07-21**) injecte une grille de qualification (~50 tokens) rappelant de
+  passer par `agent-orchestrator` pour une demande multi-étapes/multi-agents ;
+  silencieux sur les slash-commands, fail-open. Voir « Skills & agents » pour la
+  décision de flotte qui a acté ce branchement.
 - `.claude/skills/restitution-ppt/` : skill projet pour la génération/
   amélioration du PPT de restitution (US6.4), voir son `SKILL.md`.
 - `.claude/agents/` : agents projet disponibles (orchestrateurs, developer,
