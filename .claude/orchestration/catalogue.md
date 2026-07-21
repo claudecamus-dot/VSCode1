@@ -15,26 +15,27 @@
 > `py .claude/orchestration/git_agents_inventory.py`, puis proposition de
 > restauration/évolution/création (procédure dans la skill, étape 2).
 
-## Trois flottes de routage — non unifiées (cf. CLAUDE.md « Skills & agents »)
+## Flotte de routage — arbitrée le 2026-07-21 (cf. CLAUDE.md « Skills & agents »)
 
-Ce projet a accumulé trois systèmes de coordination distincts, chacun avec sa propre
-logique ; CLAUDE.md documente déjà le recouvrement comme **non tranché**, à arbitrer par
-l'équipe — ce catalogue le reflète sans trancher à sa place :
+Ce projet avait accumulé trois systèmes de coordination ; le recouvrement a été **tranché
+le 2026-07-21** : la flotte de rôles canonique est `.claude/agents/`, pilotée par
+`agent-orchestrator` dont le hook `UserPromptSubmit` est désormais **branché**.
+`.opencode/agents/` (doublon, CLI externe `opencode`) a été **supprimé** ; `.opencode/skills/`
+reste comme bibliothèque de protocoles chargée par les agents `.claude/agents/`. BMAD est
+**conservé pour son cycle produit**, pas comme fleet de rôles concurrente.
 
-| Flotte | Nature | Point d'entrée | Statut du recouvrement |
+| Flotte | Nature | Point d'entrée | Statut (2026-07-21) |
 | --- | --- | --- | --- |
-| Skills + sous-agents natifs (ce catalogue) | Skill inline (session principale) + sous-agents Claude Code natifs | `agent-orchestrator` (invocation manuelle ici, hook `UserPromptSubmit` volontairement non branché) | — |
-| `.claude/agents/orchestrator` + `orchestrator-dev` | Sous-agents (Task), hérités d'un setup OpenCode, pilotage par tickets **Beads** (non garanti installé) | Invocation directe de l'agent | Recoupe `agent-orchestrator` sur le rôle « point d'entrée multi-agents » — **aucune priorité posée** |
-| BMAD (`bmad-*`, 46 skills) | Skills, cycle produit→dev par personas | `bmad-help` (routeur) | Recoupe partiellement `.claude/agents/` (mêmes rôles dev/architecte/reviewer sous d'autres noms) |
+| Skills + sous-agents natifs (ce catalogue) | Skill inline (session principale) + sous-agents Claude Code natifs | `agent-orchestrator` (hook `UserPromptSubmit` **branché**) | **Canonique** |
+| `.claude/agents/orchestrator` + `orchestrator-dev` | Sous-agents (Task), hérités d'un setup OpenCode, pilotage par tickets **Beads** (non garanti installé) | Invocation directe de l'agent | Rôle « point d'entrée » assuré par `agent-orchestrator` — ne pas les lancer en parallèle ; leurs agents-feuille restent routables |
+| BMAD (`bmad-*`, 46 skills) | Skills, cycle produit→dev par personas | `bmad-help` (routeur) | Conservé pour le **cadrage produit** (prd/architecture/story), pas comme fleet de rôles dev |
 
 Conséquence pour le routage au quotidien : les **agents-feuille** du fleet `.claude/agents/`
 (`ppt-designer`, `ui-designer`, `ux-designer`, `documentarian`, `onboarder`, `developer*`,
-`qa-engineer`, `reviewer`, `debugger`, `auditor*`) n'ont pas d'équivalent dans ce catalogue
-et se routent normalement — ils ne sont pas en concurrence avec `agent-orchestrator`, qui
-ne fait pas ce qu'ils font. Seuls `orchestrator` et `orchestrator-dev` (rôle « point
-d'entrée »/« pilote de workflow ») chevauchent directement `agent-orchestrator` : ne pas
-les ériger en pipeline par défaut au même titre qu'un playbook tant que l'équipe n'a pas
-choisi la flotte canonique.
+`qa-engineer`, `reviewer`, `debugger`, `auditor*`) se routent normalement — ils ne sont pas
+en concurrence avec `agent-orchestrator`, qui ne fait pas ce qu'ils font. `orchestrator` et
+`orchestrator-dev` (rôle « point d'entrée »/« pilote de workflow ») sont désormais couverts
+par `agent-orchestrator` : ne pas les ériger en pipeline concurrent sur la même demande.
 
 ## Skills projet
 
@@ -121,8 +122,8 @@ Enchaînement détaillé + contrats d'étape : playbook `export-ppt-verifie`.
 | Famille | Règle de routage |
 | --- | --- |
 | **BMAD (46 skills, 0 invocation à ce jour)** | Tri jamais fait sur ce projet (contrairement au projet source, qui l'a exécuté le 2026-07-18 — ne pas supposer un tri équivalent ici). Ne router que sur demande explicite de l'utilisateur, en passant par `bmad-help`. Candidat naturel du premier diagnostic `agent-supervisor`. |
-| **OpenHub (`.opencode/`)** | Canal d'observation séparé (agents résultats en base applicative, si le pattern OpenHub est utilisé sur ce projet) — hors périmètre de ce catalogue, ne pas router. |
-| **`.claude/agents/orchestrator` + `orchestrator-dev` (Beads)** | Cf. tableau des 3 flottes ci-dessus — recouvrement avec `agent-orchestrator` non arbitré. Les agents-feuille qu'ils invoquent normalement (`developer`, `reviewer`, `qa-engineer`…) restent routables individuellement sans ambiguïté. |
+| **`.opencode/skills/`** | Bibliothèque de protocoles chargée par les agents `.claude/agents/` (`skills:` → `.opencode/skills/…`) — conservée. Pas une cible de routage en soi. (`.opencode/agents/` a été supprimé le 2026-07-21.) |
+| **`.claude/agents/orchestrator` + `orchestrator-dev` (Beads)** | Cf. tableau des flottes ci-dessus — rôle « point d'entrée » désormais assuré par `agent-orchestrator` (arbitré le 2026-07-21) ; ne pas les lancer en parallèle. Les agents-feuille qu'ils invoquent (`developer`, `reviewer`, `qa-engineer`…) restent routables individuellement sans ambiguïté. |
 
 > Angle mort de mesure : les sous-skills invoquées par un sous-agent via un prompt en
 > langage naturel (pattern utilisé par `bmad-code-review` pour lancer

@@ -49,6 +49,18 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py \"$CLAUDE_PROJECT_DIR/.claude/hooks/orchestrator_gate.py\"",
+            "timeout": 10,
+            "statusMessage": "Grille de qualification orchestrateur..."
+          }
+        ]
+      }
     ]
   },
   "permissions": {

@@ -79,21 +79,23 @@ seule géométrie.
   `bmad-retrospective`, routent vers `bmad-help`).
 - Section « Skills & agents — comment ça se lance » ajoutée au `CLAUDE.md`.
 
-**TODO — à trancher (VSCode1)** :
+**Tranché & fait (VSCode1, 2026-07-21)** — la flotte de rôles canonique est
+`.claude/agents/`, piloté par `agent-orchestrator` :
 
-1. **Trois flottes d'agents se recouvrent** — à réduire à **une flotte
-   canonique** :
-   - `.claude/agents/` (17 agents custom : orchestrator, developer, reviewer,
-     auditor, planner, ux/ui-designer, ppt-designer…) ;
-   - `.opencode/agents` (même flotte, pilotée par la CLI externe `opencode`) ;
-   - agents **BMAD** (`bmad-agent-*` : Amelia dev, John PM, Winston archi,
-     Sally UX, Mary analyste, Paige tech-writer).
-   Les trois couvrent les mêmes rôles → risque de lancer deux systèmes
-   concurrents sur la même tâche. Décision produit à prendre (pas tranchée
-   automatiquement). Une fois choisie : retirer les deux autres, mettre à jour
-   la section « Skills & agents » du `CLAUDE.md`.
-2. **Committer** le réalignement (install BMAD + config) une fois la flotte
-   canonique décidée — actuellement non commité.
+1. **Flotte canonique = `.claude/agents/`** + gate `orchestrator_gate.py`
+   **branché** en `UserPromptSubmit`. `.opencode/agents/` (16 def. doublon,
+   CLI externe `opencode`) **supprimé** ; `.opencode/skills/` (137 fichiers)
+   **conservé** car c'est la bibliothèque de protocoles chargée par les 16
+   agents `.claude/agents/` (`skills:` → `.opencode/skills/…`), donc pas
+   redondante. **BMAD conservé** non comme fleet de rôles concurrente mais
+   pour son cycle produit (prd/architecture/story) ; ses personas `bmad-agent-*`
+   restent, arbitrage assumé. Section « Skills & agents » du `CLAUDE.md` à jour.
+2. **Réalignement commité** : install BMAD (`_bmad/` + skills `bmad-*`), gate
+   branché, `.opencode/agents/` retiré — voir `git log` du 2026-07-21.
+
+*Recouvrement résiduel assumé* : `.claude/agents/` (developer/reviewer/…) et
+les personas BMAD couvrent des rôles voisins, mais servent des usages distincts
+(dev orchestré vs cadrage produit) — coexistence choisie, pas une dette à solder.
 
 **TODO — dépôts frères (rappel, à traiter dans leur repo)** :
 

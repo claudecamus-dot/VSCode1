@@ -101,16 +101,15 @@ Décisions non redérivables du code :
 - `.claude/agents/` : agents projet disponibles (orchestrateurs, developer,
   onboarder, reviewer, etc.) — voir chaque fichier pour son rôle exact.
 
-## Skills & agents — comment ça se lance (post-BMAD, 2026-07-16 ; maj 2026-07-21)
+## Skills & agents — comment ça se lance (post-BMAD, 2026-07-16 ; flotte arbitrée 2026-07-21)
 
-Depuis l'install de **BMAD-METHOD v6.10.0** (`_bmad/`), `.claude/skills/` contient ~46 skills `bmad-*` en plus des skills projet. **Trois « flottes » d'agents coexistent** — savoir laquelle lancer :
+Depuis l'install de **BMAD-METHOD v6.10.0** (`_bmad/`), `.claude/skills/` contient ~46 skills `bmad-*` en plus des skills projet. **Flotte canonique tranchée le 2026-07-21** (voir « Décision » ci-dessous) : `.claude/agents/` piloté par l'orchestrateur, BMAD conservé pour son cycle produit, `.opencode/agents/` retiré (doublon ; `.opencode/skills/` **conservé**, c'est la bibliothèque de protocoles que chargent les agents `.claude/agents/`). Ce qui reste :
 
-- **Agents BMAD** (skills `bmad-agent-*`, lancés par persona : « Amelia » dev, « John » PM, « Winston » architecte, « Sally » UX, « Mary » analyste, « Paige » tech-writer). Cycle produit→dev via `bmad-product-brief`/`bmad-prd`/`bmad-architecture`/`bmad-create-story`/`bmad-dev-story` ; routeur **`bmad-help`**.
-- **Agents projet `.claude/agents/`** (orchestrator, developer, reviewer, auditor, planner, ux/ui-designer, ppt-designer…) : la flotte custom antérieure à BMAD, lancée comme sous-agents (Task).
-- **Agents `.opencode/`** (CLI externe `opencode`) : encore une autre flotte.
+- **Agents projet `.claude/agents/`** (orchestrator, developer, reviewer, auditor, planner, ux/ui-designer, ppt-designer…) : **la flotte de rôles canonique**, lancée comme sous-agents (Task), orchestrée par `agent-orchestrator` (gate `UserPromptSubmit` **branché**).
+- **Agents BMAD** (skills `bmad-agent-*`, lancés par persona : « Amelia » dev, « John » PM, « Winston » architecte, « Sally » UX, « Mary » analyste, « Paige » tech-writer). Conservés pour leur **valeur cycle produit→dev** (`bmad-product-brief`/`bmad-prd`/`bmad-architecture`/`bmad-create-story`/`bmad-dev-story` ; routeur **`bmad-help`**), pas comme fleet de rôles concurrente de `.claude/agents/`.
 - **Skills projet** (non-`bmad-`) : `restitution-ppt`, `pptx-framed-image`, `slide-text-polish`, `revue-increment` (definition-of-done — délègue à `bmad-code-review`/`bmad-retrospective`), plus le couple orchestration/supervision importé de VSCode2 le 2026-07-21 : **`agent-orchestrator`** (qualifie une demande de travail multi-étapes, compose et exécute un plan — cascade/parallèle/async, modèle par étape — puis journalise le run via `.claude/orchestration/`) et **`agent-supervisor`** (superviseur étage 2 : diagnostic LLM des KO répétés, agents morts, vérifs manquantes, alimenté par `.claude/supervision/`).
 
-⚠️ **Recouvrement à arbitrer** : `.claude/agents/` (developer/reviewer/architect/ux…) et les agents BMAD (Amelia/Winston/Sally…) couvrent les mêmes rôles. Choisir **une** flotte canonique pour éviter de lancer deux systèmes concurrents sur la même tâche — décision à prendre par l'équipe, non tranchée automatiquement ici. Le hook SessionStart route vers `bmad-help` en cas de doute. **`agent-orchestrator` ajoute un étage de routage** au-dessus de ces flottes ; son gate `UserPromptSubmit` (`.claude/hooks/orchestrator_gate.py`) est versionné mais **délibérément NON branché** dans `settings.json` — le brancher revient précisément à trancher cette flotte canonique, donc à faire sur décision explicite, jamais par inadvertance.
+**Décision (2026-07-21)** : `.opencode/agents/` (16 définitions, doublon de `.claude/agents/` utilisé seulement par la CLI externe `opencode`) **supprimé** — mais `.opencode/skills/` (137 fichiers) **conservé** : c'est la bibliothèque de protocoles que les 16 agents `.claude/agents/` chargent (`skills:` → `.opencode/skills/…`), donc pas redondante. `.claude/agents/` retenu comme flotte de rôles canonique et le gate `agent-orchestrator` (`.claude/hooks/orchestrator_gate.py`) **branché** en `UserPromptSubmit` (grille de qualification ~50 tokens, silencieuse sur les slash-commands). BMAD **conservé volontairement** : ses personas recouvrent les rôles de `.claude/agents/` mais son apport réel est le cycle produit (prd/architecture/story) — utiliser `.claude/agents/` + `agent-orchestrator` pour le travail de dev orchestré, BMAD pour le cadrage produit. Le hook SessionStart route vers `bmad-help` en cas de doute.
 
 ## Hiérarchie de modèles pour les sous-agents (2026-07-16)
 
@@ -122,6 +121,6 @@ Le contexte est un cache actif facturé à chaque tour, pas une mémoire gratuit
 
 - **Ne pas parcourir** `_bmad/`, `_bmad-output/`, `node_modules/`, `dist/`, `.git/`, `__pycache__/` sauf demande explicite.
 - **Lire avant d'écrire, grep les appelants avant de modifier** une fonction/un champ partagé.
-- **Préférer un grep/read ciblé à un dump récursif** — surtout sur `.claude/skills/bmad-*`/`.opencode/skills/` (deux flottes de skills volumineuses) et sur `.opencode/agents/` qui duplique `.claude/agents/`.
+- **Préférer un grep/read ciblé à un dump récursif** — surtout sur `.claude/skills/bmad-*` (flotte de skills volumineuse) et sur `_bmad/` (framework versionné).
 - **Sous-agent pour toute sortie volumineuse** (exploration large, longs logs de test) plutôt que de la laisser polluer le contexte principal.
 - **`/compact` dès ~40 %** de fenêtre de contexte utilisée si la conversation doit continuer longtemps sur le même sujet.
