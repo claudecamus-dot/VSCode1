@@ -718,7 +718,7 @@ function construireBlocRestitution(session, filtre, type, nom, manager) {
   const dispersion = [...questions]
     .sort((a, b) => b.ecartType - a.ecartType)
     .slice(0, 3)
-    .map((q) => ({ texte: q.texte, ecartType: q.ecartType, min: q.min, max: q.max, contexte: q.contexte }));
+    .map((q) => ({ texte: q.texte, moyenne: q.moyenne, ecartType: q.ecartType, min: q.min, max: q.max, contexte: q.contexte }));
   const faibles = [...questions]
     .sort((a, b) => a.moyenne - b.moyenne)
     .slice(0, 3)
@@ -736,7 +736,7 @@ function construireBlocRestitution(session, filtre, type, nom, manager) {
     .filter((q) => q.reponses.length >= 2)
     .sort((a, b) => a.ecartType - b.ecartType)
     .slice(0, 3)
-    .map((q) => ({ texte: q.texte, ecartType: q.ecartType, min: q.min, max: q.max, contexte: q.contexte }));
+    .map((q) => ({ texte: q.texte, moyenne: q.moyenne, ecartType: q.ecartType, min: q.min, max: q.max, contexte: q.contexte }));
 
   // Evolution : seulement pour les equipes (comparaison par equipe, US6.5).
   const comp = type === 'equipe' ? calculerComparaison(session, filtre.equipe, manager) : { disponible: false };
@@ -827,7 +827,10 @@ app.get('/api/sessions/:id/export-ppt', (req, res) => {
     const bloc = construireBlocRestitution(session, { equipe }, 'equipe', equipe, manager);
     if (!bloc) return res.status(400).json({ error: 'Aucune reponse soumise pour cette equipe.' });
     blocs = [bloc];
-    sousTitre = `Équipe ${equipe}` + (bloc.departement ? ` — ${bloc.departement}` : '');
+    // Ne pas re-prefixer "Équipe" si le nom d'equipe le contient deja (ex.
+    // "Équipe Alpha" -> "Équipe Alpha", pas "Équipe Équipe Alpha").
+    const libelleEquipe = /^\s*équipe\b/i.test(equipe) ? equipe : `Équipe ${equipe}`;
+    sousTitre = libelleEquipe + (bloc.departement ? ` — ${bloc.departement}` : '');
     nomFichier = `Restitution - ${nomFichierSur(equipe)}.pptx`;
   } else if (scope === 'departement') {
     if (!departement) return res.status(400).json({ error: "Le parametre 'departement' est requis." });

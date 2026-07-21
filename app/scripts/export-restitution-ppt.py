@@ -732,9 +732,11 @@ GAP_MIN, GAP_MAX = 0.14, 0.28
 
 
 # Hauteur d'une carte HORS question : gap(0.04) + contexte(0.17) + gap(0.10) +
-# barre(0.28). Source unique partagee entre _bloc_carte_h (hauteur) et le calcul
-# inverse de ql_max dans _cartes_colonne — evite qu'un des deux derive de l'autre.
-_CARTE_H_FIXE = 0.04 + 0.17 + 0.10 + 0.28   # = 0.59
+# barre + label "moy."(0.41). Source unique partagee entre _bloc_carte_h (hauteur) et
+# le calcul inverse de ql_max dans _cartes_colonne — evite qu'un des deux derive de
+# l'autre. Le budget "barre" inclut le label "moy. X.X" pose sous le repere de moyenne
+# des widgets de dispersion (les cartes a barre simple gardent un peu de marge en bas).
+_CARTE_H_FIXE = 0.04 + 0.17 + 0.10 + 0.41   # = 0.72
 
 
 # Hauteur du contenu d'une carte = question (ql lignes, a `taille` pt) + contexte
@@ -776,6 +778,22 @@ def _valeur_cote_barre(slide, x, ry, w, lignes):
     box_h = 0.42
     D.add_text(slide, x, ry + 0.065 - box_h / 2, w, box_h, lignes,
                anchor=MSO_ANCHOR.MIDDLE)
+
+
+def _label_moyenne(slide, tx, rw, ry, moy):
+    """Nomme le repere de moyenne pose par add_range_bar : sans lui, on lit un point
+    non explique a cote d'un "ecart-type" (et quand la dispersion est nulle, l'amplitude
+    est invisible, il ne reste QUE ce point). Pose "moy. X.X" sous le repere (meme
+    abscisse : tx + rw * moy/3), borne a la largeur de la barre."""
+    if moy is None:
+        return
+    box_w = 0.85
+    mxx = tx + rw * max(0.0, min(1.0, moy / 3.0))
+    box_x = max(tx, min(mxx - box_w / 2, tx + rw - box_w))
+    D.add_text(slide, box_x, ry + 0.19, box_w, 0.16,
+               [(f"moy. {fmt(moy)}", {"size": D.TYPE["tiny"], "color": D.MUTED,
+                                      "align": PP_ALIGN.CENTER})],
+               align=PP_ALIGN.CENTER)
 
 
 def _cartes_colonne(slide, x, w, items, accent, rendu):
@@ -859,6 +877,7 @@ def slide_points(prs, layouts, bloc):
         mx = q.get("max") if q.get("max") is not None else 3
         D.add_range_bar(slide, tx, ry, rw, 0.13, mn, mx, 3.0, D.GOLD,
                         marker=q.get("moyenne"))
+        _label_moyenne(slide, tx, rw, ry, q.get("moyenne"))
         # La plage min–max est deja montree par la barre ; on n'affiche que la
         # metrique de classement, nommee en clair (et non l'abreviation "é-t").
         _valeur_cote_barre(slide, tx + rw + 0.14, ry, w - pad - rw - 0.20,
@@ -945,6 +964,7 @@ def slide_points_forts(prs, layouts, bloc):
         mn = q.get("min") if q.get("min") is not None else 0
         mx = q.get("max") if q.get("max") is not None else 3
         D.add_range_bar(slide, tx, ry, rw, 0.13, mn, mx, 3.0, D.OK, marker=q.get("moyenne"))
+        _label_moyenne(slide, tx, rw, ry, q.get("moyenne"))
         _valeur_cote_barre(slide, tx + rw + 0.14, ry, w - pad - rw - 0.20,
                            [(fmt(q.get("ecartType")),
                              {"size": D.TYPE["h3"], "bold": True, "color": D.OK,
