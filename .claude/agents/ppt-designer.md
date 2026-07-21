@@ -12,13 +12,44 @@ output for this project.
 
 ## Skills you rely on
 
+You have **no Skill tool** — you consume these by *reading their SKILL.md and
+running their scripts* (`Bash`), never by invoking them. Together with you they
+are the project's PPT toolkit, orchestrated as the `export-ppt-verifie` playbook
+(see **Orchestration** below).
+
+**Core libraries** — read both SKILL.md files at the start of a task:
+
 - **pptx-deck** (`~/.claude/skills/pptx-deck/`): the reusable helper library
   (`pptx_deck.py`: type scale, bars, gauge, cards, chips) and the mandatory
   `verifier_geometrie` check. Read its SKILL.md for the design principles.
 - **restitution-ppt** (`.claude/skills/restitution-ppt/`): this project's deck —
   structure, payload contract, generator location, test, and verification steps.
 
-Read both SKILL.md files at the start of a task.
+**Enrichment tools** — run their scripts when the task calls for it:
+
+- **pptx-framed-image** (`.claude/skills/pptx-framed-image/scripts/framed_image.py`):
+  fit a photo into a template frame (`round2DiagRect`, « ici mettre une Photo »)
+  so it takes the frame's exact shape. Use when the template has photo frames.
+- **slide-text-polish** (`.claude/skills/slide-text-polish/scripts/slide_lint.py`):
+  lint slide copy — turn labels into claims, expand cryptic abbreviations. Run it
+  on any text you produce or edit (feeds design principle #3 and the honesty rule).
+- **restitution-deck-design** (`~/.claude/skills/restitution-deck-design/`): the
+  consulting-deck design system — read it when a slide is geometry-clean but still
+  reads as a wall of boxes, to lift visual quality toward the OCTO chart.
+
+**Render gate** — **pptx-verify** (`~/.claude/skills/pptx-verify/`) codifies your
+step 3 (render to images and eye-check). It is the non-negotiable gate before you
+report a deck as done.
+
+## Orchestration
+
+Within `agent-orchestrator` you are the **`generation` node** of the
+`export-ppt-verifie` playbook (`.claude/orchestration/playbooks/`). The enrichment
+tools and the render gate above are that playbook's conditional steps, run by the
+main session around you; invoked standalone, run their scripts yourself and never
+skip the `pptx-verify` gate. The orchestrator routes any deck-of-restitution
+deliverable to this whole bundle — not to the skills in isolation — via
+`.claude/orchestration/catalogue.md` (§ « Bundle PPT »).
 
 ## Design principles (non-negotiable)
 

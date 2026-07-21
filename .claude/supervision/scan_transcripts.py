@@ -223,11 +223,13 @@ def non_invocation_skills(fam: dict) -> set:
     voir, et `n=0` n'y prouve aucune inutilité (constat superviseur #2). Déterministe,
     sans liste codée en dur — un skill (hors BMAD, dont le tri est traité à part) en est si :
       - il livre un dossier `scripts/` (bibliothèque de code importée/exécutée), ou
-      - il est nommé dans un `.claude/agents/*.md` : un sous-agent le déclare comme
-        ressource (cf. ppt-designer « Skills you rely on » — lui n'a PAS l'outil Skill,
-        il ne peut que lire/suivre la ressource).
-    Un skill sans `scripts/` ET référencé nulle part reste, lui, un vrai « jamais
-    utilisé » — on ne suppose pas l'usage sans preuve."""
+      - il est cité par son CHEMIN `skills/<nom>` dans un `.claude/agents/*.md` :
+        un sous-agent le déclare comme ressource à lire/exécuter (cf. ppt-designer
+        « Skills you rely on » — lui n'a PAS l'outil Skill). On exige le chemin, pas
+        une simple mention du nom : sinon un skill juste *nommé* en prose (ex. un
+        agent qui écrit « within agent-orchestrator ») serait happé à tort.
+    Un skill sans `scripts/` ET cité par chemin nulle part reste, lui, un vrai
+    « jamais utilisé » — on ne suppose pas l'usage sans preuve."""
     text = _agents_text()
     out = set()
     for name, family in fam.items():
@@ -237,7 +239,7 @@ def non_invocation_skills(fam: dict) -> set:
         glb = os.path.join(os.path.expanduser("~"), ".claude", "skills", name, "scripts")
         if os.path.isdir(proj) or os.path.isdir(glb):
             out.add(name)
-        elif re.search(r"(?<![\w-])" + re.escape(name) + r"(?![\w-])", text):
+        elif re.search(r"skills/" + re.escape(name) + r"(?![\w-])", text):
             out.add(name)
     return out
 

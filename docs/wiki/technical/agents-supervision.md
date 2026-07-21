@@ -9,7 +9,7 @@ generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, ét
 > **Ne pas éditer à la main** — toute modification serait écrasée au prochain scan.
 > Conception et phasage : [../../reflexions/agent-superviseur.md](../../reflexions/agent-superviseur.md).
 
-Dernier scan : 2026-07-21T11:43:04+02:00 · **14 sessions** (transcripts) · **12** invocations de skills · **9** lancements de sous-agents.
+Dernier scan : 2026-07-21T11:53:16+02:00 · **14 sessions** (transcripts) · **12** invocations de skills · **9** lancements de sous-agents.
 
 ## Skills — usage réel
 
@@ -47,15 +47,11 @@ Dernier scan : 2026-07-21T11:43:04+02:00 · **14 sessions** (transcripts) · **1
 
 </details>
 
-**global** — 1/5 jamais invoqués :
-
-`restitution-deck-design`
-
 ## Skills bibliothèque / référence
 
 _Consommés en lisant/exécutant leurs `scripts/`, ou via un sous-agent qui les suit (ex. `ppt-designer`, qui n'a pas l'outil Skill) — le compteur d'invocations ne peut structurellement pas les voir. `n=0` n'y vaut donc PAS « mort » : ne pas désinstaller sur ce seul signal (constat superviseur #2)._
 
-`pptx-deck`, `pptx-framed-image`, `restitution-ppt`, `slide-text-polish`
+`pptx-deck`, `pptx-framed-image`, `restitution-deck-design`, `restitution-ppt`, `slide-text-polish`
 
 ## TODO agents (constats automatiques)
 

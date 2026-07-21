@@ -82,7 +82,7 @@ paramètre modèle d'un lancement prend le pas sur le défaut déclaré si besoi
 
 | Agent | Rôle | Modèle par défaut | Statut (2026-07-21) |
 | --- | --- | --- | --- |
-| `ppt-designer` | Génère/améliore le deck PPT de restitution, vérifie par rendu réel | (thread) | Utilisé (×2) — le canal réel de génération PPT sur ce projet |
+| `ppt-designer` | Génère/améliore le deck PPT de restitution, vérifie par rendu réel — **nœud central du bundle PPT** (voir § ci-dessous) | (thread) | Utilisé (×2) — le canal réel de génération PPT sur ce projet |
 | `ui-designer` | Système visuel, tokens de design | (thread) | Utilisé (×2) |
 | `ux-designer` | User flows, spécifications UX | (thread) | Utilisé (×2) |
 | `documentarian` | Doc technique/fonctionnelle, wiki | (thread) | Utilisé (×1) |
@@ -96,6 +96,25 @@ paramètre modèle d'un lancement prend le pas sur le défaut déclaré si besoi
 | `developer` / `developer-migrator` / `developer-refactor` | Implémentation générique / migration / refactoring | (thread) | Jamais utilisés |
 | `qa-engineer` | Tests manquants (unitaires, intégration, E2E) | (thread) | Jamais utilisé |
 | `debugger` | Diagnostic de bug (crée un ticket, ne corrige pas) | (thread) | Jamais utilisé |
+
+### Bundle PPT — `ppt-designer` + sa boîte à outils
+
+`ppt-designer` n'a pas l'outil Skill : il consomme sa boîte à outils en
+**lisant/exécutant leurs ressources** (cf. sa déf. « Skills you rely on »).
+L'orchestrateur route tout livrable « deck de restitution » vers ce **bundle**,
+via le playbook `export-ppt-verifie` — pas vers les skills isolément :
+
+| Rôle dans le bundle | Skills | Nature de l'usage |
+| --- | --- | --- |
+| Génération (nœud central) | sous-agent `ppt-designer` | lance la génération, s'appuie sur les libs ci-dessous |
+| Bibliothèques | `pptx-deck`, `restitution-ppt` | lues (helpers python-pptx, structure du deck projet) |
+| Enrichissements (conditionnels) | `pptx-framed-image`, `slide-text-polish`, `restitution-deck-design` | scripts exécutés / référence suivie |
+| Vérification (obligatoire) | `pptx-verify` | rendu réel — jamais retiré |
+
+Ces skills sont les `bibliotheque_reference` de `routing-hints.json` (constat
+superviseur #2) : leur `n=0` en invocation directe ne vaut **pas** « mort » —
+leur usage réel passe par `ppt-designer`, invisible au compteur d'invocations.
+Enchaînement détaillé + contrats d'étape : playbook `export-ppt-verifie`.
 
 ## Familles sous condition
 
