@@ -2,6 +2,7 @@
 name: auditor-subagent
 description: "Sous-agent d'audit générique en lecture seule — reçoit un domaine et le native_skill correspondant injectés par le coordinateur auditor dans le prompt d'invocation. Produit un rapport structuré selon audit-protocol-light et un bloc de handoff. Ne réalise jamais d'action hors lecture."
 tools: Read, Glob, Grep, WebFetch, WebSearch
+model: haiku
 ---
 
 ## Adaptation Claude Code (lis ceci en premier)
