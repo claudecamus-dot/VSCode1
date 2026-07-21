@@ -198,6 +198,50 @@ def installed_skills() -> dict:
     return fam
 
 
+_AGENTS_TEXT = None
+
+
+def _agents_text() -> str:
+    """Concaténation (mémoïsée) des .claude/agents/*.md, pour repérer les skills
+    qu'un sous-agent déclare consommer comme ressource."""
+    global _AGENTS_TEXT
+    if _AGENTS_TEXT is None:
+        parts = []
+        for a in sorted(glob.glob(os.path.join(REPO, ".claude", "agents", "*.md"))):
+            try:
+                with open(a, encoding="utf-8") as fh:
+                    parts.append(fh.read())
+            except OSError:
+                pass
+        _AGENTS_TEXT = "\n".join(parts)
+    return _AGENTS_TEXT
+
+
+def non_invocation_skills(fam: dict) -> set:
+    """Skills dont la valeur se consomme en LISANT/EXÉCUTANT leurs ressources, jamais
+    via l'outil Skill — le compteur d'invocations ne peut donc structurellement pas les
+    voir, et `n=0` n'y prouve aucune inutilité (constat superviseur #2). Déterministe,
+    sans liste codée en dur — un skill (hors BMAD, dont le tri est traité à part) en est si :
+      - il livre un dossier `scripts/` (bibliothèque de code importée/exécutée), ou
+      - il est nommé dans un `.claude/agents/*.md` : un sous-agent le déclare comme
+        ressource (cf. ppt-designer « Skills you rely on » — lui n'a PAS l'outil Skill,
+        il ne peut que lire/suivre la ressource).
+    Un skill sans `scripts/` ET référencé nulle part reste, lui, un vrai « jamais
+    utilisé » — on ne suppose pas l'usage sans preuve."""
+    text = _agents_text()
+    out = set()
+    for name, family in fam.items():
+        if family == "BMAD":
+            continue
+        proj = os.path.join(REPO, ".claude", "skills", name, "scripts")
+        glb = os.path.join(os.path.expanduser("~"), ".claude", "skills", name, "scripts")
+        if os.path.isdir(proj) or os.path.isdir(glb):
+            out.add(name)
+        elif re.search(r"(?<![\w-])" + re.escape(name) + r"(?![\w-])", text):
+            out.add(name)
+    return out
+
+
 def days_since(ts: str):
     try:
         t = dt.datetime.fromisoformat(ts.replace("Z", "+00:00"))
@@ -363,7 +407,9 @@ def build_routing_hints(state: dict, fam: dict, par_playbook: dict, par_agent: d
     subagents = state.get("subagents", {})
     combined = {**skills, **subagents}
     eprouves = sorted(k for k, e in combined.items() if e["n"] >= PROVEN_MIN)
-    jamais = sorted(k for k, v in fam.items() if k not in skills)
+    libref = non_invocation_skills(fam)
+    jamais = sorted(k for k, v in fam.items() if k not in skills and k not in libref)
+    bibliotheque = sorted(k for k in libref if k not in skills)
     en_sommeil = sorted(
         k for k, e in combined.items()
         if (lambda d: d is not None and d > DORMANT_DAYS)(days_since(e.get("last", "")))
@@ -397,6 +443,10 @@ def build_routing_hints(state: dict, fam: dict, par_playbook: dict, par_agent: d
         "generated": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
         "eprouves": eprouves,
         "jamais_utilises": jamais,
+        # Skills-bibliothèque/référence : usage réel non capté par le compteur
+        # d'invocations (constat #2) — sortis de jamais_utilises pour que
+        # l'orchestrateur ne les traite pas comme morts.
+        "bibliotheque_reference": bibliotheque,
         "en_sommeil": en_sommeil,
         "verifications_oubliees": verifs_oubliees,
         "playbooks": par_playbook,
@@ -438,8 +488,12 @@ def build_todos(skills: dict, fam: dict, gaps: dict = None, arbitrages: list = N
                 f"**Élaguer les skills BMAD** : {len(bmad_unused)}/{len(bmad)} jamais invoqués — "
                 "confirmer l'utilité des non-utilisés."
             )
+    # Les skills-bibliothèque/référence (constat #2) ne sont pas des « sans usage » :
+    # leur valeur passe par scripts/sous-agent, invisible au compteur d'invocations.
+    libref = non_invocation_skills(fam)
     proj_unused = sorted(
-        k for k, v in fam.items() if v == "projet" and k not in skills and k not in arbitres
+        k for k, v in fam.items()
+        if v == "projet" and k not in skills and k not in arbitres and k not in libref
     )
     if "revue-increment" in proj_unused:
         proj_unused.remove("revue-increment")
@@ -522,13 +576,23 @@ def build_page(state: dict, fam: dict, todos: list, diag_todos: list = None, dia
     L += _usage_table(skills, fam)
     L += ["", "## Sous-agents", ""]
     L += _usage_table(subagents)
+    libref = non_invocation_skills(fam)
     L += ["", "## Jamais utilisés", ""]
     unused_by_family = {}
+    libref_unused = []
     for name, family in fam.items():
-        if name not in skills:
+        if name in skills:
+            continue
+        if name in libref:
+            libref_unused.append(name)
+        else:
             unused_by_family.setdefault(family, []).append(name)
     if not unused_by_family:
-        L.append("_(tous les skills installés ont déjà été invoqués)_")
+        L.append(
+            "_(aucun — hors skills bibliothèque/référence ci-dessous)_"
+            if libref_unused
+            else "_(tous les skills installés ont déjà été invoqués)_"
+        )
     for family in ("projet", "BMAD", "global"):
         names = sorted(unused_by_family.get(family, []))
         if not names:
@@ -545,6 +609,15 @@ def build_page(state: dict, fam: dict, todos: list, diag_todos: list = None, dia
         else:
             L.append(", ".join(f"`{n}`" for n in names))
         L.append("")
+    if libref_unused:
+        L += [
+            "## Skills bibliothèque / référence", "",
+            "_Consommés en lisant/exécutant leurs `scripts/`, ou via un sous-agent qui les "
+            "suit (ex. `ppt-designer`, qui n'a pas l'outil Skill) — le compteur d'invocations "
+            "ne peut structurellement pas les voir. `n=0` n'y vaut donc PAS « mort » : ne pas "
+            "désinstaller sur ce seul signal (constat superviseur #2)._", "",
+            ", ".join(f"`{n}`" for n in sorted(libref_unused)), "",
+        ]
     if openhub and openhub["n"]:
         L += ["## Agents OpenHub (app)", ""]
         L.append(
@@ -635,9 +708,15 @@ def build_html_section(state: dict, fam: dict, todos: list, diag_todos: list = N
     total_skill = sum(e["n"] for e in skills.values())
     total_sub = sum(e["n"] for e in subagents.values())
     today = dt.date.today().isoformat()
+    libref = non_invocation_skills(fam)
     unused_by_family = {}
+    libref_unused = []
     for name, family in fam.items():
-        if name not in skills:
+        if name in skills:
+            continue
+        if name in libref:
+            libref_unused.append(name)
+        else:
             unused_by_family.setdefault(family, []).append(name)
     unused_html = []
     for family in ("projet", "BMAD", "global"):
@@ -650,6 +729,12 @@ def build_html_section(state: dict, fam: dict, todos: list, diag_todos: list = N
             listing = f"<details><summary>Voir la liste ({len(names)})</summary><p>{listing}</p></details>"
         unused_html.append(
             f"      <p><strong>{family}</strong> — {len(names)}/{total_family} jamais invoqués : {listing}</p>"
+        )
+    if libref_unused:
+        listing = ", ".join(f"<code>{_esc(n)}</code>" for n in sorted(libref_unused))
+        unused_html.append(
+            "      <p><strong>bibliothèque / référence</strong> — usage via scripts/sous-agent, "
+            f"non capté par le compteur (n=0 ≠ mort, constat #2) : {listing}</p>"
         )
     todo_html = []
     for t in todos:

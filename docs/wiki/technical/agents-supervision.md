@@ -9,7 +9,7 @@ generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, ét
 > **Ne pas éditer à la main** — toute modification serait écrasée au prochain scan.
 > Conception et phasage : [../../reflexions/agent-superviseur.md](../../reflexions/agent-superviseur.md).
 
-Dernier scan : 2026-07-21T11:29:18+02:00 · **14 sessions** (transcripts) · **12** invocations de skills · **9** lancements de sous-agents.
+Dernier scan : 2026-07-21T11:43:04+02:00 · **14 sessions** (transcripts) · **12** invocations de skills · **9** lancements de sous-agents.
 
 ## Skills — usage réel
 
@@ -35,9 +35,9 @@ Dernier scan : 2026-07-21T11:29:18+02:00 · **14 sessions** (transcripts) · **1
 
 ## Jamais utilisés
 
-**projet** — 5/6 jamais invoqués :
+**projet** — 2/6 jamais invoqués :
 
-`agent-orchestrator`, `pptx-framed-image`, `restitution-ppt`, `revue-increment`, `slide-text-polish`
+`agent-orchestrator`, `revue-increment`
 
 **BMAD** — 46/46 jamais invoqués :
 
@@ -47,14 +47,20 @@ Dernier scan : 2026-07-21T11:29:18+02:00 · **14 sessions** (transcripts) · **1
 
 </details>
 
-**global** — 2/5 jamais invoqués :
+**global** — 1/5 jamais invoqués :
 
-`pptx-deck`, `restitution-deck-design`
+`restitution-deck-design`
+
+## Skills bibliothèque / référence
+
+_Consommés en lisant/exécutant leurs `scripts/`, ou via un sous-agent qui les suit (ex. `ppt-designer`, qui n'a pas l'outil Skill) — le compteur d'invocations ne peut structurellement pas les voir. `n=0` n'y vaut donc PAS « mort » : ne pas désinstaller sur ce seul signal (constat superviseur #2)._
+
+`pptx-deck`, `pptx-framed-image`, `restitution-ppt`, `slide-text-polish`
 
 ## TODO agents (constats automatiques)
 
 1. **Trier les skills BMAD** : 46 installés, 0 invocation à ce jour — décider lesquels garder, customiser ou désinstaller.
-2. **Skills projet sans usage** : `agent-orchestrator`, `pptx-framed-image`, `restitution-ppt`, `slide-text-polish` — vérifier pertinence et déclencheurs.
+2. **Skills projet sans usage** : `agent-orchestrator` — vérifier pertinence et déclencheurs.
 
 ## Arbitrages enregistrés
 
@@ -66,8 +72,7 @@ _Constats clos par décision humaine (`.claude/supervision/arbitrages.json`) —
 
 _Diagnostic à jour._
 
-1. **Les skills PPT (restitution-ppt, pptx-framed-image, slide-text-polish, pptx-deck, restitution-deck-design) apparaissent « jamais utilises » mais ne sont probablement PAS morts : le compteur etage 1 ne voit que le thread principal, pas les invocations internes au sous-agent ppt-designer.** — Ne PAS desinstaller les skills PPT sur le seul signal n=0 ; les traiter « couverts par sous-agent » et non « morts » tant que la mesure ne voit pas l'interieur des sous-agents. · **Proposition** : Soit faire loguer par ppt-designer les skills qu'il invoque (leve l'angle mort de mesure), soit sortir les skills « a usage principalement sous-agent » de la liste jamais_utilises du wiki, pour eviter une decision de desinstallation basee sur une mesure aveugle.
-2. **46 skills BMAD a 0 usage en 5 jours : trop tot pour les declarer morts, le vrai blocage est l'arbitrage de flotte non tranche (CLAUDE.md), pas une inutilite intrinseque.** — Ne pas trancher par desinstallation maintenant ; fixer une echeance de decision (30 j -> 2026-08-16) et tester le cycle BMAD une fois via bmad-help sur la prochaine feature, sinon basculer BMAD en_sommeil en bloc. · **Proposition** : Consigner dans arbitrages.json une decision datee « flotte canonique = .claude/agents jusqu'au 2026-08-16, BMAD en observation » ; si toujours 0 usage a l'echeance, desinstaller/en_sommeil en bloc plutot que skill par skill.
+1. **46 skills BMAD a 0 usage en 5 jours : trop tot pour les declarer morts, le vrai blocage est l'arbitrage de flotte non tranche (CLAUDE.md), pas une inutilite intrinseque.** — Ne pas trancher par desinstallation maintenant ; fixer une echeance de decision (30 j -> 2026-08-16) et tester le cycle BMAD une fois via bmad-help sur la prochaine feature, sinon basculer BMAD en_sommeil en bloc. · **Proposition** : Consigner dans arbitrages.json une decision datee « flotte canonique = .claude/agents jusqu'au 2026-08-16, BMAD en observation » ; si toujours 0 usage a l'echeance, desinstaller/en_sommeil en bloc plutot que skill par skill.
 
 ---
 
