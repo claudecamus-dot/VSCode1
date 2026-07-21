@@ -39,10 +39,8 @@ Infographic restitution deck for the agile/product maturity questionnaire
     "faibles":   [{ "texte", "moyenne", "contexte" }],      // top 3
     "commentaire": "free text, \n-separated",
     "comparaison": { "disponible", "precedenteDate", "piliers": [{ "nom", "courant", "precedent", "delta" }] },
-    "radarImage": "/abs/path.png"           // set by server (puppeteer) — NOT used by the
-                                            // generator anymore (radar is vectorial, drawn
-                                            // straight from objectifs/piliers); kept in the
-                                            // payload/server for now, harmless if unused.
+    // (no more "radarImage": since 2026-07-21 the radar is vectorial, drawn straight
+    //  from objectifs/piliers; the server-side rasterization + radar-svg.js were removed.)
   }]
 }
 ```
@@ -82,7 +80,7 @@ See the pptx-deck skill's "Defects the geometry check will NOT catch" list.
   in text what a shape already shows (the min–max range is drawn by the bar). See the
   project memory `feedback-pas-d-abreviations-cryptiques`.
 - **Strip parenthetical suffixes from pilier/objectif names** — `joli_nom()` calls
-  `_nettoyer_label()` first (mirrors `radar-svg.js`'s `nettoyerLabel`): referentiel
+  `_nettoyer_label()` first (mirrors the web radar's `libelleAxeRadar` in `resultats.html`): referentiel
   names sometimes carry a descriptive suffix (`"Ressources humaines (formations,
   coaching agile, talent, ...)"`) that must never render. This was folded into
   `joli_nom()` itself (not a one-off on the radar slide) precisely because it had
@@ -115,9 +113,11 @@ The deck adapts to the provided base template:
 - **Brand accent from the theme** — `construire()` sets module `ACCENT` from
   `D.theme_colors(prs)['dk1']` (fallback = palette blue) and uses it for the global
   gauge and the callout accent bar. **Per-pilier colors are deliberately NOT derived
-  from the theme** — they must stay aligned with the server-rasterized radar image
-  (`radar-svg.js`), and a theme's accents are rarely a clean 4-category palette. To
-  recolor piliers too, you'd also have to recolor the radar (radar-svg.js + server).
+  from the theme** — they must stay aligned across the two radar surfaces (web inline in
+  `resultats.html`/`pilotage.html` + PPT `_dessiner_radar`), and a theme's accents are
+  rarely a clean 4-category palette. To recolor piliers, recolor both surfaces —
+  `test-contraste-radar.js` enforces that the palettes stay identical. (The old
+  server-rasterized `radar-svg.js` was removed on 2026-07-21.)
 
 ## Extending (add a slide / change design)
 

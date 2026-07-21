@@ -10,7 +10,7 @@ Le premier réflexe utile est de séparer deux mondes qui n'ont **rien à voir**
 côté tokens :
 
 - **Exécution de l'application (runtime)** — un animateur clique « exporter PPT ».
-  Le pipeline `server.js` → Puppeteer → `python-pptx` est **100 % déterministe :
+  Le pipeline `server.js` → `python-pptx` est **100 % déterministe :
   zéro token Claude**. Idem pour toute l'app (Express + SQLite). Il n'y a donc
   **rien à optimiser côté tokens dans le produit lui-même**.
 - **Travail de développement assisté par Claude** — c'est **là** que les tokens

@@ -26,7 +26,7 @@ app/
 │   ├── invites.js         # import de la liste d'invités (CSV/Excel), calcul des non-répondants
 │   ├── normalisation.js   # rapprochement tolérant des libellés département/équipe (casse, accents, espaces)
 │   ├── correcteur.js      # correction orthographique conservatrice du référentiel importé (nspell)
-│   ├── radar-svg.js       # génération du radar en SVG (affiché à l'écran et rasterisé pour le PPT)
+│   ├── mode.js            # mode démo/réel courant (cookie) — garde-fou de séparation des données
 │   ├── session-utils.js   # formatage d'un libellé de session
 │   └── public/            # pages front (vanilla JS/HTML/CSS, aucun build)
 │       ├── admin.html      # espace animateur (page par défaut)
@@ -128,14 +128,16 @@ framework de migration dédié). `CONFIRMÉ` — onboarder · 2026-07-07 · app/
   en routeurs Express — toute nouvelle route s'ajoute au même fichier, ce qui
   augmente le risque de conflit et complique la navigation à mesure que
   l'Epic 7+ s'ajoute. `CONFIRMÉ` — onboarder · 2026-07-07 · app/src/server.js:1-929
-- **Double implémentation du rendu radar** (SVG serveur pour le PPT vs rendu
-  JS du radar dans `resultats.html`) — le commentaire de `radar-svg.js`
-  indique explicitement viser la parité visuelle avec le front, sans test
-  automatisé qui la garantisse. `DÉDUIT` — onboarder · 2026-07-07 · app/src/radar-svg.js:1-4
+- **Double implémentation du rendu radar** (web JS inline dans `resultats.html`/
+  `pilotage.html` vs PPT vectoriel `_dessiner_radar`) — deux rendus du même visuel à
+  faire évoluer de pair. Depuis le 2026-07-21 le SVG serveur `radar-svg.js` (3ᵉ
+  implémentation, rasterisée pour le PPT) a été **retiré** (code mort) ; la cohérence
+  des couleurs des deux surfaces restantes est verrouillée par
+  `test-contraste-radar.js`. `CONFIRMÉ` — 2026-07-21 · git log, app/scripts/test-contraste-radar.js
 - **Aucune notion de client/organisation** : référentiel, rôles et
   répondants sont des données globales à l'installation — un déploiement
   multi-organisations mélangerait les données sans l'Epic 11 (à l'état
   réflexion). `CONFIRMÉ` — onboarder · 2026-07-07 · cadrage/epics-us.md:105-116
-- **`CHROME_PATH` par défaut non portable** (chemin Windows en dur) —
-  nécessite une surcharge explicite de la variable d'environnement sur
-  Linux/Mac. `CONFIRMÉ` — onboarder · 2026-07-07 · app/src/server.js:17
+- ~~**`CHROME_PATH` non portable**~~ : **caduc depuis le 2026-07-21** — l'export PPT
+  ne dépend plus de Chrome (radar vectoriel, rasterisation Puppeteer retirée), la
+  variable `CHROME_PATH` n'est plus utilisée. `CONFIRMÉ` — 2026-07-21 · git log

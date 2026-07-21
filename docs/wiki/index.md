@@ -76,10 +76,9 @@ ce stade. `CONFIRMÉ` — onboarder · 2026-07-07 · app/README.md:183-184 ; cad
   par clé normalisée) peut laisser passer de vrais doublons, rattrapables
   seulement a posteriori par fusion manuelle animateur (`POST
   /api/repondants/fusion`). `CONFIRMÉ` — onboarder · 2026-07-07 · app/src/normalisation.js:19-30, cadrage/difficultes-realisation.md:22
-- **`CHROME_PATH` par défaut pointe vers un chemin Windows** (`C:/Program
-  Files/Google/Chrome/Application/chrome.exe`) : l'export PPT n'est pas
-  portable en l'état sur Linux/Mac sans surcharger la variable d'environnement.
-  `CONFIRMÉ` — onboarder · 2026-07-07 · app/src/server.js:17, app/.env.example:20-21
+- ~~**`CHROME_PATH` non portable**~~ : **caduc depuis le 2026-07-21** — l'export PPT
+  ne dépend plus de Chrome (radar vectoriel, rasterisation Puppeteer retirée), la
+  variable `CHROME_PATH` n'est plus utilisée. `CONFIRMÉ` — 2026-07-21 · git log
 - **Le référentiel, les rôles et les répondants sont des données globales à
   l'outil** (pas de notion de client/organisation) : une seule grille, un seul
   catalogue de rôles — Epic 11 (multi-clients) couvre ce point mais reste au

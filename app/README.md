@@ -94,7 +94,6 @@ ne jamais committer un vrai `.env` avec des chemins/données machine) :
 | `PORT` | `3000` | Port HTTP d'écoute du serveur Express. |
 | `DB_PATH` | `./data/app.db` | Chemin du fichier SQLite (toutes les données persistantes). Créé au premier démarrage si absent. |
 | `BACKUP_DIR` | `<dossier de DB_PATH>/backups` | Dossier de sortie des sauvegardes (`scripts/backup-db.js`). |
-| `CHROME_PATH` | `C:/Program Files/Google/Chrome/Application/chrome.exe` | Exécutable Chrome/Chromium headless utilisé pour rasteriser le radar (export PPT). |
 | `PYTHON` | `python` | Interpréteur Python invoqué pour générer le PPT (`scripts/export-restitution-ppt.py`). |
 
 ## Utiliser l'outil : importer un référentiel, créer une session

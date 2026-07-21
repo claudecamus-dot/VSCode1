@@ -11,7 +11,7 @@ agents: [onboarder]
 Aucun framework de test tiers (pas de Jest/Mocha/Vitest dans les
 dépendances). Deux styles d'assertion cohabitent, tous deux natifs et sans
 dépendance : le module Node `node:assert/strict` (`test-sessions.js`,
-`test-admin-ui.js`, `test-radar.js`) et un helper maison `check()`
+`test-admin-ui.js`) et un helper maison `check()`
 (`test-reimport.js`, `test-rappel.js`, `test-normalisation.js`). Le README
 décrit désormais correctement cette cohabitation (auparavant sur-généralisée à
 `node:assert/strict`). `CONFIRMÉ` — 2026-07-08 · app/package.json (absence de devDependencies), app/README.md:243-256
@@ -28,8 +28,9 @@ npm test
   → node scripts/test-rappel.js
   → node scripts/test-normalisation.js
   → node scripts/test-sessions.js
+  → node scripts/test-mode.js
   → node scripts/test-admin-ui.js
-  → node scripts/test-radar.js
+  → node scripts/test-contraste-radar.js
   → node scripts/test-correcteur.js
 ```
 
@@ -56,7 +57,7 @@ Style constaté par script :
 
 </div>
 
-`CONFIRMÉ` — 2026-07-08 · app/scripts/test-reimport.js:1-22, test-rappel.js, test-normalisation.js (helper `check()`), test-sessions.js:1-14, test-admin-ui.js:1-13, test-radar.js
+`CONFIRMÉ` — 2026-07-08 · app/scripts/test-reimport.js:1-22, test-rappel.js, test-normalisation.js (helper `check()`), test-sessions.js:1-14, test-admin-ui.js:1-13
 
 Chaque script isole ses effets de bord : `test-reimport.js` pointe
 `DB_PATH` vers un fichier temporaire unique (`crypto.randomUUID()`) avant de
@@ -99,12 +100,11 @@ coverage — `c8`, `istanbul` — dans les dépendances). `CONFIRMÉ` — onboar
   `restitution-ppt` est explicite — la vérification géométrique automatisée
   (`test-export-ppt.py`) ne suffit pas à déclarer un design correct, un rendu
   réel via PowerPoint COM et une relecture à l'œil sont requis. `CONFIRMÉ` — onboarder · 2026-07-07 · .claude/skills/restitution-ppt/SKILL.md:51, 100
-- **`radar-svg.js` est désormais couvert par `test-radar.js`** (test
-  structurel du SVG produit), ce qui garde la structure du radar serveur alignée
-  sur celle du radar web. En revanche, **aucun test n'exerce les routes HTTP de
-  `server.js`** via de vraies requêtes (pas de `supertest`/équivalent observé) —
-  les tests présents couvrent des modules internes ciblés (`referentiel.js`,
-  `session-utils.js`, `radar-svg.js`) plutôt que la surface API complète.
-  `CONFIRMÉ` — 2026-07-08 · app/scripts/test-radar.js ; absence de dépendance de test HTTP dans app/package.json, absence de fichier `test-server*` dans app/scripts
+- **Aucun test n'exerce les routes HTTP de `server.js`** via de vraies requêtes
+  (pas de `supertest`/équivalent observé) — les tests présents couvrent des modules
+  internes ciblés (`referentiel.js`, `session-utils.js`, `mode.js`) et les couleurs du
+  radar (`test-contraste-radar.js`) plutôt que la surface API complète. (`radar-svg.js`
+  et son test `test-radar.js`, retirés le 2026-07-21 avec la rasterisation morte, ne
+  figurent plus.) `CONFIRMÉ` — 2026-07-22 · app/package.json (chaîne npm test), absence de dépendance de test HTTP
 - **`capture-screenshots.js`** est un outil de développement (captures
   d'écran), pas un test — n'est pas invoqué par `npm test`. `CONFIRMÉ` — onboarder · 2026-07-07 · app/README.md:151, absence dans la chaîne `npm test` (app/package.json:16)

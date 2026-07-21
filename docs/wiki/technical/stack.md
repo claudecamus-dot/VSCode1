@@ -69,7 +69,6 @@ de fichier de verrouillage). Python 3 lui-même reste sans version épinglée
 | `PORT` | `3000` | Port HTTP d'écoute du serveur Express |
 | `DB_PATH` | `./data/app.db` | Chemin du fichier SQLite — créé au premier démarrage si absent |
 | `BACKUP_DIR` | `<dossier de DB_PATH>/backups` | Dossier de sortie des sauvegardes (`scripts/backup-db.js`) |
-| `CHROME_PATH` | `C:/Program Files/Google/Chrome/Application/chrome.exe` | Exécutable Chrome/Chromium headless (export PPT) |
 | `PYTHON` | `python` | Interpréteur Python invoqué pour générer le PPT |
 
 </div>
