@@ -9,7 +9,7 @@ generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, ét
 > **Ne pas éditer à la main** — toute modification serait écrasée au prochain scan.
 > Conception et phasage : [../../reflexions/agent-superviseur.md](../../reflexions/agent-superviseur.md).
 
-Dernier scan : 2026-07-21T11:53:16+02:00 · **14 sessions** (transcripts) · **12** invocations de skills · **9** lancements de sous-agents.
+Dernier scan : 2026-07-21T12:17:22+02:00 · **14 sessions** (transcripts) · **13** invocations de skills · **9** lancements de sous-agents.
 
 ## Skills — usage réel
 
@@ -21,6 +21,7 @@ Dernier scan : 2026-07-21T11:53:16+02:00 · **14 sessions** (transcripts) · **1
 | `agent-supervisor` | projet | 1 | 2026-07-21 | 2026-07-21 |
 | `artifact-design` | (builtin/session) | 1 | 2026-07-07 | 2026-07-07 |
 | `pptx-verify` | global | 1 | 2026-07-01 | 2026-07-01 |
+| `revue-increment` | projet | 1 | 2026-07-21 | 2026-07-21 |
 
 ## Sous-agents
 
@@ -35,9 +36,9 @@ Dernier scan : 2026-07-21T11:53:16+02:00 · **14 sessions** (transcripts) · **1
 
 ## Jamais utilisés
 
-**projet** — 2/6 jamais invoqués :
+**projet** — 1/6 jamais invoqués :
 
-`agent-orchestrator`, `revue-increment`
+`agent-orchestrator`
 
 **BMAD** — 46/46 jamais invoqués :
 
@@ -55,20 +56,18 @@ _Consommés en lisant/exécutant leurs `scripts/`, ou via un sous-agent qui les 
 
 ## TODO agents (constats automatiques)
 
-1. **Trier les skills BMAD** : 46 installés, 0 invocation à ce jour — décider lesquels garder, customiser ou désinstaller.
-2. **Skills projet sans usage** : `agent-orchestrator` — vérifier pertinence et déclencheurs.
+1. **Skills projet sans usage** : `agent-orchestrator` — vérifier pertinence et déclencheurs.
 
 ## Arbitrages enregistrés
 
 _Constats clos par décision humaine (`.claude/supervision/arbitrages.json`) — l'usage réel reste mesuré ci-dessus._
 
 - **`revue-increment`** (2026-07-21) : Constat #1 (vérif de fin d'incrément systématiquement sautée) accepté. Réponse retenue : un garde-fou au COMMIT plutôt que de forcer l'invocation de revue-increment — hook PreToolUse .claude/hooks/warn_verif_before_commit.py, non bloquant, ciblé app/, silencieux si une vraie vérif (npm test / pptx-verify / revue-increment) a tourné dans la session. La vérif est ainsi rappelée au bon instant ; l'usage réel de revue-increment reste mesuré et re-challengeable.
+- **`famille:BMAD`** (2026-07-21) : Constat #3 : 46 skills BMAD à 0 usage à J+5 (installés le 2026-07-16). Décision d'OBSERVATION (pas de tri tranché maintenant) : BMAD n'est pas routé par défaut — déjà le cas, l'orchestrateur n'y route que sur demande explicite via bmad-help. Revue datée à l'échéance 2026-08-16 : si toujours 0 usage réel mesuré, désinstaller / mettre en sommeil en bloc plutôt que skill par skill. NB : la flotte canonique reste formellement à arbitrer par l'équipe (CLAUDE.md § Skills & agents) — en attendant, .claude/agents, seule flotte réellement utilisée, fait référence de facto. Décision réversible, re-challengeable par le superviseur avec des données nouvelles.
 
 ## Diagnostic qualitatif (étage 2 — `agent-supervisor`)
 
-_Diagnostic à jour._
-
-1. **46 skills BMAD a 0 usage en 5 jours : trop tot pour les declarer morts, le vrai blocage est l'arbitrage de flotte non tranche (CLAUDE.md), pas une inutilite intrinseque.** — Ne pas trancher par desinstallation maintenant ; fixer une echeance de decision (30 j -> 2026-08-16) et tester le cycle BMAD une fois via bmad-help sur la prochaine feature, sinon basculer BMAD en_sommeil en bloc. · **Proposition** : Consigner dans arbitrages.json une decision datee « flotte canonique = .claude/agents jusqu'au 2026-08-16, BMAD en observation » ; si toujours 0 usage a l'echeance, desinstaller/en_sommeil en bloc plutot que skill par skill.
+_Diagnostic à jour — rien à signaler, tous les constats précédents ont été arbitrés._
 
 ---
 

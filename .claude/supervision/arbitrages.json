@@ -6,6 +6,12 @@
       "decision": "Constat #1 (vérif de fin d'incrément systématiquement sautée) accepté. Réponse retenue : un garde-fou au COMMIT plutôt que de forcer l'invocation de revue-increment — hook PreToolUse .claude/hooks/warn_verif_before_commit.py, non bloquant, ciblé app/, silencieux si une vraie vérif (npm test / pptx-verify / revue-increment) a tourné dans la session. La vérif est ainsi rappelée au bon instant ; l'usage réel de revue-increment reste mesuré et re-challengeable.",
       "date": "2026-07-21",
       "source": "agent-supervisor étage 2, constat #1 — arbitré et implémenté en session 2026-07-21"
+    },
+    {
+      "cible": "famille:BMAD",
+      "decision": "Constat #3 : 46 skills BMAD à 0 usage à J+5 (installés le 2026-07-16). Décision d'OBSERVATION (pas de tri tranché maintenant) : BMAD n'est pas routé par défaut — déjà le cas, l'orchestrateur n'y route que sur demande explicite via bmad-help. Revue datée à l'échéance 2026-08-16 : si toujours 0 usage réel mesuré, désinstaller / mettre en sommeil en bloc plutôt que skill par skill. NB : la flotte canonique reste formellement à arbitrer par l'équipe (CLAUDE.md § Skills & agents) — en attendant, .claude/agents, seule flotte réellement utilisée, fait référence de facto. Décision réversible, re-challengeable par le superviseur avec des données nouvelles.",
+      "date": "2026-07-21",
+      "source": "agent-supervisor étage 2, constat #3 — décision d'observation datée en session 2026-07-21 (échéance de revue 2026-08-16)"
     }
   ]
 }

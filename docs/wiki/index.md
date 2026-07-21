@@ -185,7 +185,6 @@ depuis .roadmap/roadmap.json:86-205
 
 Constats automatiques du superviseur d'agents (usage mesuré dans les transcripts de session) :
 
-- **Trier les skills BMAD** : 46 installés, 0 invocation à ce jour — décider lesquels garder, customiser ou désinstaller.
 - **Skills projet sans usage** : `agent-orchestrator` — vérifier pertinence et déclencheurs.
 
 Tableau de bord complet : [technical/agents-supervision.md](technical/agents-supervision.md) — régénéré à chaque session.
