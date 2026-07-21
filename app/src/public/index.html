@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Questionnaire de maturité agile/produit — Accueil</title>
+<style>
+  :root {
+    --brand-primary: #0b5ea8;
+    --brand-secondary: #14233b;
+    --brand-accent: #00a3e0;
+    --brand-bg: #f5f8fc;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Avenir Next', 'Inter', system-ui, sans-serif;
+    color: var(--brand-secondary); background: var(--brand-bg);
+    margin: 0; min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 2rem 1rem;
+  }
+  main { width: 100%; max-width: 780px; }
+  h1 { font-size: 1.7rem; margin: 0 0 0.4rem; }
+  .accroche { color: #4a5568; font-size: 1.02rem; margin: 0 0 2rem; }
+  .cartes { display: flex; gap: 1.25rem; flex-wrap: wrap; }
+  .carte {
+    flex: 1 1 300px; background: #fff; border: 1px solid #d5dae1; border-radius: 10px;
+    padding: 1.5rem; display: flex; flex-direction: column;
+  }
+  /* Le mode demo est distingue par un liseré cyan (accent OCTO), aplat, sans ombre. */
+  .carte.demo { border-top: 4px solid var(--brand-accent); }
+  .carte.reel { border-top: 4px solid var(--brand-primary); }
+  .etiquette {
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    margin-bottom: 0.5rem;
+  }
+  .carte.demo .etiquette { color: var(--brand-accent); }
+  .carte.reel .etiquette { color: var(--brand-primary); }
+  .carte h2 { font-size: 1.15rem; margin: 0 0 0.5rem; }
+  .carte p { color: #4a5568; font-size: 0.95rem; line-height: 1.5; margin: 0 0 1.5rem; flex: 1; }
+  button {
+    font: inherit; font-weight: 600; font-size: 1rem; color: #fff; cursor: pointer;
+    border: 0; border-radius: 8px; padding: 0.75rem 1rem; width: 100%;
+  }
+  .carte.demo button { background: var(--brand-accent); }
+  .carte.reel button { background: var(--brand-primary); }
+  button:hover { filter: brightness(0.94); }
+  button:focus-visible { outline: 3px solid var(--brand-secondary); outline-offset: 2px; }
+  .note { margin-top: 1.75rem; color: #6b7280; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Questionnaire de maturité agile/produit</h1>
+  <p class="accroche">Comment souhaitez-vous démarrer ?</p>
+
+  <div class="cartes">
+    <section class="carte demo">
+      <span class="etiquette">Démonstration</span>
+      <h2>Découvrir avec des données fictives</h2>
+      <p>Explorez l'outil avec des équipes, réponses et résultats de démonstration.
+         Ces données sont isolées : elles ne se mélangent jamais à vos vraies données.</p>
+      <button type="button" data-mode="demo">Entrer en mode démo</button>
+    </section>
+
+    <section class="carte reel">
+      <span class="etiquette">Usage réel</span>
+      <h2>Utilisation réelle</h2>
+      <p>Créez vos sessions d'évaluation, invitez vos équipes et consultez vos
+         résultats réels. Aucune donnée de démonstration n'apparaît dans ce mode.</p>
+      <button type="button" data-mode="reel">Démarrer en usage réel</button>
+    </section>
+  </div>
+
+  <p class="note">Vous pourrez changer de mode à tout moment depuis le bandeau en haut de l'écran.</p>
+</main>
+
+<script>
+  // Pose le cookie `mode` (lu cote serveur par estModeDemo pour filtrer/taguer les
+  // sessions, et cote client par env-banner.js pour le bandeau) puis ouvre la console.
+  document.querySelectorAll('button[data-mode]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const mode = b.dataset.mode === 'demo' ? 'demo' : 'reel';
+      document.cookie = 'mode=' + mode + '; path=/; max-age=' + (60 * 60 * 24 * 365) + '; samesite=lax';
+      location.href = 'admin.html';
+    });
+  });
+</script>
+</body>
+</html>

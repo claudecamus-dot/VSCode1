@@ -11,15 +11,18 @@ agents: [onboarder]
 > Trois chantiers explicitement mis en file par l'utilisateur pour la prochaine
 > session. Contexte utile capturé pour un démarrage direct.
 
-1. **Séparer « démo » et « usage réel » via une page d'accueil.** Aujourd'hui
-   la même app sert les données de test fictives (base `data/dev`, ex. session
-   DSI/Alpha/Beta) et l'usage réel. Objectif : une **page d'accueil** qui oriente
-   explicitement vers **(a) une vision démo** (données fictives, pour montrer
-   l'outil) **ou (b) l'utilisation réelle** (vraies données d'équipe). À cadrer :
-   séparation des jeux de données (bases distinctes ? drapeau « démo » ?),
-   parcours d'entrée, et garde-fou pour ne pas mélanger réel et fictif. Feature
-   applicative (`app/`) — passer par le playbook `dev-verifie` (tests + rendu
-   réel via `run`).
+1. **Séparer « démo » et « usage réel » via une page d'accueil.** ✅ **Fait le
+   2026-07-21** (playbook `dev-verifie`). Séparation retenue (arbitrage utilisateur) :
+   **drapeau `est_demo` sur les sessions** (une seule base, pas de bascule de binding
+   DB). Nouvelle page d'accueil `index.html` à `/` (2 entrées démo/réel) qui pose un
+   cookie `mode` ; le serveur (`estModeDemo` dans `app/src/mode.js`) **filtre le
+   listing** et **tague la création** des sessions par mode → garde-fou anti-mélange ;
+   bannière « MODE DÉMO » (extension de `env-banner.js`). Rappel : `/` sert désormais
+   `index.html` (auparavant `admin.html`). Vérifié : `test-mode.js` (9 cas) + preuve
+   API du garde-fou (session démo invisible en réel) + screenshots réels (accueil +
+   bannière). Suite (hors incrément) : pré-seed d'un jeu démo riche pour un déploiement
+   neuf (la démo démarre vide, se remplit en créant des sessions en mode démo) ;
+   enforcement par-`/:id` non fait (le garde-fou reste le filtre du listing + le tag).
 
 2. **Revue de design du RADAR de maturité — sur les DEUX surfaces.** ✅ **Traité le
    2026-07-21** (arbitrage utilisateur sur rendu réel, A/B/C écartées, exploration

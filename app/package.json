@@ -14,7 +14,7 @@
     "backup": "node scripts/backup-db.js",
     "restore": "node scripts/restore-db.js",
     "lint": "eslint .",
-    "test": "node scripts/test-reimport.js && node scripts/test-rappel.js && node scripts/test-normalisation.js && node scripts/test-sessions.js && node scripts/test-admin-ui.js && node scripts/test-radar.js && node scripts/test-contraste-radar.js && node scripts/test-correcteur.js"
+    "test": "node scripts/test-reimport.js && node scripts/test-rappel.js && node scripts/test-normalisation.js && node scripts/test-sessions.js && node scripts/test-mode.js && node scripts/test-admin-ui.js && node scripts/test-radar.js && node scripts/test-contraste-radar.js && node scripts/test-correcteur.js"
   },
   "engines": {
     "node": ">=22"

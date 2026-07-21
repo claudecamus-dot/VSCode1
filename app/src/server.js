@@ -12,6 +12,7 @@ const { importFromBuffer, getReferentiel } = require('./referentiel');
 const { importInvitesFromBuffer, replaceInvites, getInvites, getNonRepondants, looksLikeEmail } = require('./invites');
 const { valeurCanonique } = require('./normalisation');
 const { construireRadarSVG } = require('./radar-svg');
+const { estModeDemo } = require('./mode');
 
 // Chrome headless pour rasteriser les radars SVG en PNG (export PPT, US6.4).
 const CHROME_PATH = process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
@@ -20,11 +21,11 @@ const app = express();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 app.use(express.json());
-// admin.html est la page par defaut de l'outil (quel que soit l'environnement) :
-// ouvrir la racine "/" doit tomber dessus, comme /admin.html. L'ancien sommaire
-// separe (index.html) est retire ; son contenu utile vit dans l'onglet
-// "Information" de admin.html.
-app.use(express.static(path.join(__dirname, 'public'), { index: 'admin.html' }));
+// index.html est la page d'accueil : elle oriente vers le mode "demo" (donnees
+// fictives, pour montrer l'outil) ou "reel" (vraies donnees d'equipe), en posant le
+// cookie `mode` lu par estModeDemo(), puis renvoie vers admin.html (la console
+// animateur). Ouvrir la racine "/" tombe donc sur ce choix de mode.
+app.use(express.static(path.join(__dirname, 'public'), { index: 'index.html' }));
 
 // Environnement courant (US9.5) : alimente le bandeau d'environnement de l'UI.
 app.get('/api/env', (req, res) => {
@@ -108,10 +109,12 @@ app.get('/api/referentiel', (req, res) => {
   res.json(getReferentiel());
 });
 
+// Listing filtre par le mode courant (demo/reel) : garde-fou anti-melange — on ne
+// voit que les sessions du mode courant (voir estModeDemo/mode.js).
 app.get('/api/sessions', (req, res) => {
   const sessions = db
-    .prepare('SELECT id, ouverture_at, fermeture_at FROM sessions ORDER BY ouverture_at DESC')
-    .all();
+    .prepare('SELECT id, ouverture_at, fermeture_at FROM sessions WHERE est_demo = ? ORDER BY ouverture_at DESC')
+    .all(estModeDemo(req.headers.cookie) ? 1 : 0);
   res.json(sessions);
 });
 
@@ -229,12 +232,13 @@ app.post('/api/sessions', (req, res) => {
   const texteIntro = texte_intro && texte_intro.trim() ? texte_intro.trim() : null;
 
   const id = crypto.randomUUID();
-  db.prepare('INSERT INTO sessions (id, ouverture_at, fermeture_at, created_at, texte_intro) VALUES (?, ?, ?, ?, ?)').run(
+  db.prepare('INSERT INTO sessions (id, ouverture_at, fermeture_at, created_at, texte_intro, est_demo) VALUES (?, ?, ?, ?, ?, ?)').run(
     id,
     ouverture_at,
     fermeture_at,
     nowIso(),
-    texteIntro
+    texteIntro,
+    estModeDemo(req.headers.cookie) ? 1 : 0
   );
   const insertActive = db.prepare('INSERT INTO session_questions (session_id, question_id) VALUES (?, ?)');
   for (const qid of actives) insertActive.run(id, qid);

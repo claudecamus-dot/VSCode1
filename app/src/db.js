@@ -122,6 +122,15 @@ if (!db.prepare('PRAGMA table_info(sessions)').all().some((c) => c.name === 'tex
   db.exec('ALTER TABLE sessions ADD COLUMN texte_intro TEXT');
 }
 
+// Migration : separation demo / reel (page d'accueil). Chaque session est fictive
+// (est_demo=1, pour montrer l'outil) ou reelle (0, defaut SUR : on ne marque jamais
+// des donnees existantes comme demo par accident). Le mode courant (cookie pose par
+// la page d'accueil) filtre les listings et tague les creations, pour ne jamais
+// melanger donnees de demonstration et vraies donnees d'equipe.
+if (!db.prepare('PRAGMA table_info(sessions)').all().some((c) => c.name === 'est_demo')) {
+  db.exec('ALTER TABLE sessions ADD COLUMN est_demo INTEGER NOT NULL DEFAULT 0');
+}
+
 const defaultRoles = ['Product Owner', 'Scrum Master', 'Tech Lead', 'Développeur', 'Testeur', 'Manager'];
 const insertRole = db.prepare('INSERT OR IGNORE INTO roles (nom) VALUES (?)');
 for (const role of defaultRoles) {
