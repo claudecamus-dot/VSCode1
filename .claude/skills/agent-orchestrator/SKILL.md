@@ -1,6 +1,6 @@
 ---
 name: agent-orchestrator
-description: Orchestrateur des agents et skills du projet — qualifie une demande de travail, compose un plan (cascade / parallèle / asynchrone, modèle par étape), l'exécute en s'appuyant sur le catalogue et les données du superviseur, puis journalise le run. À charger quand une demande de travail implique plusieurs étapes dépendantes, plusieurs agents/skills, ou des vérifications obligatoires — ou sur invocation explicite (le hook UserPromptSubmit qui le route automatiquement sur chaque prompt n'est volontairement PAS branché ici, voir « Portée sur ce projet »).
+description: Orchestrateur des agents et skills du projet — qualifie une demande de travail, compose un plan (cascade / parallèle / asynchrone, modèle par étape), l'exécute en s'appuyant sur le catalogue et les données du superviseur, puis journalise le run. À charger quand une demande de travail implique plusieurs étapes dépendantes, plusieurs agents/skills, ou des vérifications obligatoires — ou sur invocation explicite (le hook UserPromptSubmit qui le route sur chaque prompt non-slash est branché depuis le 2026-07-21, flotte arbitrée, voir « Portée sur ce projet »).
 ---
 
 # Agent orchestrateur (étages O-A + O-B + O-C)
@@ -14,18 +14,19 @@ superviseur à chaque session : `eprouves`/`jamais_utilises`/`en_sommeil`,
 de bord humain des mêmes données) et `.claude/orchestration/playbooks/` (workflows
 récurrents — format dans `playbooks/FORMAT.md`).
 
-## Portée sur ce projet (import du 2026-07-21)
+## Portée sur ce projet (import du 2026-07-21 ; flotte arbitrée le 2026-07-21)
 
 Ce projet a **déjà** une flotte `.claude/agents/orchestrator` + `orchestrator-dev`
 (héritée d'un setup OpenCode, pilotage par tickets Beads) et le routeur BMAD `bmad-help`.
-Le recouvrement entre ces trois systèmes de routage est **non tranché** — CLAUDE.md le
-signale explicitement (§ « Skills & agents ») comme une décision d'équipe, pas quelque
-chose à résoudre automatiquement. Conséquence pratique retenue à l'import : le hook
-`UserPromptSubmit` (`.claude/hooks/orchestrator_gate.py`, présent mais **non câblé** dans
-`settings.json`) qui ferait de cette skill le point d'entrée par défaut sur *chaque* prompt
-n'est pas activé — `agent-orchestrator` s'invoque à la demande (explicitement, ou quand une
-autre skill/l'utilisateur la route) jusqu'à ce que l'équipe arbitre la flotte canonique. Le
-catalogue documente les trois flottes sans en privilégier une.
+Le recouvrement de ces systèmes de routage a été **tranché le 2026-07-21** (voir CLAUDE.md
+§ « Skills & agents » et `.claude/orchestration/catalogue.md` § « Flotte de routage ») : la
+flotte de rôles canonique est `.claude/agents/`, pilotée par cette skill. En conséquence, le
+hook `UserPromptSubmit` (`.claude/hooks/orchestrator_gate.py`) est désormais **branché** dans
+`settings.json` — `agent-orchestrator` reçoit une grille de qualification (~50 tokens,
+silencieuse sur les slash-commands) sur *chaque* prompt non-slash, et est le point d'entrée
+par défaut des demandes multi-étapes/multi-agents. `.opencode/agents/` (doublon) a été
+supprimé ; `.opencode/skills/` reste (bibliothèque de protocoles des agents `.claude/agents/`).
+BMAD est conservé pour son cycle produit, pas comme fleet de rôles concurrente.
 
 ## Méthode — 5 étapes
 

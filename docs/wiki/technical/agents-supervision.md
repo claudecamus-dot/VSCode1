@@ -9,15 +9,15 @@ generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, ét
 > **Ne pas éditer à la main** — toute modification serait écrasée au prochain scan.
 > Conception et phasage : [../../reflexions/agent-superviseur.md](../../reflexions/agent-superviseur.md).
 
-Dernier scan : 2026-07-21T14:46:24+02:00 · **14 sessions** (transcripts) · **15** invocations de skills · **11** lancements de sous-agents.
+Dernier scan : 2026-07-21T16:11:00+02:00 · **15 sessions** (transcripts) · **16** invocations de skills · **11** lancements de sous-agents.
 
 ## Skills — usage réel
 
 | Skill | Famille | Invocations | Première | Dernière |
 | --- | --- | --- | --- | --- |
 | `roadmap-keeper` | global | 4 | 2026-06-22 | 2026-07-01 |
+| `revue-increment` | projet | 3 | 2026-07-21 | 2026-07-21 |
 | `skill-creator` | global | 3 | 2026-06-24 | 2026-07-07 |
-| `revue-increment` | projet | 2 | 2026-07-21 | 2026-07-21 |
 | `run` | (builtin/session) | 2 | 2026-06-22 | 2026-07-01 |
 | `agent-orchestrator` | projet | 1 | 2026-07-21 | 2026-07-21 |
 | `agent-supervisor` | projet | 1 | 2026-07-21 | 2026-07-21 |
@@ -61,7 +61,7 @@ _(aucun constat — rien à signaler sur les données actuelles)_
 _Constats clos par décision humaine (`.claude/supervision/arbitrages.json`) — l'usage réel reste mesuré ci-dessus._
 
 - **`revue-increment`** (2026-07-21) : Constat #1 (vérif de fin d'incrément systématiquement sautée) accepté. Réponse retenue : un garde-fou au COMMIT plutôt que de forcer l'invocation de revue-increment — hook PreToolUse .claude/hooks/warn_verif_before_commit.py, non bloquant, ciblé app/, silencieux si une vraie vérif (npm test / pptx-verify / revue-increment) a tourné dans la session. La vérif est ainsi rappelée au bon instant ; l'usage réel de revue-increment reste mesuré et re-challengeable.
-- **`famille:BMAD`** (2026-07-21) : Constat #3 : 46 skills BMAD à 0 usage à J+5 (installés le 2026-07-16). Décision d'OBSERVATION (pas de tri tranché maintenant) : BMAD n'est pas routé par défaut — déjà le cas, l'orchestrateur n'y route que sur demande explicite via bmad-help. Revue datée à l'échéance 2026-08-16 : si toujours 0 usage réel mesuré, désinstaller / mettre en sommeil en bloc plutôt que skill par skill. NB : la flotte canonique reste formellement à arbitrer par l'équipe (CLAUDE.md § Skills & agents) — en attendant, .claude/agents, seule flotte réellement utilisée, fait référence de facto. Décision réversible, re-challengeable par le superviseur avec des données nouvelles.
+- **`famille:BMAD`** (2026-07-21) : Constat #3 : 46 skills BMAD à 0 usage à J+5 (installés le 2026-07-16). Décision d'OBSERVATION (pas de tri tranché maintenant) : BMAD n'est pas routé par défaut — déjà le cas, l'orchestrateur n'y route que sur demande explicite via bmad-help. Revue datée à l'échéance 2026-08-16 : si toujours 0 usage réel mesuré, désinstaller / mettre en sommeil en bloc plutôt que skill par skill. NB : la flotte canonique a été arbitrée le 2026-07-21 — .claude/agents/ est la flotte de rôles canonique (gate agent-orchestrator branché en UserPromptSubmit), BMAD conservé pour le cycle produit uniquement (cf. CLAUDE.md § Skills & agents). Décision réversible, re-challengeable par le superviseur avec des données nouvelles.
 
 ## Diagnostic qualitatif (étage 2 — `agent-supervisor`)
 

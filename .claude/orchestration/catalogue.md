@@ -46,7 +46,7 @@ par `agent-orchestrator` : ne pas les ériger en pipeline concurrent sur la mêm
 | `pptx-framed-image` | Remplir les cadres photo d'un template PPT — étape conditionnelle du playbook `export-ppt-verifie` | Synchrone | (session) | **Bibliothèque du bundle `ppt-designer`** — n=0 en direct ≠ mort (usage via le sous-agent, § Bundle PPT) ; pertinence : `reference_octo_cadre_frame_layout.md` (cadre = shape du slideLayout) |
 | `slide-text-polish` | Lint de la qualité rédactionnelle des slides — étape conditionnelle du playbook `export-ppt-verifie` | Synchrone | (session) | **Bibliothèque du bundle `ppt-designer`** — n=0 en direct ≠ mort (usage via le sous-agent, § Bundle PPT) ; pertinence : `feedback_pas_d_abreviations_cryptiques.md` (indicateurs en clair dans les livrables client) |
 | `restitution-ppt` | Générer/améliorer le PPT de restitution (US6.4) — structure du deck lue par le sous-agent `ppt-designer` (§ Bundle PPT) | Synchrone | (session) | **Référence du bundle `ppt-designer`** — n=0 en direct ≠ mort : la génération réelle passe par le sous-agent (§ Bundle PPT) |
-| `agent-orchestrator` | Point d'entrée des demandes multi-étapes/multi-agents (invocation manuelle — hook non branché) | Synchrone | (session) | Neuf (import 2026-07-21) |
+| `agent-orchestrator` | Point d'entrée des demandes multi-étapes/multi-agents (hook `UserPromptSubmit` **branché** le 2026-07-21 — grille de qualification sur chaque prompt non-slash) | Synchrone | (session) | Neuf (import 2026-07-21) |
 | `agent-supervisor` | Diagnostic qualitatif des agents (étage 2) — depuis `revue-increment` ou sur signal SessionStart | Synchrone, ≤ 1×/14 j | (session) | Neuf (import 2026-07-21) |
 
 ## Skills globaux clés

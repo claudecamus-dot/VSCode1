@@ -8,8 +8,8 @@
 > Express/SQLite/vanilla JS) — l'architecture et le raisonnement restent valables tels
 > quels, c'est pour cette raison qu'ils sont conservés en référence. Ce qui est **réel sur
 > ce projet-ci** (catalogue adapté, playbooks adaptés avec leurs vrais statuts d'usage,
-> hook `UserPromptSubmit` volontairement non branché tant que le recouvrement avec
-> `.claude/agents/orchestrator`+`orchestrator-dev` n'est pas arbitré) vit dans
+> hook `UserPromptSubmit` **branché depuis le 2026-07-21** — flotte arbitrée, `.claude/agents/`
+> canonique, cf. CLAUDE.md § « Skills & agents ») vit dans
 > `.claude/orchestration/catalogue.md` et `.claude/orchestration/playbooks/` — à consulter
 > en priorité pour tout travail concret sur ce projet.
 >

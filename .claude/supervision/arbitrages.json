@@ -9,7 +9,7 @@
     },
     {
       "cible": "famille:BMAD",
-      "decision": "Constat #3 : 46 skills BMAD à 0 usage à J+5 (installés le 2026-07-16). Décision d'OBSERVATION (pas de tri tranché maintenant) : BMAD n'est pas routé par défaut — déjà le cas, l'orchestrateur n'y route que sur demande explicite via bmad-help. Revue datée à l'échéance 2026-08-16 : si toujours 0 usage réel mesuré, désinstaller / mettre en sommeil en bloc plutôt que skill par skill. NB : la flotte canonique reste formellement à arbitrer par l'équipe (CLAUDE.md § Skills & agents) — en attendant, .claude/agents, seule flotte réellement utilisée, fait référence de facto. Décision réversible, re-challengeable par le superviseur avec des données nouvelles.",
+      "decision": "Constat #3 : 46 skills BMAD à 0 usage à J+5 (installés le 2026-07-16). Décision d'OBSERVATION (pas de tri tranché maintenant) : BMAD n'est pas routé par défaut — déjà le cas, l'orchestrateur n'y route que sur demande explicite via bmad-help. Revue datée à l'échéance 2026-08-16 : si toujours 0 usage réel mesuré, désinstaller / mettre en sommeil en bloc plutôt que skill par skill. NB : la flotte canonique a été arbitrée le 2026-07-21 — .claude/agents/ est la flotte de rôles canonique (gate agent-orchestrator branché en UserPromptSubmit), BMAD conservé pour le cycle produit uniquement (cf. CLAUDE.md § Skills & agents). Décision réversible, re-challengeable par le superviseur avec des données nouvelles.",
       "date": "2026-07-21",
       "source": "agent-supervisor étage 2, constat #3 — décision d'observation datée en session 2026-07-21 (échéance de revue 2026-08-16)"
     }
