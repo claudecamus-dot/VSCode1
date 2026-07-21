@@ -20,8 +20,10 @@ agents: [onboarder]
    bannière « MODE DÉMO » (extension de `env-banner.js`). Rappel : `/` sert désormais
    `index.html` (auparavant `admin.html`). Vérifié : `test-mode.js` (9 cas) + preuve
    API du garde-fou (session démo invisible en réel) + screenshots réels (accueil +
-   bannière). Suite (hors incrément) : pré-seed d'un jeu démo riche pour un déploiement
-   neuf (la démo démarre vide, se remplit en créant des sessions en mode démo) ;
+   bannière). **Pré-seed démo fait le 2026-07-22** : `app/scripts/seed-demo.js`
+   (`npm run seed:demo`) purge et régénère un jeu fictif riche (département + 3 équipes
+   aux profils distincts, 2 sessions pour la comparaison, dispersion intra-équipe),
+   `est_demo=1`, sans toucher au réel — vérifié API + rendu réel. Reste (hors incrément) :
    enforcement par-`/:id` non fait (le garde-fou reste le filtre du listing + le tag).
 
 2. **Revue de design du RADAR de maturité — sur les DEUX surfaces.** ✅ **Traité le

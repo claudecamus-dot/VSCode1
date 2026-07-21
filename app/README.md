@@ -54,6 +54,8 @@ npm run start:dev       # http://localhost:3000, base ./data/dev/app.db
 npm run start:preprod   # http://localhost:3001, base ./data/preprod/app.db
 npm run start:prod      # http://localhost:3002, base ./data/prod/app.db
 npm start                # démarrage "brut" sans fichier .env (valeurs par défaut du code : port 3000, ./data/app.db)
+
+npm run seed:demo        # peuple le MODE DÉMO (données fictives : département + équipes + 2 sessions), DEV par défaut ; ne touche pas le réel
 ```
 
 Ces scripts (`package.json`) utilisent `node --env-file=.env.<env> src/server.js` : le
