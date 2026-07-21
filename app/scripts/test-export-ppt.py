@@ -215,6 +215,36 @@ def main():
     prs3, pb3 = gen.construire(data3, gen.TEMPLATE, out3)
     check(not pb3, f"geometrie OK avec seulement 2 axes (radar non dessine) — {len(pb3)} probleme(s)")
 
+    print("Robustesse — comparaison disponible + < 3 objectifs (pas de radar), et max=0 :")
+    # Regression : radar absent (axes<3) => l'ancien repli px=7.4 coincait le
+    # panneau evolution a droite (pw=2.05) et produisait des textboxes de largeur
+    # NEGATIVE (name_w=-0.22), invisibles a l'ancien verifier_geometrie (qui ne
+    # testait que le debordement des bords). Le test a 2 axes existant (data3)
+    # force comparaison.disponible=false et ratait donc ce chemin. Ici on force la
+    # comparaison + des cartes max=0 (barre d'amplitude qui doit rester une
+    # pastille a 0, pas une barre pleine — bug `q.get("max",3) or 3`).
+    data4 = {"couverture": None, "blocs": [{
+        "type": "equipe", "nom": "Equipe Deux Axes Comparee", "departement": "", "effectif": 4,
+        "piliers": [{"nom": "Pilier Un", "moyenne": 2.0}, {"nom": "Pilier Deux", "moyenne": 0.0}],
+        "objectifs": [{"nom": "Obj A", "moyenne": 2.0, "precedent": 1.5, "pilierIndex": 0},
+                      {"nom": "Obj B", "moyenne": 0.0, "precedent": 0.5, "pilierIndex": 1}],
+        "dispersion": [{"texte": "Tous au niveau zero sur ce sujet peu mature ?",
+                        "ecartType": 0.0, "min": 0, "max": 0, "moyenne": 0.0, "contexte": "Culture"}],
+        "faibles": [], "hauts": [],
+        "accords": [{"texte": "Consensus total, au niveau zero ?",
+                     "ecartType": 0.0, "min": 0, "max": 0, "contexte": "Vision"}],
+        "commentaire": "Deux axes seulement, mais une session precedente existe.",
+        "comparaison": {"disponible": True, "precedenteDate": "01/01/2026",
+                        "piliers": [{"nom": "Pilier Un", "courant": 2.0, "precedent": 1.2, "delta": 0.8},
+                                    {"nom": "Pilier Deux", "courant": 0.0, "precedent": 0.3, "delta": -0.3}]},
+    }]}
+    out4 = os.path.join(tmp, "deck4.pptx")
+    prs4, pb4 = gen.construire(data4, gen.TEMPLATE, out4)
+    if pb4:
+        for p in pb4:
+            print("   -", p)
+    check(not pb4, f"aucune forme degeneree (largeur negative) avec comparaison + 2 axes + max=0 — {len(pb4)} probleme(s)")
+
     print("\nTOUS LES TESTS PASSENT" if echecs == 0 else f"\n{echecs} TEST(S) EN ECHEC")
     sys.exit(0 if echecs == 0 else 1)
 

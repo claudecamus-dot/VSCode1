@@ -184,8 +184,8 @@ def slide_vue_ensemble(prs, layouts, bloc):
     glob = moyenne([p.get("moyenne") for p in piliers])
     glob_delta = None
     if comp.get("disponible"):
-        cur = moyenne([p.get("courant") for p in comp["piliers"]])
-        prec = moyenne([p.get("precedent") for p in comp["piliers"]])
+        cur = moyenne([p.get("courant") for p in comp.get("piliers", [])])
+        prec = moyenne([p.get("precedent") for p in comp.get("piliers", [])])
         if cur is not None and prec is not None:
             glob_delta = cur - prec
 
@@ -601,7 +601,11 @@ def slide_radar(prs, layouts, bloc):
         _dessiner_radar(slide, MARGE_X, top_radar, w, radar_h, axes, piliers_legende)
 
     GAP_RADAR_TEXTE = 0.30
-    px = MARGE_X + w + GAP_RADAR_TEXTE if w else 7.4
+    # Sans radar (referentiel < 3 objectifs), la colonne commentaire/evolution
+    # occupe TOUTE la largeur de contenu depuis MARGE_X — l'ancien repli 7.4
+    # coincait le panneau a droite (pw=2.05), d'ou un name_w negatif plus bas
+    # (deck corrompu, invisible au controle de debordement). Cf. filet durci.
+    px = MARGE_X + w + GAP_RADAR_TEXTE if w else MARGE_X
     pw = 10 - px - MARGE_X
 
     # ---- Colonne droite : commentaire (callout) puis evolution ----
@@ -621,7 +625,7 @@ def slide_radar(prs, layouts, bloc):
     right_lim = px + pw - 0.30
     delta_x = right_lim - delta_w
     avap_x = delta_x - avap_w
-    name_w = avap_x - (px + 0.22)
+    name_w = max(0.6, avap_x - (px + 0.22))   # garde-fou : jamais de largeur negative
     LH_EV = LH_QUESTION   # hauteur de ligne reelle (small 10.5pt) — voir sa note plus haut
     piliers_ev = comp.get("piliers", []) if n_ev else []
     lignes_ev = [max(1, D.estimer_lignes(joli_nom(p.get("nom", "")), name_w, D.TYPE["small"]))
@@ -719,13 +723,19 @@ TAILLE_MIN_CARTE = 7.0
 GAP_MIN, GAP_MAX = 0.14, 0.28
 
 
+# Hauteur d'une carte HORS question : gap(0.04) + contexte(0.17) + gap(0.10) +
+# barre(0.28). Source unique partagee entre _bloc_carte_h (hauteur) et le calcul
+# inverse de ql_max dans _cartes_colonne — evite qu'un des deux derive de l'autre.
+_CARTE_H_FIXE = 0.04 + 0.17 + 0.10 + 0.28   # = 0.59
+
+
 # Hauteur du contenu d'une carte = question (ql lignes, a `taille` pt) + contexte
 # + barre. Seule la hauteur de la question depend de `taille` (contexte et barre
 # gardent une taille fixe) — les rendus placent leurs elements aux memes offsets,
 # d'ou cette source unique.
 def _bloc_carte_h(ql, taille=D.TYPE["small"]):
     lh = LH_QUESTION * (taille / D.TYPE["small"])
-    return ql * lh + 0.04 + 0.17 + 0.10 + 0.28
+    return ql * lh + _CARTE_H_FIXE
 
 
 def _texte_et_lignes(texte, tw, taille, ql_max):
@@ -804,7 +814,7 @@ def _cartes_colonne(slide, x, w, items, accent, rendu):
     lh = LH_QUESTION * (taille / D.TYPE["small"])
     y = top
     for it, card_h in zip(items, card_hs):
-        ql_max = max(1, int((card_h - PAD_CARTE - 0.59) / lh + 1e-6))
+        ql_max = max(1, int((card_h - PAD_CARTE - _CARTE_H_FIXE) / lh + 1e-6))
         D.add_card(slide, x, y, w, card_h, accent)
         rendu(slide, x, y, w, card_h, it, taille, ql_max)
         y += card_h + gap
@@ -837,8 +847,8 @@ def slide_points(prs, layouts, bloc):
         # Barre d'amplitude min..max sur l'echelle 0..3 + repere de moyenne.
         ry = top0 + qh + 0.31
         rw = w - pad - 1.55
-        mn = q.get("min", 0) or 0
-        mx = q.get("max", 3) or 3
+        mn = q.get("min") if q.get("min") is not None else 0
+        mx = q.get("max") if q.get("max") is not None else 3
         D.add_range_bar(slide, tx, ry, rw, 0.13, mn, mx, 3.0, D.GOLD,
                         marker=q.get("moyenne"))
         # La plage min–max est deja montree par la barre ; on n'affiche que la
@@ -924,8 +934,8 @@ def slide_points_forts(prs, layouts, bloc):
                      {"size": D.TYPE["tiny"], "color": D.MUTED})])
         ry = top0 + qh + 0.31
         rw = w - pad - 1.55
-        mn = q.get("min", 0) or 0
-        mx = q.get("max", 3) or 3
+        mn = q.get("min") if q.get("min") is not None else 0
+        mx = q.get("max") if q.get("max") is not None else 3
         D.add_range_bar(slide, tx, ry, rw, 0.13, mn, mx, 3.0, D.OK, marker=q.get("moyenne"))
         _valeur_cote_barre(slide, tx + rw + 0.14, ry, w - pad - rw - 0.20,
                            [(fmt(q.get("ecartType")),
@@ -976,7 +986,7 @@ def construire(data, template_path, out_path):
         if 2 in ph: ph[2].text_frame.text = "OCTO Technology"
         if 3 in ph: ph[3].text_frame.text = cv.get("date", "")
 
-    for bloc in data["blocs"]:
+    for bloc in data.get("blocs", []):
         slide_vue_ensemble(prs, layouts, bloc)
         slide_radar(prs, layouts, bloc)
         slide_points_forts(prs, layouts, bloc)
@@ -996,6 +1006,11 @@ def construire(data, template_path, out_path):
 
 
 if __name__ == "__main__":
+    if len(sys.argv) < 3:
+        sys.stderr.write(
+            "usage: python export-restitution-ppt.py "
+            "<donnees.json> <sortie.pptx> [modele.pptx]\n")
+        sys.exit(2)
     with open(sys.argv[1], encoding="utf-8") as f:
         data = json.load(f)
     # Template du modele : 3e argument, sinon $TEMPLATE_PPTX, sinon le template OCTO.

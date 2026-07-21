@@ -392,6 +392,16 @@ def verifier_geometrie(prs, marge_in=0.02):
             if None in (l, t, w, h):
                 continue
             nom = shp.name or "shape"
+            # Dimension NEGATIVE : le fichier est corrompu (PowerPoint peut refuser
+            # de l'ouvrir) meme si les bords restent dans la slide — le controle de
+            # debordement seul ne le voit pas. On flague < 0 strict, pas <= 0 : un
+            # connecteur (rayon/grille radar) aligne sur un axe a une dimension
+            # nulle legitime.
+            if w < 0 or h < 0:
+                problemes.append(
+                    f"slide {si}: '{nom}' dimension negative "
+                    f"(w={Emu(w).inches:.2f} h={Emu(h).inches:.2f})")
+                continue
             if l < -tol or t < -tol or (l + w) > W + tol or (t + h) > H + tol:
                 problemes.append(
                     f"slide {si}: '{nom}' hors cadre "
