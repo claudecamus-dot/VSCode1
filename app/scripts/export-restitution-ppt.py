@@ -726,8 +726,10 @@ def _entete_colonne(slide, x, w, marqueur, titre, sous):
 
 # Taille plancher des cartes de points forts/attention (voir D.ajuster_police).
 # En-dessous, le filet de securite de _cartes_colonne prend le relai (troncature
-# avec ellipse) plutot que de laisser une forme deborder de la slide.
-TAILLE_MIN_CARTE = 7.0
+# avec ellipse) plutot que de laisser une forme deborder de la slide. Abaisse a 6.0
+# (2026-07-22, choix utilisateur) : sur 3 questions longues par colonne, un texte plus
+# dense reduit la troncature — au prix d'un peu de densite, jamais sous 6pt (lisibilite).
+TAILLE_MIN_CARTE = 6.0
 GAP_MIN, GAP_MAX = 0.14, 0.28
 
 
