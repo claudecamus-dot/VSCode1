@@ -1,10 +1,47 @@
 ---
-updated: 2026-07-08
+updated: 2026-07-21
 confidence: mixed
 agents: [onboarder]
 ---
 
 # TODO
+
+## Prochaine session — file d'attente (demandé le 2026-07-21)
+
+> Trois chantiers explicitement mis en file par l'utilisateur pour la prochaine
+> session. Contexte utile capturé pour un démarrage direct.
+
+1. **Séparer « démo » et « usage réel » via une page d'accueil.** Aujourd'hui
+   la même app sert les données de test fictives (base `data/dev`, ex. session
+   DSI/Alpha/Beta) et l'usage réel. Objectif : une **page d'accueil** qui oriente
+   explicitement vers **(a) une vision démo** (données fictives, pour montrer
+   l'outil) **ou (b) l'utilisation réelle** (vraies données d'équipe). À cadrer :
+   séparation des jeux de données (bases distinctes ? drapeau « démo » ?),
+   parcours d'entrée, et garde-fou pour ne pas mélanger réel et fictif. Feature
+   applicative (`app/`) — passer par le playbook `dev-verifie` (tests + rendu
+   réel via `run`).
+
+2. **Revue de design du RADAR de maturité — sur les DEUX surfaces.** Le radar
+   se rend à deux endroits, à traiter de façon **cohérente** (même langage :
+   palette pilier, silhouette) :
+   - **Page web** — l'écran de consultation (`app/src/public/` + `radar-svg.js`).
+   - **Export PPT** — la slide radar du deck (`_dessiner_radar` dans
+     `app/scripts/export-restitution-ppt.py`).
+   Lancer `agent-orchestrator` pour cette revue design, en élargissant aussi aux
+   autres écrans front. ⚠️ **Les propositions faites à ce jour ne conviennent pas
+   à l'utilisateur** — les 3 options PPT rendues le 2026-07-21 (A radar numéroté /
+   B liste / C barres groupées, cf.
+   [artifact d'arbitrage](https://claude.ai/code/artifact/322bf277-f117-412f-8d77-b0b367ed4419))
+   sont **écartées**. Repartir d'une exploration plus large (pas re-proposer
+   A/B/C), sur le rendu **réel** des deux surfaces (screenshot via `run`/puppeteer
+   pour le web, `pptx-verify` pour le deck), pas sur maquette ASCII. La décision
+   « radar vs tableau » (ci-dessous) reste donc **ouverte**, à ré-instruire.
+
+3. **Lancer `agent-supervisor` pour investiguer les axes d'amélioration.**
+   Diagnostic étage 2 sur les données du superviseur (usage, runs d'orchestration
+   journalisés cette session, signaux git/mémoire) → propositions concrètes
+   (champ `proposition`, arbitrées par l'humain). Cadence/état :
+   [`technical/agents-supervision.md`](technical/agents-supervision.md).
 
 ## Chantier deck PPT — qualité & fidélité charte
 
