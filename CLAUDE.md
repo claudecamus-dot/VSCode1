@@ -101,16 +101,16 @@ Décisions non redérivables du code :
 - `.claude/agents/` : agents projet disponibles (orchestrateurs, developer,
   onboarder, reviewer, etc.) — voir chaque fichier pour son rôle exact.
 
-## Skills & agents — comment ça se lance (post-BMAD, 2026-07-16)
+## Skills & agents — comment ça se lance (post-BMAD, 2026-07-16 ; maj 2026-07-21)
 
 Depuis l'install de **BMAD-METHOD v6.10.0** (`_bmad/`), `.claude/skills/` contient ~46 skills `bmad-*` en plus des skills projet. **Trois « flottes » d'agents coexistent** — savoir laquelle lancer :
 
 - **Agents BMAD** (skills `bmad-agent-*`, lancés par persona : « Amelia » dev, « John » PM, « Winston » architecte, « Sally » UX, « Mary » analyste, « Paige » tech-writer). Cycle produit→dev via `bmad-product-brief`/`bmad-prd`/`bmad-architecture`/`bmad-create-story`/`bmad-dev-story` ; routeur **`bmad-help`**.
 - **Agents projet `.claude/agents/`** (orchestrator, developer, reviewer, auditor, planner, ux/ui-designer, ppt-designer…) : la flotte custom antérieure à BMAD, lancée comme sous-agents (Task).
 - **Agents `.opencode/`** (CLI externe `opencode`) : encore une autre flotte.
-- **Skills projet** (non-`bmad-`) : `restitution-ppt`, `pptx-framed-image`, `slide-text-polish`, `revue-increment` (definition-of-done — délègue à `bmad-code-review`/`bmad-retrospective`).
+- **Skills projet** (non-`bmad-`) : `restitution-ppt`, `pptx-framed-image`, `slide-text-polish`, `revue-increment` (definition-of-done — délègue à `bmad-code-review`/`bmad-retrospective`), plus le couple orchestration/supervision importé de VSCode2 le 2026-07-21 : **`agent-orchestrator`** (qualifie une demande de travail multi-étapes, compose et exécute un plan — cascade/parallèle/async, modèle par étape — puis journalise le run via `.claude/orchestration/`) et **`agent-supervisor`** (superviseur étage 2 : diagnostic LLM des KO répétés, agents morts, vérifs manquantes, alimenté par `.claude/supervision/`).
 
-⚠️ **Recouvrement à arbitrer** : `.claude/agents/` (developer/reviewer/architect/ux…) et les agents BMAD (Amelia/Winston/Sally…) couvrent les mêmes rôles. Choisir **une** flotte canonique pour éviter de lancer deux systèmes concurrents sur la même tâche — décision à prendre par l'équipe, non tranchée automatiquement ici. Le hook SessionStart route vers `bmad-help` en cas de doute.
+⚠️ **Recouvrement à arbitrer** : `.claude/agents/` (developer/reviewer/architect/ux…) et les agents BMAD (Amelia/Winston/Sally…) couvrent les mêmes rôles. Choisir **une** flotte canonique pour éviter de lancer deux systèmes concurrents sur la même tâche — décision à prendre par l'équipe, non tranchée automatiquement ici. Le hook SessionStart route vers `bmad-help` en cas de doute. **`agent-orchestrator` ajoute un étage de routage** au-dessus de ces flottes ; son gate `UserPromptSubmit` (`.claude/hooks/orchestrator_gate.py`) est versionné mais **délibérément NON branché** dans `settings.json` — le brancher revient précisément à trancher cette flotte canonique, donc à faire sur décision explicite, jamais par inadvertance.
 
 ## Hiérarchie de modèles pour les sous-agents (2026-07-16)
 
