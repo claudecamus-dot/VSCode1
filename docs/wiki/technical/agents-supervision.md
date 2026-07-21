@@ -9,20 +9,20 @@ generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, ét
 > **Ne pas éditer à la main** — toute modification serait écrasée au prochain scan.
 > Conception et phasage : [../../reflexions/agent-superviseur.md](../../reflexions/agent-superviseur.md).
 
-Dernier scan : 2026-07-21T16:11:00+02:00 · **15 sessions** (transcripts) · **16** invocations de skills · **11** lancements de sous-agents.
+Dernier scan : 2026-07-21T20:36:12+02:00 · **16 sessions** (transcripts) · **22** invocations de skills · **11** lancements de sous-agents.
 
 ## Skills — usage réel
 
 | Skill | Famille | Invocations | Première | Dernière |
 | --- | --- | --- | --- | --- |
 | `roadmap-keeper` | global | 4 | 2026-06-22 | 2026-07-01 |
+| `run` | (builtin/session) | 4 | 2026-06-22 | 2026-07-21 |
 | `revue-increment` | projet | 3 | 2026-07-21 | 2026-07-21 |
 | `skill-creator` | global | 3 | 2026-06-24 | 2026-07-07 |
-| `run` | (builtin/session) | 2 | 2026-06-22 | 2026-07-01 |
-| `agent-orchestrator` | projet | 1 | 2026-07-21 | 2026-07-21 |
-| `agent-supervisor` | projet | 1 | 2026-07-21 | 2026-07-21 |
-| `artifact-design` | (builtin/session) | 1 | 2026-07-07 | 2026-07-07 |
-| `pptx-verify` | global | 1 | 2026-07-01 | 2026-07-01 |
+| `agent-orchestrator` | projet | 2 | 2026-07-21 | 2026-07-21 |
+| `agent-supervisor` | projet | 2 | 2026-07-21 | 2026-07-21 |
+| `artifact-design` | (builtin/session) | 2 | 2026-07-07 | 2026-07-21 |
+| `pptx-verify` | global | 2 | 2026-07-01 | 2026-07-21 |
 
 ## Sous-agents
 
@@ -62,6 +62,8 @@ _Constats clos par décision humaine (`.claude/supervision/arbitrages.json`) —
 
 - **`revue-increment`** (2026-07-21) : Constat #1 (vérif de fin d'incrément systématiquement sautée) accepté. Réponse retenue : un garde-fou au COMMIT plutôt que de forcer l'invocation de revue-increment — hook PreToolUse .claude/hooks/warn_verif_before_commit.py, non bloquant, ciblé app/, silencieux si une vraie vérif (npm test / pptx-verify / revue-increment) a tourné dans la session. La vérif est ainsi rappelée au bon instant ; l'usage réel de revue-increment reste mesuré et re-challengeable.
 - **`famille:BMAD`** (2026-07-21) : Constat #3 : 46 skills BMAD à 0 usage à J+5 (installés le 2026-07-16). Décision d'OBSERVATION (pas de tri tranché maintenant) : BMAD n'est pas routé par défaut — déjà le cas, l'orchestrateur n'y route que sur demande explicite via bmad-help. Revue datée à l'échéance 2026-08-16 : si toujours 0 usage réel mesuré, désinstaller / mettre en sommeil en bloc plutôt que skill par skill. NB : la flotte canonique a été arbitrée le 2026-07-21 — .claude/agents/ est la flotte de rôles canonique (gate agent-orchestrator branché en UserPromptSubmit), BMAD conservé pour le cycle produit uniquement (cf. CLAUDE.md § Skills & agents). Décision réversible, re-challengeable par le superviseur avec des données nouvelles.
+- **`export-ppt-verifie`** (2026-07-21) : Constat interaction (2026-07-21) : la revue design du deck re-note d'un run à l'autre les mêmes décisions produit non tranchées (radar vs tableau, contraste GOLD) au lieu de les forcer. ACCEPTÉ + APPLIQUÉ : ajout de l'étape `gate-decision-produit` (checkpoint) au playbook export-ppt-verifie — une passe qui bute sur une décision produit non tranchée produit UNE décision explicite à arbitrer (options rendues RÉELLEMENT + reco) et suspend le rework gated jusqu'à l'arbitrage utilisateur, au lieu de re-noter le blocage.
+- **`pptx-verify`** (2026-07-21) : Constat verification-manquante (2026-07-21) : aucune étape du loop design ne vérifie le contraste WCAG des libellés ; le GOLD #b8860b (3.25:1 < AA 4.5:1) colore les libellés d'axe, partagé web (resultats.html/pilotage.html) + PPT (_dessiner_radar). ACCEPTÉ, implémenté DANS le chantier #2 (revue design radar) : ajout d'un check de contraste (luminance relative WCAG, seuil 4.5:1) sur les couleurs de libellés, palette pilier comme source unique testée par les deux surfaces. La VALEUR du GOLD (assombrir ou garder) reste tranchée dans le chantier #2 sur rendu réel (#2d), pas ici.
 
 ## Diagnostic qualitatif (étage 2 — `agent-supervisor`)
 

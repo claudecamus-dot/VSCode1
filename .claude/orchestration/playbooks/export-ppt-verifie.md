@@ -26,6 +26,14 @@ services, pages web), c'est `dev-verifie` qui s'applique — ce playbook-ci est 
 spécialisée quand le **livrable est le deck lui-même** (layout, contenu, visuel). Les deux
 partagent l'obligation `pptx-verify` et la terminaison `revue-increment`.
 
+**Gate de décision produit** (ajouté 2026-07-21, constat superviseur `interaction`) : une passe
+de vérification/design qui bute sur une **décision produit non tranchée** (radar vs tableau,
+valeur d'une couleur de palette, contraste…) ne doit pas re-noter le blocage run après run —
+elle produit **UNE décision explicite à arbitrer** (options **rendues réellement**, jamais en
+ASCII — cf. `feedback_brainstorm_iteratif.md` — assorties d'une recommandation) et **suspend le
+rework gated** jusqu'à l'arbitrage utilisateur. Matérialisé par l'étape `gate-decision-produit`
+(checkpoint), en amont de `revue-increment`.
+
 ```json
 {
   "nom": "export-ppt-verifie",
@@ -104,6 +112,17 @@ partagent l'obligation `pptx-verify` et la terminaison `revue-increment`.
         "critere": "SI le rendu passe la géométrie mais reste visuellement pauvre (mur de boîtes, hiérarchie absente, écart à la charte OCTO) : passe design appliquée puis retour à verification-rendu. Skill jamais utilisée à ce jour — prudence"
       },
       "checkpoint": false
+    },
+    {
+      "id": "gate-decision-produit",
+      "agent": "session principale",
+      "mode": "cascade",
+      "modele": "(session)",
+      "contrat": {
+        "type": "reel",
+        "critere": "SI une passe (verification-rendu ou design-review) bute sur une décision produit NON TRANCHÉE (ex. radar vs tableau, valeur de palette/contraste) : produire UNE décision explicite à arbitrer — options rendues RÉELLEMENT (screenshot/rendu réel, jamais ASCII, cf. feedback_brainstorm_iteratif.md) + recommandation — et SUSPENDRE le rework gated jusqu'à l'arbitrage utilisateur. Ne jamais se contenter de re-noter le blocage et poursuivre (constat superviseur interaction, 2026-07-21). Étape conditionnelle : sautée si aucune décision produit n'est en suspens"
+      },
+      "checkpoint": "décision produit à arbitrer par l'utilisateur — présenter les options rendues + reco, ne pas trancher unilatéralement"
     },
     {
       "id": "revue-increment",
