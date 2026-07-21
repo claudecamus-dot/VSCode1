@@ -90,7 +90,38 @@ Décisions non redérivables du code :
 - `.claude/hooks/guard_destructive_git.py` bloque `git push --force` (sans
   `--force-with-lease`) et `git reset --hard` — garde-fou déterministe,
   fail-open en cas d'erreur de parsing.
+- `.claude/hooks/warn_verif_before_commit.py` **avertit sans bloquer** avant un
+  `git commit` touchant `app/**` si aucune vérif réelle (`npm test`, rendu
+  `pptx-verify`, ou `revue-increment`) n'a tourné dans la session — ancre la
+  discipline « definition of done » au bon instant. Fail-open, détection de
+  vérif par le transcript. Issu du constat #1 du superviseur d'agents (voir
+  `.claude/supervision/`, tests dans `.claude/hooks/tests/`).
 - `.claude/skills/restitution-ppt/` : skill projet pour la génération/
   amélioration du PPT de restitution (US6.4), voir son `SKILL.md`.
 - `.claude/agents/` : agents projet disponibles (orchestrateurs, developer,
   onboarder, reviewer, etc.) — voir chaque fichier pour son rôle exact.
+
+## Skills & agents — comment ça se lance (post-BMAD, 2026-07-16)
+
+Depuis l'install de **BMAD-METHOD v6.10.0** (`_bmad/`), `.claude/skills/` contient ~46 skills `bmad-*` en plus des skills projet. **Trois « flottes » d'agents coexistent** — savoir laquelle lancer :
+
+- **Agents BMAD** (skills `bmad-agent-*`, lancés par persona : « Amelia » dev, « John » PM, « Winston » architecte, « Sally » UX, « Mary » analyste, « Paige » tech-writer). Cycle produit→dev via `bmad-product-brief`/`bmad-prd`/`bmad-architecture`/`bmad-create-story`/`bmad-dev-story` ; routeur **`bmad-help`**.
+- **Agents projet `.claude/agents/`** (orchestrator, developer, reviewer, auditor, planner, ux/ui-designer, ppt-designer…) : la flotte custom antérieure à BMAD, lancée comme sous-agents (Task).
+- **Agents `.opencode/`** (CLI externe `opencode`) : encore une autre flotte.
+- **Skills projet** (non-`bmad-`) : `restitution-ppt`, `pptx-framed-image`, `slide-text-polish`, `revue-increment` (definition-of-done — délègue à `bmad-code-review`/`bmad-retrospective`).
+
+⚠️ **Recouvrement à arbitrer** : `.claude/agents/` (developer/reviewer/architect/ux…) et les agents BMAD (Amelia/Winston/Sally…) couvrent les mêmes rôles. Choisir **une** flotte canonique pour éviter de lancer deux systèmes concurrents sur la même tâche — décision à prendre par l'équipe, non tranchée automatiquement ici. Le hook SessionStart route vers `bmad-help` en cas de doute.
+
+## Hiérarchie de modèles pour les sous-agents (2026-07-16)
+
+`.claude/agents/*.md` supporte un champ `model:` en frontmatter, appliqué par agent. Déjà en place : `orchestrator`/`orchestrator-dev`/`pathfinder`/`planner` en `sonnet`, `reviewer` en `opus` (scrutinie la plus exigeante). Ajouté cette fois : `auditor-subagent` en `haiku` — sous-agent générique lecture-seule qui produit un rapport structuré selon un protocole fixe (`audit-protocol-light`), sans jugement créatif requis, exactement le profil « subagent d'exploration » que le playbook recommande en tier léger. Les autres agents (`developer*`, `qa-engineer`, `documentarian`, `debugger`, `onboarder`, `ui/ux-designer`, `ppt-designer`) restent sans `model:` (hérite du thread principal) : leur tâche exige un jugement de qualité (diagnostic de bug, écriture de tests, refactoring sans casser la logique métier, décisions de design) où un modèle plus léger risquerait de dégrader le résultat — pas de bascule automatique là où la qualité prime sur le coût.
+
+## Discipline de gestion des tokens (2026-07-16, cf. `docs/wiki/todo.md` et `export/optimisation-tokens.md`)
+
+Le contexte est un cache actif facturé à chaque tour, pas une mémoire gratuite — le laisser croître sans discipline pénalise coût, qualité (« lost in the middle ») et latence (source : OCTO Playbook Agentique, partie « Optimiser la consommation Tokens »). Règles concrètes, pas de changement de ton/style de réponse :
+
+- **Ne pas parcourir** `_bmad/`, `_bmad-output/`, `node_modules/`, `dist/`, `.git/`, `__pycache__/` sauf demande explicite.
+- **Lire avant d'écrire, grep les appelants avant de modifier** une fonction/un champ partagé.
+- **Préférer un grep/read ciblé à un dump récursif** — surtout sur `.claude/skills/bmad-*`/`.opencode/skills/` (deux flottes de skills volumineuses) et sur `.opencode/agents/` qui duplique `.claude/agents/`.
+- **Sous-agent pour toute sortie volumineuse** (exploration large, longs logs de test) plutôt que de la laisser polluer le contexte principal.
+- **`/compact` dès ~40 %** de fenêtre de contexte utilisée si la conversation doit continuer longtemps sur le même sujet.
