@@ -1,0 +1,4 @@
+{
+  "_doc": "Décisions humaines qui closent un constat automatique du superviseur (fichier VERSIONNÉ, édité à la main — le scan le lit, ne l'écrit jamais). cible : nom de skill, ou famille:<Nom> pour une famille entière. Un constat arbitré disparaît des TODO auto mais reste visible dans la section « Arbitrages enregistrés » du tableau de bord ; l'usage réel reste mesuré (un arbitrage n'est pas une preuve d'utilité — le superviseur étage 2 peut le re-challenger avec des données nouvelles).",
+  "arbitrages": []
+}

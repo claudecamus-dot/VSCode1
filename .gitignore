@@ -12,3 +12,16 @@ CLAUDE.local.md
 # Roadmap — .roadmap/roadmap.json est la source de vérité versionnée ;
 # le .svg est régénéré à la demande par le skill roadmap-keeper.
 .roadmap/*.svg
+
+# BMAD — sorties générées (planning/implementation artifacts), pas du
+# contenu source ; _bmad/ (le moteur, ~138K) reste versionné à part.
+_bmad-output/
+
+# Superviseur/orchestrateur d'agents — données machine régénérées à chaque
+# session (scan_transcripts.py) ou à chaque run ; arbitrages.json reste
+# versionné (décisions humaines). Voir .claude/skills/agent-supervisor/.
+.claude/supervision/state.json
+.claude/supervision/usage.jsonl
+.claude/supervision/diagnostic.json
+.claude/orchestration/runs.jsonl
+.claude/orchestration/routing-hints.json

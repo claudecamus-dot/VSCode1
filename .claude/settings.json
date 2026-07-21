@@ -12,6 +12,37 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py \"$CLAUDE_PROJECT_DIR/.claude/hooks/remind_revue_increment.py\"",
+            "timeout": 10,
+            "statusMessage": "Rappel discipline revue-increment..."
+          },
+          {
+            "type": "command",
+            "command": "py \"$CLAUDE_PROJECT_DIR/.claude/supervision/scan_transcripts.py\"",
+            "timeout": 60,
+            "statusMessage": "Supervision agents : scan incremental des transcripts..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Skill|Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py \"$CLAUDE_PROJECT_DIR/.claude/supervision/log_usage.py\"",
+            "timeout": 10,
+            "statusMessage": "Journal usage agents..."
+          }
+        ]
+      }
     ]
   },
   "permissions": {
