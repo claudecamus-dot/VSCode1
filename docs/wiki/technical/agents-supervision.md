@@ -9,19 +9,19 @@ generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, ét
 > **Ne pas éditer à la main** — toute modification serait écrasée au prochain scan.
 > Conception et phasage : [../../reflexions/agent-superviseur.md](../../reflexions/agent-superviseur.md).
 
-Dernier scan : 2026-07-22T02:34:40+02:00 · **16 sessions** (transcripts) · **24** invocations de skills · **12** lancements de sous-agents.
+Dernier scan : 2026-07-22T04:34:18+02:00 · **16 sessions** (transcripts) · **26** invocations de skills · **12** lancements de sous-agents.
 
 ## Skills — usage réel
 
 | Skill | Famille | Invocations | Première | Dernière |
 | --- | --- | --- | --- | --- |
-| `revue-increment` | projet | 4 | 2026-07-21 | 2026-07-21 |
+| `revue-increment` | projet | 5 | 2026-07-21 | 2026-07-21 |
 | `roadmap-keeper` | global | 4 | 2026-06-22 | 2026-07-01 |
 | `run` | (builtin/session) | 4 | 2026-06-22 | 2026-07-21 |
+| `agent-supervisor` | projet | 3 | 2026-07-21 | 2026-07-22 |
 | `pptx-verify` | global | 3 | 2026-07-01 | 2026-07-21 |
 | `skill-creator` | global | 3 | 2026-06-24 | 2026-07-07 |
 | `agent-orchestrator` | projet | 2 | 2026-07-21 | 2026-07-21 |
-| `agent-supervisor` | projet | 2 | 2026-07-21 | 2026-07-21 |
 | `artifact-design` | (builtin/session) | 2 | 2026-07-07 | 2026-07-21 |
 
 ## Sous-agents
@@ -64,10 +64,11 @@ _Constats clos par décision humaine (`.claude/supervision/arbitrages.json`) —
 - **`famille:BMAD`** (2026-07-21) : Constat #3 : 46 skills BMAD à 0 usage à J+5 (installés le 2026-07-16). Décision d'OBSERVATION (pas de tri tranché maintenant) : BMAD n'est pas routé par défaut — déjà le cas, l'orchestrateur n'y route que sur demande explicite via bmad-help. Revue datée à l'échéance 2026-08-16 : si toujours 0 usage réel mesuré, désinstaller / mettre en sommeil en bloc plutôt que skill par skill. NB : la flotte canonique a été arbitrée le 2026-07-21 — .claude/agents/ est la flotte de rôles canonique (gate agent-orchestrator branché en UserPromptSubmit), BMAD conservé pour le cycle produit uniquement (cf. CLAUDE.md § Skills & agents). Décision réversible, re-challengeable par le superviseur avec des données nouvelles.
 - **`export-ppt-verifie`** (2026-07-21) : Constat interaction (2026-07-21) : la revue design du deck re-note d'un run à l'autre les mêmes décisions produit non tranchées (radar vs tableau, contraste GOLD) au lieu de les forcer. ACCEPTÉ + APPLIQUÉ : ajout de l'étape `gate-decision-produit` (checkpoint) au playbook export-ppt-verifie — une passe qui bute sur une décision produit non tranchée produit UNE décision explicite à arbitrer (options rendues RÉELLEMENT + reco) et suspend le rework gated jusqu'à l'arbitrage utilisateur, au lieu de re-noter le blocage.
 - **`pptx-verify`** (2026-07-21) : Constat verification-manquante (2026-07-21) : aucune étape du loop design ne vérifie le contraste WCAG des libellés ; le GOLD #b8860b (3.25:1 < AA 4.5:1) colore les libellés d'axe, partagé web (resultats.html/pilotage.html) + PPT (_dessiner_radar). ACCEPTÉ, implémenté DANS le chantier #2 (revue design radar) : ajout d'un check de contraste (luminance relative WCAG, seuil 4.5:1) sur les couleurs de libellés, palette pilier comme source unique testée par les deux surfaces. La VALEUR du GOLD (assombrir ou garder) reste tranchée dans le chantier #2 sur rendu réel (#2d), pas ici.
+- **`export-ppt-verifie`** (2026-07-22) : Constats interaction + ko-repete (2026-07-22) : la revue design du deck a été déclarée « close » puis ré-ouverte 8+ fois — « succès » mesurait travail fait + rendu OK à MES yeux + tests verts + commit, pas l'intention design de l'utilisateur atteinte ; et des éléments à options (réglette des paliers, police) ont été implémentés-puis-commités au lieu d'être choisis sur variantes. ACCEPTÉ + APPLIQUÉ (demande utilisateur « créer des Rules »). Deux règles ajoutées au playbook export-ppt-verifie ET au skill pptx-verify (Step 6) : (1) VALIDATION UTILISATEUR AVANT COMMIT — un changement design-intent ne se commite/déclare 'fait' qu'après validation du rendu réel par l'utilisateur (étape `validation-utilisateur`, checkpoint dur) ; (2) VARIANTES RENDUES AVANT DE CHOISIR — un élément à options de layout (placement/orientation/échelle/présence) se tranche sur 2-3 variantes rendues avant d'implémenter. Mémoire feedback_validation_rendu_avant_commit_ppt.
 
 ## Diagnostic qualitatif (étage 2 — `agent-supervisor`)
 
-_Diagnostic ⚠️ à relancer (> 14 j) — rien à signaler, tous les constats précédents ont été arbitrés._
+_Diagnostic à jour — rien à signaler, tous les constats précédents ont été arbitrés._
 
 ---
 

@@ -34,6 +34,27 @@ ASCII — cf. `feedback_brainstorm_iteratif.md` — assorties d'une recommandati
 rework gated** jusqu'à l'arbitrage utilisateur. Matérialisé par l'étape `gate-decision-produit`
 (checkpoint), en amont de `revue-increment`.
 
+**Deux règles anti-non-convergence** (ajoutées 2026-07-22, constat superviseur `interaction`
+`ko-repete` : la revue design du deck a été « close » puis ré-ouverte 8+ fois — le mot
+« succès » mesurait *travail fait + rendu OK à MES yeux + tests verts + commit*, pas
+*l'intention design de l'utilisateur atteinte*). Ces deux règles sont **le cœur du playbook**,
+pas des options :
+
+1. **Validation utilisateur AVANT commit** — pour tout changement d'**intention design**
+   (layout, taille de police, position/présence d'un élément, couleur — *pas* un correctif de
+   géométrie/bug), la *definition-of-done* du livrable est **la validation du rendu réel par
+   l'utilisateur**, jamais « tests + géométrie verts ». **Ne jamais committer** un tel
+   changement, ni le déclarer « fait / clos », tant que l'utilisateur n'a pas vu le rendu réel
+   et validé. Matérialisé par l'étape `validation-utilisateur` (checkpoint dur), en amont de
+   `revue-increment`/commit.
+2. **Variantes RENDUES avant de choisir** — quand la demande porte sur le **placement /
+   l'orientation / l'échelle / la présence** d'un élément (élément à options de layout), rendre
+   **2-3 variantes en images** et les faire arbitrer **avant** d'écrire la version de
+   production — pas « implémenter une version → committer → attendre la réaction » (c'est ce
+   cycle qui a fait entrer/sortir/re-entrer la réglette des paliers et re-toucher la police).
+   La mémoire `feedback_brainstorm_iteratif.md` (« mockups RÉELS ») s'applique au **choix**,
+   pas seulement à la validation *a posteriori*.
+
 ```json
 {
   "nom": "export-ppt-verifie",
@@ -123,6 +144,17 @@ rework gated** jusqu'à l'arbitrage utilisateur. Matérialisé par l'étape `gat
         "critere": "SI une passe (verification-rendu ou design-review) bute sur une décision produit NON TRANCHÉE (ex. radar vs tableau, valeur de palette/contraste) : produire UNE décision explicite à arbitrer — options rendues RÉELLEMENT (screenshot/rendu réel, jamais ASCII, cf. feedback_brainstorm_iteratif.md) + recommandation — et SUSPENDRE le rework gated jusqu'à l'arbitrage utilisateur. Ne jamais se contenter de re-noter le blocage et poursuivre (constat superviseur interaction, 2026-07-21). Étape conditionnelle : sautée si aucune décision produit n'est en suspens"
       },
       "checkpoint": "décision produit à arbitrer par l'utilisateur — présenter les options rendues + reco, ne pas trancher unilatéralement"
+    },
+    {
+      "id": "validation-utilisateur",
+      "agent": "session principale",
+      "mode": "cascade",
+      "modele": "(session)",
+      "contrat": {
+        "type": "reel",
+        "critere": "SI le changement touche l'INTENTION DESIGN (layout, taille de police, position/présence/échelle d'un élément, couleur — PAS un simple correctif de géométrie/bug) : présenter le RENDU RÉEL (images des slides touchées, PowerPoint COM) à l'utilisateur et obtenir sa VALIDATION EXPLICITE. Pour un élément à options de layout (placement/orientation/échelle/présence), présenter 2-3 VARIANTES rendues et faire choisir AVANT d'implémenter la version de production. La definition-of-done d'un livrable visuel est cette validation, pas 'tests + géométrie verts'. Étape conditionnelle : sautée uniquement pour un correctif purement technique sans intention design"
+      },
+      "checkpoint": "validation utilisateur du rendu réel OBLIGATOIRE avant commit — ne jamais committer ni déclarer 'fait/clos' un changement design-intent sans ce feu vert ; pour un élément à options, faire choisir sur variantes rendues avant d'implémenter"
     },
     {
       "id": "revue-increment",
