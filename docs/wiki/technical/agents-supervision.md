@@ -1,5 +1,5 @@
 ---
-updated: 2026-07-21
+updated: 2026-07-22
 generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, étage 1)
 ---
 
@@ -9,26 +9,26 @@ generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, ét
 > **Ne pas éditer à la main** — toute modification serait écrasée au prochain scan.
 > Conception et phasage : [../../reflexions/agent-superviseur.md](../../reflexions/agent-superviseur.md).
 
-Dernier scan : 2026-07-21T20:36:12+02:00 · **16 sessions** (transcripts) · **22** invocations de skills · **11** lancements de sous-agents.
+Dernier scan : 2026-07-22T02:34:40+02:00 · **16 sessions** (transcripts) · **24** invocations de skills · **12** lancements de sous-agents.
 
 ## Skills — usage réel
 
 | Skill | Famille | Invocations | Première | Dernière |
 | --- | --- | --- | --- | --- |
+| `revue-increment` | projet | 4 | 2026-07-21 | 2026-07-21 |
 | `roadmap-keeper` | global | 4 | 2026-06-22 | 2026-07-01 |
 | `run` | (builtin/session) | 4 | 2026-06-22 | 2026-07-21 |
-| `revue-increment` | projet | 3 | 2026-07-21 | 2026-07-21 |
+| `pptx-verify` | global | 3 | 2026-07-01 | 2026-07-21 |
 | `skill-creator` | global | 3 | 2026-06-24 | 2026-07-07 |
 | `agent-orchestrator` | projet | 2 | 2026-07-21 | 2026-07-21 |
 | `agent-supervisor` | projet | 2 | 2026-07-21 | 2026-07-21 |
 | `artifact-design` | (builtin/session) | 2 | 2026-07-07 | 2026-07-21 |
-| `pptx-verify` | global | 2 | 2026-07-01 | 2026-07-21 |
 
 ## Sous-agents
 
 | Sous-agent | Lancements | Premier | Dernier |
 | --- | --- | --- | --- |
-| `ppt-designer` | 3 | 2026-06-24 | 2026-07-21 |
+| `ppt-designer` | 4 | 2026-06-24 | 2026-07-21 |
 | `ui-designer` | 2 | 2026-07-01 | 2026-07-01 |
 | `ux-designer` | 2 | 2026-07-01 | 2026-07-01 |
 | `Explore` | 1 | 2026-07-08 | 2026-07-08 |
@@ -67,7 +67,7 @@ _Constats clos par décision humaine (`.claude/supervision/arbitrages.json`) —
 
 ## Diagnostic qualitatif (étage 2 — `agent-supervisor`)
 
-_Diagnostic à jour — rien à signaler, tous les constats précédents ont été arbitrés._
+_Diagnostic ⚠️ à relancer (> 14 j) — rien à signaler, tous les constats précédents ont été arbitrés._
 
 ---
 

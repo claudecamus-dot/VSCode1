@@ -69,9 +69,11 @@ thème du template (= charte OCTO) ; palette par pilier gardée pour les donnée
 
 **#3 radar vectoriel** : PNG Puppeteer remplacé par du vectoriel natif
 python-pptx (design aligné sur la trame du template, en-tête de section,
-parenthèses retirées **partout** via `joli_nom()`, réglette de paliers 0-3,
-césures propres). Les **2 décisions qui restaient ouvertes sont tranchées le
-2026-07-21** (arbitrage utilisateur sur rendu réel des deux surfaces) —
+parenthèses retirées **partout** via `joli_nom()`, césures propres ; la
+réglette de paliers 0-3 initialement ajoutée a été **retirée le 2026-07-22**,
+arbitrage utilisateur — l'espace est rendu au cercle). Les **2 décisions qui
+restaient ouvertes sont tranchées le 2026-07-21** (arbitrage utilisateur sur
+rendu réel des deux surfaces) —
 
 1. **Radar vs tableau** → **radar conservé et amélioré** (A/B/C écartées,
    exploration repartie large). Sur les DEUX surfaces (web
@@ -87,6 +89,15 @@ césures propres). Les **2 décisions qui restaient ouvertes sont tranchées le
 Vérifié au rendu réel (screenshot web + PowerPoint COM). **Résidu** : rendus web
 comparaison + pilotage non re-vérifiés (données DEV absentes) ; ellipse possible
 sur un libellé très long en PPT (repli volontaire, jamais de coupure silencieuse).
+
+**Finition 2026-07-22 (commit 561b956)** — suite de la revue déléguée (ppt-designer).
+Quatre constats résiduels traités et vérifiés au rendu réel : réglette radar retirée
+(#3, ci-dessus) ; widget d'amplitude unifié avec pastille « consensus » quand
+l'écart-type est nul (#5) ; cartes des slides « points » sans « moy. » recentrées sur
+leur contenu (#7) ; jauge « vue d'ensemble » sans comparaison resserrée (#8). **La revue
+design du deck est close côté code** (constats #1-#8 traités) ; reste hors code :
+coquilles du référentiel (« Existe-il », « sont organisé ») côté grille Excel source.
+Détail : [`../../export/points-amelioration-ppt.md`](../../export/points-amelioration-ppt.md).
 
 **TODO — débloqué, à reprendre** :
 
