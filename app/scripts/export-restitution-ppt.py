@@ -40,6 +40,20 @@ from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import pptx_deck as D
 
+# Echelle typographique du deck. Reduction globale ×0.9 ABANDONNEE (revue design
+# 2026-07-22, arbitrage utilisateur) : elle rapetissait le texte lisible (contexte,
+# legende, libelles radar) SANS agrandir les cartes (deja bloquees au plancher 6pt a
+# toute echelle) — donc contre-productive pour la lisibilite. Defaut = 1.0 (inchange) ;
+# le knob env reste, utile pour re-comparer une magnitude sans toucher au code. pptx_deck
+# n'a que ce deck pour consommateur, donc muter TYPE ici n'affecte aucun autre livrable.
+_ECHELLE_POLICE = float(os.environ.get("DECK_FONT_SCALE", "1.0"))
+if _ECHELLE_POLICE != 1.0:
+    D.TYPE = {k: round(v * _ECHELLE_POLICE, 2) for k, v in D.TYPE.items()}
+# Taille du titre de slide : le placeholder du template le fige (~28pt), non regi par TYPE.
+# Abaissee a 24pt — le titre etait le seul element vraiment surdimensionne ; on garde
+# CETTE reduction (arbitrage utilisateur) meme apres l'abandon de la reduction globale.
+TITRE_SLIDE_PT = 24.0
+
 TEMPLATE = os.path.join(os.path.dirname(__file__), "..", "..", "template ppt", "template.pptx")
 # Layouts repérés par NOM (robuste si on fournit un autre template dont l'ordre
 # des layouts diffère), avec repli sur l'indice du template OCTO d'origine.
@@ -149,6 +163,11 @@ def titre_slide(prs, layouts, texte):
     for ph in slide.placeholders:
         if ph.placeholder_format.idx == 0:
             ph.text_frame.text = texte
+            # Abaisse la taille du titre (le template la fige ~28pt) sans toucher
+            # a la police/couleur du placeholder (Outfit navy) : on ne change que size.
+            for para in ph.text_frame.paragraphs:
+                for run in para.runs:
+                    run.font.size = D.Pt(TITRE_SLIDE_PT)
             break
     return slide
 
@@ -320,17 +339,16 @@ def _chip(slide, x, y, w, prefixe, glyphe, pilier):
 # couleur-pilier par sommet, libelles d'axe colores par pilier, legende a
 # droite. Echelle fixe 0..3 (les 4 niveaux de reponse du referentiel).
 RADAR_MAX = 3
-# Largeur de legende ABSOLUE (pas un ratio du cote du radar) : sous ~1.0-1.3in de
-# largeur de texte utile, un mot seul de pilier ("Excellence", "Priorisation")
-# n'a plus la place de tenir sur une ligne et PowerPoint le coupe au milieu (pas
-# de cesure) — c'est cette contrainte de mot qui pilote la valeur, pas une
-# esthetique de proportion. Le cote du radar est plafonne en consequence : au-
-# dela, le panneau de DROITE (commentaire + evolution par pilier, qui se partage
-# la meme largeur de slide) n'aurait plus assez de place pour ses propres noms
-# de pilier sans la meme coupure.
-RADAR_LEGEND_W = 1.30
+# Cote max du cercle : le panneau de DROITE (commentaire + evolution par pilier)
+# se partage la largeur de slide et a besoin de place pour ses propres noms de pilier.
 RADAR_COTE_MAX = 3.75
-RADAR_GAP_LEGENDE = 0.20     # entre le cercle et la colonne de legende
+# Taille LISIBLE des libelles d'axe, propre au radar (pas soumise au ×0.9 global) :
+# au 0.9 ils tombaient a ~7pt, illisibles (retour utilisateur 2026-07-22). Le cercle
+# ayant de la place depuis que la legende est passee en bandeau horizontal au-dessus,
+# les libelles peuvent respirer plus gros. _taille_libelle_axe reduit dans cette borne
+# si un mot compose long l'exige, puis _forcer_cesure prend le relai.
+RADAR_LABEL_MAX = 9.0
+RADAR_LABEL_MIN = 8.0
 # Hauteur de ligne REELLE (pas juste la taille de police) : mesuree au rendu,
 # comme LH_QUESTION (0.195 pour small 10.5pt) — proportionnelle a la taille
 # pour tiny (9pt). Sous-estimer ceci fait deborder le texte de sa boite sans
@@ -344,9 +362,11 @@ RADAR_HEADER_H = 0.42
 
 def _cote_radar(w, h):
     """Cote (in) du carre du radar pour une boite (w, h) donnee — factorise
-    pour que slide_radar et _dessiner_radar (formes)
-    calculent EXACTEMENT la meme valeur, sans dupliquer la formule."""
-    return min(h, RADAR_COTE_MAX, w - RADAR_LEGEND_W - RADAR_GAP_LEGENDE)
+    pour que slide_radar et _dessiner_radar (formes) calculent EXACTEMENT la
+    meme valeur. La legende couleurs/series ayant ete deportee EN BANDEAU
+    HORIZONTAL au-dessus du cercle (revue design 2026-07-22), la boite n'a plus
+    a reserver de colonne de legende a droite : le cercle occupe toute sa boite."""
+    return min(h, RADAR_COTE_MAX, w)
 
 
 def _point_radar(cx, cy, rayon, i, n, valeur):
@@ -405,23 +425,22 @@ def _forcer_cesure(nom_axe, box_w, taille, cpi_ref=11.0, taille_ref=10.5,
     return " ".join(_cesurer_mot(m) for m in nom_axe.split(" "))
 
 
-def _dessiner_radar(slide, x, y, w, h, axes, piliers):
-    """Dessine le radar + sa legende dans la boite (x, y, w, h). `axes` =
-    [{nom, moyenne, precedent, pilierIndex}], `piliers` = [nom, ...] pour la
-    legende. Le radar est carre (cote plafonne a RADAR_COTE_MAX, cf. sa note),
-    aligne en haut a gauche de la boite, la legende (largeur fixe
-    RADAR_LEGEND_W) occupant le reste de la largeur. Les libelles d'axe et la
-    legende sont dimensionnes a leur contenu reel (pas une hauteur/largeur de
-    boite fixe devinee) pour ne jamais se chevaucher, quelle que soit la
-    longueur des noms de pilier/objectif."""
+def _dessiner_radar(slide, x, y, w, h, axes):
+    """Dessine le radar (grille + polygones + libelles d'axe) dans la boite
+    (x, y, w, h). `axes` = [{nom, moyenne, precedent, pilierIndex}]. La legende
+    couleurs/series est desormais dessinee SEPAREMENT en bandeau horizontal
+    au-dessus (cf. _legende_radar_horizontale) : ici le cercle occupe toute la
+    largeur de sa boite et les libelles d'axe peuvent s'etendre jusqu'aux bords
+    (plus de colonne de legende a droite a eviter). Les libelles sont
+    dimensionnes a leur contenu reel pour ne jamais se chevaucher."""
     n = len(axes)
     if n < 3:
         return  # radar illisible sous 3 axes : rien plutot qu'une forme deformee
     cote = _cote_radar(w, h)
-    x0, y0 = x, y + (h - cote) / 2   # centre verticalement si la largeur est la contrainte
+    x0, y0 = x + (w - cote) / 2, y + (h - cote) / 2   # cercle centre dans sa boite
     cx, cy = x0 + cote / 2, y0 + cote / 2
     rayon = cote * 0.27   # un peu retrait (vs 0.31) : laisse de la marge aux libelles d'axe
-    lx0 = x0 + cote + RADAR_GAP_LEGENDE   # abscisse de depart de la colonne de legende
+    rlim = x + w   # bord droit de la boite = limite des libelles cote droit (plus de legende)
 
     has_prev = any(a.get("precedent") is not None for a in axes)
 
@@ -466,27 +485,35 @@ def _dessiner_radar(slide, x, y, w, h, axes, piliers):
     # mot-a-mot (D.estimer_lignes) sous-estime le nombre de lignes reel quand
     # un seul mot (compose, frequent en francais — "Fonctionnement",
     # "Synchronisation") depasse a lui seul la largeur de la boite.
-    LARGEUR_MAX_LABEL, MAX_LIGNES_LABEL = 1.35, 3
+    # Largeur de libelle plus genereuse (1.7 vs 1.35) : la legende ayant quitte la
+    # droite du cercle, les libelles ont recupere de la place -> moins d'ellipses.
+    LARGEUR_MAX_LABEL, MAX_LIGNES_LABEL = 1.7, 3
     for i, a in enumerate(axes):
         ang = -math.pi / 2 + i * (2 * math.pi / n)
         cosang = math.cos(ang)
-        lx = cx + (rayon + cote * 0.05) * cosang
-        ly = cy + (rayon + cote * 0.05) * math.sin(ang)
+        # Libelles pousses un peu plus loin du cercle (0.075 vs 0.05) : degage les
+        # sommets voisins en haut/bas d'un radar dense (12 axes) ou les boites se touchent.
+        lx = cx + (rayon + cote * 0.075) * cosang
+        ly = cy + (rayon + cote * 0.075) * math.sin(ang)
         nom_axe = joli_nom(a.get("nom", ""))
         if cosang > 0.2:
-            box_w = max(0.65, min(LARGEUR_MAX_LABEL, lx0 - lx - 0.08))
+            box_w = max(0.65, min(LARGEUR_MAX_LABEL, rlim - lx - 0.08))
             box_x, align = lx, PP_ALIGN.LEFT
         elif cosang < -0.2:
-            box_w = max(0.65, min(LARGEUR_MAX_LABEL, lx - x0 - 0.08))
+            box_w = max(0.65, min(LARGEUR_MAX_LABEL, lx - x - 0.08))
             box_x, align = lx - box_w, PP_ALIGN.RIGHT
         else:
-            box_w = min(LARGEUR_MAX_LABEL, (lx0 - x0) - 0.16)
+            box_w = min(LARGEUR_MAX_LABEL, cote)
             box_x, align = lx - box_w / 2, PP_ALIGN.CENTER
         box_x = max(0.02, min(box_x, 10 - box_w - 0.02))
         # Reduit la taille AVANT le repli mot-a-mot si un mot seul ne tiendrait
         # pas dans box_w a la taille normale (cf. note _taille_libelle_axe) —
         # evite que PowerPoint coupe ce mot au milieu sans trait d'union.
-        taille_axe = _taille_libelle_axe(nom_axe, box_w)
+        # Les libelles d'axe ont une taille LISIBLE propre (RADAR_LABEL_*), non
+        # soumise au ×0.9 global : au 0.9 ils devenaient illisibles (~7pt), et le
+        # cercle a de la place depuis que la legende est passee en bandeau au-dessus.
+        taille_axe = _taille_libelle_axe(nom_axe, box_w, taille_max=RADAR_LABEL_MAX,
+                                         taille_min=RADAR_LABEL_MIN)
         nom_axe = _forcer_cesure(nom_axe, box_w, taille_axe)
         lh_axe = RADAR_LH * (taille_axe / D.TYPE["tiny"])
         nom_axe = D.tronquer_a_lignes(nom_axe, box_w, taille_axe, MAX_LIGNES_LABEL)
@@ -506,42 +533,41 @@ def _dessiner_radar(slide, x, y, w, h, axes, piliers):
                       "align": align, "line_spacing": 0.95})],
                    anchor=MSO_ANCHOR.MIDDLE, align=align)
 
-    # Legende : panneau vertical a droite du radar (puce + nom de pilier),
-    # puis "session courante"/"session precedente" si comparaison disponible.
-    # Chaque ligne est dimensionnee a son propre nombre de lignes reel (un nom
-    # court n'herite pas de la hauteur d'un nom long empile juste apres).
-    lw = (x + w) - lx0
-    if lw <= 0.50:
-        return
-    lignes_legende = [(i, joli_nom(nom),
-                       max(0.24, _lignes_radar(joli_nom(nom), lw - 0.26) * RADAR_LH + 0.09))
-                      for i, nom in enumerate(piliers)]
-    hauteur_comp = 0.62 if has_prev else 0.0
-    total_h = sum(rh for _, _, rh in lignes_legende) + hauteur_comp
-    if total_h > cote:  # garde-fou : ne jamais deborder de la bande (cas extreme,
-        echelle = cote / total_h                        # ex. tres nombreux piliers)
-        lignes_legende = [(i, t, rh * echelle) for i, t, rh in lignes_legende]
-        hauteur_comp *= echelle
-        total_h = cote
-    ly = y0 + max(0.0, (cote - total_h) / 2)
-    for i, txt, rh in lignes_legende:
-        D.add_dot(slide, lx0, ly + (min(rh, 0.30) - 0.14) / 2, 0.14, D.couleur_pilier(i))
-        D.add_text(slide, lx0 + 0.24, ly, lw - 0.24, rh,
-                   [(txt, {"size": D.TYPE["tiny"], "line_spacing": 1.0})],
-                   anchor=MSO_ANCHOR.MIDDLE)
-        ly += rh
+
+def _legende_radar_horizontale(slide, x, y, w, piliers, has_prev, couleur_aire):
+    """Legende du radar en BANDEAU HORIZONTAL (revue design 2026-07-22, arbitrage
+    utilisateur : la legende couleurs/series passe de la colonne droite a un bandeau
+    au-dessus du cercle). Puces couleur + nom de pilier, puis les deux cles de serie
+    (Session courante/precedente) si comparaison. Les items s'ecoulent de gauche a
+    droite et REVIENNENT A LA LIGNE quand ils depassent `w` (noms de pilier longs) —
+    largeur estimee sur le contenu, jamais devinee. Renvoie la hauteur totale utilisee."""
+    size = D.TYPE["tiny"]
+    cw = size * 0.0072          # largeur approx d'un caractere (in) a la taille tiny courante
+    dot, marqueur_ligne = 0.13, 0.30
+    gap_marqueur, gap_item, row_h, line_gap = 0.07, 0.30, 0.24, 0.07
+    items = [("dot", D.couleur_pilier(i), joli_nom(nom), D.INK) for i, nom in enumerate(piliers)]
     if has_prev:
-        ly += 0.10
-        D.add_line(slide, lx0, ly + 0.11, lx0 + 0.30, ly + 0.11, couleur_aire, width=2.5)
-        D.add_text(slide, lx0 + 0.38, ly, max(0.1, lw - 0.38), 0.22,
-                   [("Session courante", {"size": D.TYPE["tiny"], "color": D.MUTED})],
+        items.append(("line", couleur_aire, "Session courante", D.MUTED))
+        items.append(("dash", D.MUTED, "Session précédente", D.MUTED))
+    cx, cy = x, y
+    bottom = y + row_h
+    for kind, col, label, txt_col in items:
+        marqueur_w = dot if kind == "dot" else marqueur_ligne
+        tw = min(2.3, len(label) * cw)
+        item_w = marqueur_w + gap_marqueur + tw
+        if cx > x and cx + item_w > x + w + 1e-6:   # retour a la ligne
+            cx, cy = x, bottom + line_gap
+        if kind == "dot":
+            D.add_dot(slide, cx, cy + (row_h - dot) / 2, dot, col)
+        else:
+            D.add_line(slide, cx, cy + row_h / 2, cx + marqueur_w, cy + row_h / 2, col,
+                       width=2.5, dash=(D.DASH.DASH if kind == "dash" else None))
+        D.add_text(slide, cx + marqueur_w + gap_marqueur, cy, tw + 0.06, row_h,
+                   [(label, {"size": size, "color": txt_col, "line_spacing": 1.0})],
                    anchor=MSO_ANCHOR.MIDDLE)
-        ly += 0.26
-        D.add_line(slide, lx0, ly + 0.11, lx0 + 0.30, ly + 0.11, D.MUTED, width=2.5,
-                   dash=D.DASH.DASH)
-        D.add_text(slide, lx0 + 0.38, ly, max(0.1, lw - 0.38), 0.22,
-                   [("Session précédente", {"size": D.TYPE["tiny"], "color": D.MUTED})],
-                   anchor=MSO_ANCHOR.MIDDLE)
+        cx += item_w + gap_item
+        bottom = cy + row_h
+    return bottom - y
 
 
 def _hauteur_commentaire(texte, largeur_in):
@@ -570,23 +596,26 @@ def slide_radar(prs, layouts, bloc):
     # serveur — plus net qu'un PNG a toute resolution/impression, et editable.
     axes = bloc.get("objectifs") or []
     piliers_legende = [p.get("nom", "") for p in (bloc.get("piliers") or [])]
-    disponible_h = CONTENU_BOTTOM - CONTENU_TOP
-    # Largeur du radar+legende bornee par RADAR_COTE_MAX (cf. sa note) — pas
-    # juste par la hauteur disponible — pour garantir au panneau de droite
-    # (evolution par pilier) une colonne de noms utilisable.
-    gauche_w_max = RADAR_COTE_MAX + RADAR_GAP_LEGENDE + RADAR_LEGEND_W
+    # Bloc gauche = header + bandeau de legende horizontal + cercle. Largeur FIXE
+    # du bloc gauche (la legende n'est plus une colonne a droite qui l'elargissait) :
+    # laisse ~4.1in au panneau commentaire/evolution de droite.
+    LEFT_W = RADAR_COTE_MAX + 0.75   # 4.50 : cercle (<=3.75) centre + marge pour les libelles d'axe
     w = 0
     if len(axes) >= 3:
-        # Bandeau de section AU-DESSUS du cercle. La reglette horizontale 0-3 a ete
-        # RETIREE (2026-07-22, revue design) : un radar a une echelle RADIALE (anneaux),
-        # une reglette horizontale imitait un axe et induisait en erreur ; l'espace
-        # libere agrandit le radar.
-        radar_h = disponible_h - RADAR_HEADER_H
-        w = min(gauche_w_max, radar_h + RADAR_GAP_LEGENDE + RADAR_LEGEND_W)
-        cote = _cote_radar(w, radar_h)
+        # Bandeau de section AU-DESSUS du cercle (la reglette horizontale 0-3 a ete
+        # RETIREE le 2026-07-22 : trompeuse sur un radar radial).
+        w = LEFT_W
         _surtitre(slide, MARGE_X, CONTENU_TOP, w, "MATURITÉ PAR OBJECTIF")
-        top_radar = CONTENU_TOP + RADAR_HEADER_H
-        _dessiner_radar(slide, MARGE_X, top_radar, w, radar_h, axes, piliers_legende)
+        # Legende couleurs/series en bandeau horizontal, juste sous le header.
+        couleur_aire = D.couleur_pilier(0)
+        has_prev = any(a.get("precedent") is not None for a in axes)
+        leg_top = CONTENU_TOP + RADAR_HEADER_H
+        leg_h = _legende_radar_horizontale(slide, MARGE_X, leg_top, w,
+                                           piliers_legende, has_prev, couleur_aire)
+        # Cercle sous la legende, occupant toute la hauteur restante de la bande.
+        top_radar = leg_top + leg_h + 0.14
+        radar_h = CONTENU_BOTTOM - top_radar
+        _dessiner_radar(slide, MARGE_X, top_radar, w, radar_h, axes)
 
     GAP_RADAR_TEXTE = 0.30
     # Sans radar (referentiel < 3 objectifs), la colonne commentaire/evolution
@@ -711,11 +740,14 @@ def _entete_colonne(slide, x, w, glyphe, titre, sous):
 
 # Taille plancher des cartes de points forts/attention (voir D.ajuster_police).
 # En-dessous, le filet de securite de _cartes_colonne prend le relai (troncature
-# avec ellipse) plutot que de laisser une forme deborder de la slide. Abaisse a 6.0
-# (2026-07-22, choix utilisateur) : sur 3 questions longues par colonne, un texte plus
-# dense reduit la troncature — au prix d'un peu de densite, jamais sous 6pt (lisibilite).
+# avec ellipse) plutot que de laisser une forme deborder de la slide.
 TAILLE_MIN_CARTE = 6.0
 GAP_MIN, GAP_MAX = 0.14, 0.28
+# Nombre de cartes par colonne. 2 (2026-07-22, arbitrage utilisateur) : a 3 cartes, 3
+# questions longues + le chrome fixe (barre/contexte/marges) ne tenaient qu'au plancher
+# 6pt (illisible) ; a 2 cartes chaque question respire et prend une taille lisible. On
+# montre donc le top 2 par colonne.
+N_CARTES_MAX = 2
 
 
 # Hauteur d'une carte HORS question : gap(0.04) + contexte(0.17) + gap(0.10) +
@@ -809,7 +841,39 @@ def _widget_amplitude(slide, tx, ry, rw, mn, mx, moy):
         _label_moyenne(slide, tx, rw, ry, moy)
 
 
-def _cartes_colonne(slide, x, w, items, accent, rendu):
+def _taille_colonne(items, w):
+    """Taille de police qu'une colonne de cartes prendrait seule : la plus grande
+    entre `small` et TAILLE_MIN_CARTE telle que la pile des cartes tienne dans la
+    bande. Isolee de _cartes_colonne pour pouvoir calculer une taille COMMUNE a
+    plusieurs colonnes (cf. _taille_cartes_bloc)."""
+    items = items[:N_CARTES_MAX]
+    n = max(1, len(items))
+    band = CONTENU_BOTTOM - (CONTENU_TOP + 0.66)
+    tw_estim = w - 0.42
+    textes = [it.get("texte", "") for it in items]
+
+    def budget_ok(taille, _lignes_max):
+        gap = GAP_MIN if n > 1 else 0.0
+        hs = [_bloc_carte_h(D.estimer_lignes(t, tw_estim, taille), taille) + 0.26 for t in textes]
+        return sum(hs) + max(0, n - 1) * gap <= band
+
+    taille, _ = D.ajuster_police(textes, tw_estim, D.TYPE["small"], TAILLE_MIN_CARTE, budget_ok)
+    return taille
+
+
+def _taille_cartes_bloc(bloc, colw):
+    """Taille de carte COMMUNE aux slides Points forts (4) et Points d'attention (5)
+    d'un bloc (demande utilisateur 2026-07-22 : les deux slides doivent afficher la
+    MEME taille de texte). Prend le min des tailles que chaque colonne prendrait
+    seule — le min garantit que les 4 colonnes tiennent a cette taille unique."""
+    colonnes = [bloc.get("hauts", []), bloc.get("accords", []),
+                bloc.get("dispersion", []), bloc.get("faibles", [])]
+    tailles = [_taille_colonne(c, colw) for c in colonnes if c]
+    return min(tailles) if tailles else D.TYPE["small"]
+
+
+def _cartes_colonne(slide, x, w, items, accent, rendu, taille_forcee=None):
+    items = items[:N_CARTES_MAX]   # top N par colonne (cf. N_CARTES_MAX)
     n = max(1, len(items))
     top = CONTENU_TOP + 0.66
     band = CONTENU_BOTTOM - top
@@ -826,15 +890,10 @@ def _cartes_colonne(slide, x, w, items, accent, rendu):
         return [_bloc_carte_h(D.estimer_lignes(t, tw_estim, taille), taille) + PAD_CARTE
                 for t in textes]
 
-    def budget_ok(taille, _lignes_max):
-        gap = GAP_MIN if n > 1 else 0.0
-        return sum(hauteurs(taille)) + max(0, n - 1) * gap <= band
-
-    # Adapte la police a la longueur des phrases : la plus grande taille entre
-    # `small` et `TAILLE_MIN_CARTE` telle que la SOMME des n cartes (chacune a sa
-    # propre hauteur) tienne dans la bande disponible, plutot qu'un cap fixe a 2
-    # lignes qui debordait les questions longues (US "police lisible sur le PPT").
-    taille, _ = D.ajuster_police(textes, tw_estim, D.TYPE["small"], TAILLE_MIN_CARTE, budget_ok)
+    # `taille_forcee` (taille commune calculee sur plusieurs colonnes) prime ; sinon
+    # la colonne s'auto-ajuste (plus grande taille entre `small` et TAILLE_MIN_CARTE
+    # telle que la pile tienne). Le forcage sert a accorder les slides 4 et 5.
+    taille = taille_forcee if taille_forcee is not None else _taille_colonne(items, w)
     card_hs = hauteurs(taille)
     total = sum(card_hs)
     gap = max(GAP_MIN, min(GAP_MAX, (band - total) / (n - 1))) if n > 1 else 0.0
@@ -866,6 +925,8 @@ def slide_points(prs, layouts, bloc):
     colw = (BORD_DROIT - MARGE_X - 0.5) / 2
     xg, xd = MARGE_X, MARGE_X + colw + 0.5
     pad = 0.24                              # marge interne carte (apres le liseré)
+    # Taille de carte COMMUNE aux slides 4 et 5 (meme calcul dans slide_points_forts).
+    taille_cartes = _taille_cartes_bloc(bloc, colw)
 
     def rendu_dispersion(slide, x, y, w, h, q, taille, ql_max):
         tx = x + pad
@@ -922,10 +983,10 @@ def slide_points(prs, layouts, bloc):
 
     _entete_colonne(slide, xg, colw, "▼", "Plus forts désaccords",
                     "Forte dispersion des réponses — sujets à clarifier")
-    _cartes_colonne(slide, xg, colw, bloc.get("dispersion", []), D.INK, rendu_dispersion)
+    _cartes_colonne(slide, xg, colw, bloc.get("dispersion", []), D.INK, rendu_dispersion, taille_cartes)
     _entete_colonne(slide, xd, colw, "▼", "Scores les plus faibles",
                     "Maturité la plus basse — leviers de progrès prioritaires")
-    _cartes_colonne(slide, xd, colw, bloc.get("faibles", []), D.INK, rendu_faible)
+    _cartes_colonne(slide, xd, colw, bloc.get("faibles", []), D.INK, rendu_faible, taille_cartes)
 
 
 # ----------------------------------------------------------------------------
@@ -937,6 +998,9 @@ def slide_points_forts(prs, layouts, bloc):
     colw = (BORD_DROIT - MARGE_X - 0.5) / 2
     xg, xd = MARGE_X, MARGE_X + colw + 0.5
     pad = 0.24
+    # Taille de carte COMMUNE aux slides 4 et 5 (meme calcul dans slide_points) :
+    # les deux slides affichent ainsi la meme taille de texte.
+    taille_cartes = _taille_cartes_bloc(bloc, colw)
 
     def rendu_haut(slide, x, y, w, h, q, taille, ql_max):
         tx = x + pad
@@ -984,12 +1048,12 @@ def slide_points_forts(prs, layouts, bloc):
 
     _entete_colonne(slide, xg, colw, "▲", "Scores les plus hauts",
                     "Maturité la plus haute — points d'appui à valoriser")
-    _cartes_colonne(slide, xg, colw, bloc.get("hauts", []), D.INK, rendu_haut)
+    _cartes_colonne(slide, xg, colw, bloc.get("hauts", []), D.INK, rendu_haut, taille_cartes)
     _entete_colonne(slide, xd, colw, "▲", "Meilleurs accords",
                     "Dispersion la plus faible des réponses — consensus fort")
     accords = bloc.get("accords", [])
     if accords:
-        _cartes_colonne(slide, xd, colw, accords, D.INK, rendu_accord)
+        _cartes_colonne(slide, xd, colw, accords, D.INK, rendu_accord, taille_cartes)
     else:
         # Un accord n'a de sens qu'avec >= 2 reponses (ex. equipe a 1 seul
         # repondant) : etat vide explicite plutot qu'une colonne silencieuse.
