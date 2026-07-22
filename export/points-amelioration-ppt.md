@@ -62,6 +62,32 @@ dense, un libellé très long peut encore finir en **ellipse visible** (repli vo
 cf. « Rappels de méthode » — jamais de coupure silencieuse). Réduire l'ellipse = arbitrage
 layout (plus de lignes / cercle réduit) à investir séparément si besoin.
 
+## Revue inspirée des decks frères VSCode3/VSCode4 (2026-07-22, commit 274a424)
+
+Revue du deck **équipe** en s'inspirant des decks OCTO des projets frères sur le même
+template : `VSCode3/docs/cadrage-ppt/…cadrage-synthese.pptx` (32 slides, `generate_deck.py`)
+et `VSCode4/Exports/…dispositif écoute…v6.pptx` (15 slides). Langage visuel observé :
+titres assertifs `SECTION · phrase`, cartes à filet coloré, **pills** (CONFIRMÉ/DÉCISION),
+**bandeaux takeaway** (navy fort ou gris doux), notation en **pastilles**, **matrice 2×2**,
+**filet cyan** sous les labels de section.
+
+**Constat structurant** : ces decks sont colorés parce que leurs cartes sont dans un cadre
+**neutre** (verbatims, recommandations). Les slides « Points forts / Points d'attention » de
+CE deck sont monochromes **exprès** (décision #1 : la couleur du pilier — vert/rouge — entre
+en collision avec le sens force/faiblesse de la colonne). Re-colorer le filet des cartes en
+couleur pilier **rouvrirait #1** → écarté.
+
+**Retenu (arbitrage utilisateur, 1 enrichissement sur 4)** : **en-têtes de colonne épurés**.
+`_entete_colonne` — le carré navy plein + glyphe blanc devient le glyphe de sens (▲/▼) en
+navy **sans fond** + **filet cyan** de clôture (même grammaire que `_surtitre` /
+« MATURITÉ PAR PILIER » de la vue d'ensemble). #1 préservée : le sens reste porté par le
+glyphe, le cyan est un pur accent de charte. Vérifié rendu PowerPoint COM (slides 4 + 5).
+
+**Écartés par l'utilisateur** (ne pas re-proposer sans nouvelle demande) : pastille couleur
+du pilier sur les cartes (identité via objet graphique, aurait été conforme #1) ; retrait de
+la redondance « 0.0 écart-type » + pastille « consensus » sur les cartes d'accord ; bandeau
+de synthèse « so what » en bas des slides Points.
+
 ## Finition (2026-07-22) — suite de la revue déléguée (ppt-designer)
 
 Après le découplage couleur/sémantique (#1, commit 564045d) et la pastille radar (#2),
