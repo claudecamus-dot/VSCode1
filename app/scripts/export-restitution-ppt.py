@@ -203,7 +203,10 @@ def slide_vue_ensemble(prs, layouts, bloc):
     cx = MARGE_X + panel_w / 2
     # Bloc {label + jauge + tendance} centre dans le panneau.
     has_delta = glob_delta is not None
-    bloc_h = 0.26 + 2.0 + (0.55 if has_delta else 0.0)
+    # 0.30 = label + gap jusqu'a la jauge (gy = top0 + 0.30) ; 2.0 = jauge ; 0.56 = ligne
+    # de tendance quand comparaison. Colle au contenu reel pour un centrage exact
+    # (evite le leger vide en bas sans comparaison, cf. revue design).
+    bloc_h = 0.30 + 2.0 + (0.56 if has_delta else 0.0)
     top0 = band_top + (band_bot - band_top - bloc_h) / 2
     D.add_text(slide, MARGE_X, top0, panel_w, 0.24,
                [("MOYENNE GLOBALE", {"size": D.TYPE["tiny"], "bold": True, "color": D.MUTED,
@@ -333,45 +336,17 @@ RADAR_GAP_LEGENDE = 0.20     # entre le cercle et la colonne de legende
 # pour tiny (9pt). Sous-estimer ceci fait deborder le texte de sa boite sans
 # que le controle geometrique ne le voie (la FORME reste dans le cadre).
 RADAR_LH = 0.195 * 9 / 10.5   # ~0.167, hauteur de ligne tiny (9pt)
-# Bandeau de section (_surtitre, meme grammaire que "MATURITÉ PAR PILIER" sur
-# la vue d'ensemble) + reglette d'echelle 0..RADAR_MAX, reserves AU-DESSUS du
-# cercle — memes tailles/couleurs que la reglette sous les barres de
-# slide_vue_ensemble, pour donner un repere de lecture explicite du niveau
-# (les anneaux seuls ne disent pas "ceci = niveau 2").
+# Bandeau de section (_surtitre, meme grammaire que "MATURITÉ PAR PILIER" sur la
+# vue d'ensemble), reserve AU-DESSUS du cercle. (La reglette d'echelle horizontale
+# 0-3 a ete RETIREE le 2026-07-22 : trompeuse sur un radar radial, cf. revue design.)
 RADAR_HEADER_H = 0.42
-RADAR_ECHELLE_H = 0.30
 
 
 def _cote_radar(w, h):
     """Cote (in) du carre du radar pour une boite (w, h) donnee — factorise
-    pour que slide_radar (reglette d'echelle) et _dessiner_radar (formes)
+    pour que slide_radar et _dessiner_radar (formes)
     calculent EXACTEMENT la meme valeur, sans dupliquer la formule."""
     return min(h, RADAR_COTE_MAX, w - RADAR_LEGEND_W - RADAR_GAP_LEGENDE)
-
-
-def _echelle_radar(slide, x0, y, cote):
-    """Reglette d'echelle 0..RADAR_MAX au-dessus du cercle : mire la reglette
-    deja utilisee sous les barres de la vue d'ensemble (meme taille/couleur de
-    trait et de texte) — un repere explicite de "a quel niveau correspond
-    quel anneau", que les anneaux seuls (juste des cercles concentriques) ne
-    donnent pas."""
-    D.add_text(slide, x0, y, cote, 0.16,
-               [("NIVEAU DE MATURITÉ", {"size": D.TYPE["tiny"], "bold": True, "color": D.MUTED})])
-    ligne_y = y + 0.16
-    for g in range(RADAR_MAX + 1):
-        gx = x0 + cote * (g / RADAR_MAX)
-        D.add_rect(slide, gx - 0.005, ligne_y, 0.01, 0.09, fill=D.LINE)
-        # Le repere 0 (extremite gauche) et RADAR_MAX (extremite droite) du
-        # cercle : boite decalee + alignee vers l'INTERIEUR pour ne pas
-        # deborder du cercle, plutot que centree sur le trait.
-        if g == 0:
-            box_x, align = gx, PP_ALIGN.LEFT
-        elif g == RADAR_MAX:
-            box_x, align = gx - 0.30, PP_ALIGN.RIGHT
-        else:
-            box_x, align = gx - 0.15, PP_ALIGN.CENTER
-        D.add_text(slide, box_x, ligne_y + 0.08, 0.30, 0.16,
-                   [(str(g), {"size": D.TYPE["tiny"], "color": D.MUTED, "align": align})])
 
 
 def _point_radar(cx, cy, rayon, i, n, valeur):
@@ -602,14 +577,15 @@ def slide_radar(prs, layouts, bloc):
     gauche_w_max = RADAR_COTE_MAX + RADAR_GAP_LEGENDE + RADAR_LEGEND_W
     w = 0
     if len(axes) >= 3:
-        # Bandeau de section + reglette d'echelle reserves AU-DESSUS du cercle
-        # (memes tailles/couleurs que le reste du deck — voir leurs notes).
-        radar_h = disponible_h - RADAR_HEADER_H - RADAR_ECHELLE_H
+        # Bandeau de section AU-DESSUS du cercle. La reglette horizontale 0-3 a ete
+        # RETIREE (2026-07-22, revue design) : un radar a une echelle RADIALE (anneaux),
+        # une reglette horizontale imitait un axe et induisait en erreur ; l'espace
+        # libere agrandit le radar.
+        radar_h = disponible_h - RADAR_HEADER_H
         w = min(gauche_w_max, radar_h + RADAR_GAP_LEGENDE + RADAR_LEGEND_W)
         cote = _cote_radar(w, radar_h)
         _surtitre(slide, MARGE_X, CONTENU_TOP, w, "MATURITÉ PAR OBJECTIF")
-        _echelle_radar(slide, MARGE_X, CONTENU_TOP + RADAR_HEADER_H, cote)
-        top_radar = CONTENU_TOP + RADAR_HEADER_H + RADAR_ECHELLE_H
+        top_radar = CONTENU_TOP + RADAR_HEADER_H
         _dessiner_radar(slide, MARGE_X, top_radar, w, radar_h, axes, piliers_legende)
 
     GAP_RADAR_TEXTE = 0.30
@@ -748,16 +724,21 @@ GAP_MIN, GAP_MAX = 0.14, 0.28
 # le calcul inverse de ql_max dans _cartes_colonne — evite qu'un des deux derive de
 # l'autre. Le budget "barre" inclut le label "moy. X.X" pose sous le repere de moyenne
 # des widgets de dispersion (les cartes a barre simple gardent un peu de marge en bas).
-_CARTE_H_FIXE = 0.04 + 0.17 + 0.10 + 0.41   # = 0.72
+_CARTE_H_FIXE = 0.04 + 0.17 + 0.10 + 0.41   # = 0.72 : dimensionne TOUTES les cartes (budget commun)
+# Contenu REEL d'une carte "score" (barre + "sur 3", SANS ligne "moy.") : sert
+# uniquement a RE-CENTRER ces cartes (sinon, centrees sur le budget commun 0.72, elles
+# laissent un vide en bas la ou les cartes "dispersion" mettent leur "moy."). Ne change
+# ni le dimensionnement ni ql_max, donc pas la troncature.
+_CARTE_H_FIXE_SCORES = 0.04 + 0.17 + 0.10 + 0.28   # = 0.59
 
 
 # Hauteur du contenu d'une carte = question (ql lignes, a `taille` pt) + contexte
 # + barre. Seule la hauteur de la question depend de `taille` (contexte et barre
 # gardent une taille fixe) — les rendus placent leurs elements aux memes offsets,
 # d'ou cette source unique.
-def _bloc_carte_h(ql, taille=D.TYPE["small"]):
+def _bloc_carte_h(ql, taille=D.TYPE["small"], fixe=_CARTE_H_FIXE):
     lh = LH_QUESTION * (taille / D.TYPE["small"])
-    return ql * lh + _CARTE_H_FIXE
+    return ql * lh + fixe
 
 
 def _texte_et_lignes(texte, tw, taille, ql_max):
@@ -806,6 +787,27 @@ def _label_moyenne(slide, tx, rw, ry, moy):
                [(f"moy. {fmt(moy)}", {"size": D.TYPE["tiny"], "color": D.MUTED,
                                       "align": PP_ALIGN.CENTER})],
                align=PP_ALIGN.CENTER)
+
+
+def _widget_amplitude(slide, tx, ry, rw, mn, mx, moy):
+    """Widget de dispersion mutualise (cartes accords/desaccords) : barre d'amplitude
+    min–max slate + repere de moyenne navy + label 'moy. X.X'. Cas dispersion NULLE
+    (min==max) : une pastille pleine 'consensus' a la moyenne + mention explicite,
+    plutot qu'un repere isole sur une piste vide (qui se lit comme une barre cassee)."""
+    consensus = moy is not None and mn is not None and mx is not None and (mx - mn) < 1e-6
+    D.add_range_bar(slide, tx, ry, rw, 0.13, mn, mx, 3.0, D.MUTED,
+                    marker=None if consensus else moy)
+    if consensus:
+        px = tx + rw * max(0.0, min(1.0, moy / 3.0))
+        pill_w = 0.44
+        D.add_rect(slide, max(tx, min(px - pill_w / 2, tx + rw - pill_w)), ry, pill_w, 0.13,
+                   fill=D.INK, rounded=True, radius=0.5)
+        D.add_text(slide, max(tx, min(px - 0.55, tx + rw - 1.1)), ry + 0.19, 1.1, 0.16,
+                   [(f"moy. {fmt(moy)} · consensus",
+                     {"size": D.TYPE["tiny"], "color": D.MUTED, "align": PP_ALIGN.CENTER})],
+                   align=PP_ALIGN.CENTER)
+    else:
+        _label_moyenne(slide, tx, rw, ry, moy)
 
 
 def _cartes_colonne(slide, x, w, items, accent, rendu):
@@ -887,11 +889,7 @@ def slide_points(prs, layouts, bloc):
         rw = w - pad - 1.55
         mn = q.get("min") if q.get("min") is not None else 0
         mx = q.get("max") if q.get("max") is not None else 3
-        # Barre d'amplitude en slate (secondaire) pour que le repere de moyenne (navy
-        # D.INK, pose par add_range_bar) ressorte — sinon repere navy sur barre navy.
-        D.add_range_bar(slide, tx, ry, rw, 0.13, mn, mx, 3.0, D.MUTED,
-                        marker=q.get("moyenne"))
-        _label_moyenne(slide, tx, rw, ry, q.get("moyenne"))
+        _widget_amplitude(slide, tx, ry, rw, mn, mx, q.get("moyenne"))
         # La plage min–max est deja montree par la barre ; on n'affiche que la
         # metrique de classement, nommee en clair (et non l'abreviation "é-t").
         _valeur_cote_barre(slide, tx + rw + 0.14, ry, w - pad - rw - 0.20,
@@ -905,7 +903,7 @@ def slide_points(prs, layouts, bloc):
         tx = x + pad
         tw = w - pad - 0.18
         texte, ql = _texte_et_lignes(q.get("texte", ""), tw, taille, ql_max)
-        top0 = y + (h - _bloc_carte_h(ql, taille)) / 2
+        top0 = y + (h - _bloc_carte_h(ql, taille, _CARTE_H_FIXE_SCORES)) / 2   # carte sans "moy." : centrer sur le contenu reel
         qh = ql * LH_QUESTION * (taille / D.TYPE["small"])
         D.add_text(slide, tx, top0, tw, qh,
                    [(texte, {"size": taille, "bold": True,
@@ -945,7 +943,7 @@ def slide_points_forts(prs, layouts, bloc):
         tx = x + pad
         tw = w - pad - 0.18
         texte, ql = _texte_et_lignes(q.get("texte", ""), tw, taille, ql_max)
-        top0 = y + (h - _bloc_carte_h(ql, taille)) / 2
+        top0 = y + (h - _bloc_carte_h(ql, taille, _CARTE_H_FIXE_SCORES)) / 2   # carte sans "moy." : centrer sur le contenu reel
         qh = ql * LH_QUESTION * (taille / D.TYPE["small"])
         D.add_text(slide, tx, top0, tw, qh,
                    [(texte, {"size": taille, "bold": True, "line_spacing": 0.96})])
@@ -977,8 +975,7 @@ def slide_points_forts(prs, layouts, bloc):
         rw = w - pad - 1.55
         mn = q.get("min") if q.get("min") is not None else 0
         mx = q.get("max") if q.get("max") is not None else 3
-        D.add_range_bar(slide, tx, ry, rw, 0.13, mn, mx, 3.0, D.MUTED, marker=q.get("moyenne"))
-        _label_moyenne(slide, tx, rw, ry, q.get("moyenne"))
+        _widget_amplitude(slide, tx, ry, rw, mn, mx, q.get("moyenne"))
         _valeur_cote_barre(slide, tx + rw + 0.14, ry, w - pad - rw - 0.20,
                            [(fmt(q.get("ecartType")),
                              {"size": D.TYPE["h3"], "bold": True, "color": D.INK,
