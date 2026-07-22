@@ -268,22 +268,24 @@ def slide_vue_ensemble(prs, layouts, bloc):
                               "align": PP_ALIGN.CENTER})])
 
     # --- Bandeau bas : point fort / a renforcer ---
-    valides = [(p["nom"], p["moyenne"]) for p in piliers if p.get("moyenne") is not None]
+    valides = [(i, p["nom"], p["moyenne"]) for i, p in enumerate(piliers) if p.get("moyenne") is not None]
     if valides:
-        fort = max(valides, key=lambda x: x[1])
-        faible = min(valides, key=lambda x: x[1])
+        fort = max(valides, key=lambda x: x[2])
+        faible = min(valides, key=lambda x: x[2])
         band_w = BORD_DROIT - MARGE_X            # s'arrete avant le badge n° de slide
         D.add_rect(slide, MARGE_X, chips_top, band_w, 0.52,
                    fill=FOND_PANNEAU, line=D.LINE, line_w=0.75, rounded=True, radius=RADIUS)
         mid = MARGE_X + band_w / 2               # divise le bandeau en deux moities egales
-        _chip(slide, MARGE_X + 0.30, chips_top, mid - MARGE_X - 0.30, "Point fort", fort, D.OK)
+        _chip(slide, MARGE_X + 0.30, chips_top, mid - MARGE_X - 0.30, "Point fort", "▲", fort)
         D.add_rect(slide, mid, chips_top + 0.10, 0.012, 0.32, fill=D.LINE)
-        _chip(slide, mid + 0.30, chips_top, BORD_DROIT - mid - 0.30, "À renforcer", faible, D.WARN)
+        _chip(slide, mid + 0.30, chips_top, BORD_DROIT - mid - 0.30, "À renforcer", "▼", faible)
 
 
-def _chip(slide, x, y, w, prefixe, pilier, dot):
-    D.add_dot(slide, x, y + 0.20, 0.13, dot)
-    nom, moy = pilier
+def _chip(slide, x, y, w, prefixe, glyphe, pilier):
+    # Pastille = couleur d'IDENTITE du pilier nomme (mire sa barre au-dessus) ; le
+    # SENS (force/faiblesse) est porte par le glyphe ▲/▼, plus par la couleur.
+    idx, nom, moy = pilier
+    D.add_dot(slide, x, y + 0.20, 0.13, D.couleur_pilier(idx))
     box = slide.shapes.add_textbox(Inches(x + 0.24), Inches(y), Inches(w - 0.24), Inches(0.52))
     tf = box.text_frame
     tf.word_wrap = True
@@ -292,13 +294,15 @@ def _chip(slide, x, y, w, prefixe, pilier, dot):
     for m in ("margin_left", "margin_right", "margin_top", "margin_bottom"):
         setattr(tf, m, 0)
     p = tf.paragraphs[0]
+    rg = p.add_run(); rg.text = f"{glyphe} "
+    rg.font.size = D.Pt(D.TYPE["small"]); rg.font.bold = True; rg.font.color.rgb = D.rgb(D.INK)
     r1 = p.add_run(); r1.text = f"{prefixe} : "
     r1.font.size = D.Pt(D.TYPE["small"]); r1.font.color.rgb = D.rgb(D.MUTED)
     r2 = p.add_run(); r2.text = f"{joli_nom(nom)} — {fmt(moy)} / 3"
     r2.font.size = D.Pt(D.TYPE["small"]); r2.font.bold = True; r2.font.color.rgb = D.rgb(D.INK)
     if D.POLICE:                        # meme police de marque que le reste du deck
-        r1.font.name = D.POLICE
-        r2.font.name = D.POLICE
+        for r in (rg, r1, r2):
+            r.font.name = D.POLICE
 
 
 # ----------------------------------------------------------------------------
@@ -517,9 +521,9 @@ def _dessiner_radar(slide, x, y, w, h, axes, piliers):
         # TEXTE a la pastille — libellés en D.INK (lisibilité + contraste WCAG ; le
         # gold #b8860b en texte échouait a 3.25:1), non gras (moins lourd, moins de
         # collisions). Mire le radar web (pastille + texte foncé, comme la légende).
-        dd = max(0.07, cote * 0.015)
-        drx = cx + (rayon + cote * 0.028) * cosang
-        dry = cy + (rayon + cote * 0.028) * math.sin(ang)
+        dd = max(0.06, cote * 0.013)
+        drx = cx + (rayon + cote * 0.012) * cosang   # juste hors du cercle : degage le libelle (a rayon+0.05*cote)
+        dry = cy + (rayon + cote * 0.012) * math.sin(ang)
         D.add_dot(slide, drx - dd / 2, dry - dd / 2, dd, D.couleur_pilier(a.get("pilierIndex", 0)))
         D.add_text(slide, box_x, ly - box_h / 2, box_w, box_h,
                    [(nom_axe, {"size": taille_axe, "bold": False,
@@ -713,10 +717,16 @@ def slide_radar(prs, layouts, bloc):
 # ----------------------------------------------------------------------------
 # Slide 3 : Points d'attention (cartes)
 # ----------------------------------------------------------------------------
-def _entete_colonne(slide, x, w, marqueur, titre, sous):
-    """Pastille couleur + titre de colonne + sous-titre, puis filet fin."""
-    D.add_rect(slide, x, CONTENU_TOP - 0.02, 0.18, 0.18, fill=marqueur,
+def _entete_colonne(slide, x, w, glyphe, titre, sous):
+    """Marqueur navy portant un glyphe de SENS (▲ positif / ▼ à travailler) + titre +
+    sous-titre, puis filet fin. La couleur n'encode plus le sens (force/faiblesse) —
+    reservee a l'identite des piliers ; le sens passe par le glyphe."""
+    D.add_rect(slide, x, CONTENU_TOP - 0.02, 0.18, 0.18, fill=D.INK,
                rounded=True, radius=0.30)
+    D.add_text(slide, x, CONTENU_TOP - 0.055, 0.18, 0.24,
+               [(glyphe, {"size": D.TYPE["tiny"], "bold": True, "color": "#ffffff",
+                          "align": PP_ALIGN.CENTER})],
+               anchor=MSO_ANCHOR.MIDDLE, align=PP_ALIGN.CENTER)
     D.add_text(slide, x + 0.30, CONTENU_TOP - 0.10, w - 0.30, 0.34,
                [(titre, {"size": D.TYPE["h3"], "bold": True})])
     D.add_text(slide, x + 0.30, CONTENU_TOP + 0.26, w - 0.30, 0.22,
@@ -877,14 +887,16 @@ def slide_points(prs, layouts, bloc):
         rw = w - pad - 1.55
         mn = q.get("min") if q.get("min") is not None else 0
         mx = q.get("max") if q.get("max") is not None else 3
-        D.add_range_bar(slide, tx, ry, rw, 0.13, mn, mx, 3.0, D.GOLD,
+        # Barre d'amplitude en slate (secondaire) pour que le repere de moyenne (navy
+        # D.INK, pose par add_range_bar) ressorte — sinon repere navy sur barre navy.
+        D.add_range_bar(slide, tx, ry, rw, 0.13, mn, mx, 3.0, D.MUTED,
                         marker=q.get("moyenne"))
         _label_moyenne(slide, tx, rw, ry, q.get("moyenne"))
         # La plage min–max est deja montree par la barre ; on n'affiche que la
         # metrique de classement, nommee en clair (et non l'abreviation "é-t").
         _valeur_cote_barre(slide, tx + rw + 0.14, ry, w - pad - rw - 0.20,
                            [(fmt(q.get("ecartType")),
-                             {"size": D.TYPE["h3"], "bold": True, "color": D.GOLD,
+                             {"size": D.TYPE["h3"], "bold": True, "color": D.INK,
                               "align": PP_ALIGN.RIGHT}),
                             ("écart-type", {"size": D.TYPE["tiny"], "color": D.MUTED,
                                             "align": PP_ALIGN.RIGHT})])
@@ -904,19 +916,19 @@ def slide_points(prs, layouts, bloc):
         ry = top0 + qh + 0.31
         rw = w - pad - 1.35
         moy = q.get("moyenne")
-        D.add_hbar(slide, tx, ry, rw, 0.13, (moy / 3.0) if moy is not None else 0, "#cf7b74")
+        D.add_hbar(slide, tx, ry, rw, 0.13, (moy / 3.0) if moy is not None else 0, D.INK)
         _valeur_cote_barre(slide, tx + rw + 0.14, ry, w - pad - rw - 0.20,
-                           [(fmt(moy), {"size": D.TYPE["h3"], "bold": True, "color": D.WARN,
+                           [(fmt(moy), {"size": D.TYPE["h3"], "bold": True, "color": D.INK,
                                         "align": PP_ALIGN.RIGHT}),
                             ("sur 3", {"size": D.TYPE["tiny"], "color": D.MUTED,
                                        "align": PP_ALIGN.RIGHT})])
 
-    _entete_colonne(slide, xg, colw, D.GOLD, "Plus forts désaccords",
+    _entete_colonne(slide, xg, colw, "▼", "Plus forts désaccords",
                     "Forte dispersion des réponses — sujets à clarifier")
-    _cartes_colonne(slide, xg, colw, bloc.get("dispersion", []), D.GOLD, rendu_dispersion)
-    _entete_colonne(slide, xd, colw, D.WARN, "Scores les plus faibles",
+    _cartes_colonne(slide, xg, colw, bloc.get("dispersion", []), D.INK, rendu_dispersion)
+    _entete_colonne(slide, xd, colw, "▼", "Scores les plus faibles",
                     "Maturité la plus basse — leviers de progrès prioritaires")
-    _cartes_colonne(slide, xd, colw, bloc.get("faibles", []), D.WARN, rendu_faible)
+    _cartes_colonne(slide, xd, colw, bloc.get("faibles", []), D.INK, rendu_faible)
 
 
 # ----------------------------------------------------------------------------
@@ -943,9 +955,9 @@ def slide_points_forts(prs, layouts, bloc):
         ry = top0 + qh + 0.31
         rw = w - pad - 1.35
         moy = q.get("moyenne")
-        D.add_hbar(slide, tx, ry, rw, 0.13, (moy / 3.0) if moy is not None else 0, D.OK)
+        D.add_hbar(slide, tx, ry, rw, 0.13, (moy / 3.0) if moy is not None else 0, D.INK)
         _valeur_cote_barre(slide, tx + rw + 0.14, ry, w - pad - rw - 0.20,
-                           [(fmt(moy), {"size": D.TYPE["h3"], "bold": True, "color": D.OK,
+                           [(fmt(moy), {"size": D.TYPE["h3"], "bold": True, "color": D.INK,
                                         "align": PP_ALIGN.RIGHT}),
                             ("sur 3", {"size": D.TYPE["tiny"], "color": D.MUTED,
                                        "align": PP_ALIGN.RIGHT})])
@@ -965,23 +977,23 @@ def slide_points_forts(prs, layouts, bloc):
         rw = w - pad - 1.55
         mn = q.get("min") if q.get("min") is not None else 0
         mx = q.get("max") if q.get("max") is not None else 3
-        D.add_range_bar(slide, tx, ry, rw, 0.13, mn, mx, 3.0, D.OK, marker=q.get("moyenne"))
+        D.add_range_bar(slide, tx, ry, rw, 0.13, mn, mx, 3.0, D.MUTED, marker=q.get("moyenne"))
         _label_moyenne(slide, tx, rw, ry, q.get("moyenne"))
         _valeur_cote_barre(slide, tx + rw + 0.14, ry, w - pad - rw - 0.20,
                            [(fmt(q.get("ecartType")),
-                             {"size": D.TYPE["h3"], "bold": True, "color": D.OK,
+                             {"size": D.TYPE["h3"], "bold": True, "color": D.INK,
                               "align": PP_ALIGN.RIGHT}),
                             ("écart-type", {"size": D.TYPE["tiny"], "color": D.MUTED,
                                             "align": PP_ALIGN.RIGHT})])
 
-    _entete_colonne(slide, xg, colw, D.OK, "Scores les plus hauts",
+    _entete_colonne(slide, xg, colw, "▲", "Scores les plus hauts",
                     "Maturité la plus haute — points d'appui à valoriser")
-    _cartes_colonne(slide, xg, colw, bloc.get("hauts", []), D.OK, rendu_haut)
-    _entete_colonne(slide, xd, colw, D.OK, "Meilleurs accords",
+    _cartes_colonne(slide, xg, colw, bloc.get("hauts", []), D.INK, rendu_haut)
+    _entete_colonne(slide, xd, colw, "▲", "Meilleurs accords",
                     "Dispersion la plus faible des réponses — consensus fort")
     accords = bloc.get("accords", [])
     if accords:
-        _cartes_colonne(slide, xd, colw, accords, D.OK, rendu_accord)
+        _cartes_colonne(slide, xd, colw, accords, D.INK, rendu_accord)
     else:
         # Un accord n'a de sens qu'avec >= 2 reponses (ex. equipe a 1 seul
         # repondant) : etat vide explicite plutot qu'une colonne silencieuse.
