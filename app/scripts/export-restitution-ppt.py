@@ -341,7 +341,7 @@ def _chip(slide, x, y, w, prefixe, glyphe, pilier):
 RADAR_MAX = 3
 # Cote max du cercle : le panneau de DROITE (commentaire + evolution par pilier)
 # se partage la largeur de slide et a besoin de place pour ses propres noms de pilier.
-RADAR_COTE_MAX = 3.75
+RADAR_COTE_MAX = 4.2
 # Taille LISIBLE des libelles d'axe, propre au radar (pas soumise au ×0.9 global) :
 # au 0.9 ils tombaient a ~7pt, illisibles (retour utilisateur 2026-07-22). Le cercle
 # ayant de la place depuis que la legende est passee en bandeau horizontal au-dessus,
@@ -428,10 +428,9 @@ def _forcer_cesure(nom_axe, box_w, taille, cpi_ref=11.0, taille_ref=10.5,
 def _dessiner_radar(slide, x, y, w, h, axes):
     """Dessine le radar (grille + polygones + libelles d'axe) dans la boite
     (x, y, w, h). `axes` = [{nom, moyenne, precedent, pilierIndex}]. La legende
-    couleurs/series est desormais dessinee SEPAREMENT en bandeau horizontal
-    au-dessus (cf. _legende_radar_horizontale) : ici le cercle occupe toute la
-    largeur de sa boite et les libelles d'axe peuvent s'etendre jusqu'aux bords
-    (plus de colonne de legende a droite a eviter). Les libelles sont
+    couleurs/series est dessinee SEPAREMENT (cf. _legende_radar_verticale, colonne
+    a droite du cercle sur la slide radar dediee) : ici le cercle est centre dans
+    sa boite et les libelles d'axe s'etendent dans les marges. Les libelles sont
     dimensionnes a leur contenu reel pour ne jamais se chevaucher."""
     n = len(axes)
     if n < 3:
@@ -439,7 +438,7 @@ def _dessiner_radar(slide, x, y, w, h, axes):
     cote = _cote_radar(w, h)
     x0, y0 = x + (w - cote) / 2, y + (h - cote) / 2   # cercle centre dans sa boite
     cx, cy = x0 + cote / 2, y0 + cote / 2
-    rayon = cote * 0.27   # un peu retrait (vs 0.31) : laisse de la marge aux libelles d'axe
+    rayon = cote * 0.37   # grille agrandie (slide radar dediee) : les libelles ont la largeur pour respirer
     rlim = x + w   # bord droit de la boite = limite des libelles cote droit (plus de legende)
 
     has_prev = any(a.get("precedent") is not None for a in axes)
@@ -485,9 +484,10 @@ def _dessiner_radar(slide, x, y, w, h, axes):
     # mot-a-mot (D.estimer_lignes) sous-estime le nombre de lignes reel quand
     # un seul mot (compose, frequent en francais — "Fonctionnement",
     # "Synchronisation") depasse a lui seul la largeur de la boite.
-    # Largeur de libelle plus genereuse (1.7 vs 1.35) : la legende ayant quitte la
-    # droite du cercle, les libelles ont recupere de la place -> moins d'ellipses.
-    LARGEUR_MAX_LABEL, MAX_LIGNES_LABEL = 1.7, 3
+    # Largeur de libelle genereuse (2.1) : le radar occupe desormais une slide dediee
+    # pleine largeur -> de larges marges laterales pour etaler les libelles d'axe sans
+    # ellipse ni collision (meme les longs comme "Orientation client et pilotage...").
+    LARGEUR_MAX_LABEL, MAX_LIGNES_LABEL = 2.1, 3
     for i, a in enumerate(axes):
         ang = -math.pi / 2 + i * (2 * math.pi / n)
         cosang = math.cos(ang)
@@ -534,40 +534,43 @@ def _dessiner_radar(slide, x, y, w, h, axes):
                    anchor=MSO_ANCHOR.MIDDLE, align=align)
 
 
-def _legende_radar_horizontale(slide, x, y, w, piliers, has_prev, couleur_aire):
-    """Legende du radar en BANDEAU HORIZONTAL (revue design 2026-07-22, arbitrage
-    utilisateur : la legende couleurs/series passe de la colonne droite a un bandeau
-    au-dessus du cercle). Puces couleur + nom de pilier, puis les deux cles de serie
-    (Session courante/precedente) si comparaison. Les items s'ecoulent de gauche a
-    droite et REVIENNENT A LA LIGNE quand ils depassent `w` (noms de pilier longs) —
-    largeur estimee sur le contenu, jamais devinee. Renvoie la hauteur totale utilisee."""
+def _legende_radar_verticale(slide, x, y, w, h, piliers, has_prev, couleur_aire):
+    """Légende du radar en colonne VERTICALE, compacte, calée à droite du cercle et
+    CENTRÉE verticalement dans la hauteur `h` (demande utilisateur 2026-07-22 : légende
+    à droite en plus petit, radar recentré/agrandi). Puce couleur + nom de pilier par
+    ligne, puis les deux clés de série (Session courante/précédente). Chaque ligne est
+    dimensionnée à son propre nombre de lignes réel (un nom court n'hérite pas de la
+    hauteur d'un nom long)."""
     size = D.TYPE["tiny"]
-    cw = size * 0.0072          # largeur approx d'un caractere (in) a la taille tiny courante
-    dot, marqueur_ligne = 0.13, 0.30
-    gap_marqueur, gap_item, row_h, line_gap = 0.07, 0.30, 0.24, 0.07
-    items = [("dot", D.couleur_pilier(i), joli_nom(nom), D.INK) for i, nom in enumerate(piliers)]
+    dot = 0.12
+    rows = [(i, joli_nom(nom),
+             max(0.24, D.estimer_lignes(joli_nom(nom), w - 0.24, size) * RADAR_LH + 0.08))
+            for i, nom in enumerate(piliers)]
+    comp_h = (0.14 + 2 * 0.24) if has_prev else 0.0
+    total = sum(rh for _, _, rh in rows) + comp_h
+    if total > h:   # garde-fou : jamais deborder (beaucoup de piliers)
+        f = h / total
+        rows = [(i, t, rh * f) for i, t, rh in rows]
+        comp_h *= f
+        total = h
+    cy = y + max(0.0, (h - total) / 2)   # centrage vertical
+    for i, txt, rh in rows:
+        D.add_dot(slide, x, cy + (min(rh, 0.28) - dot) / 2, dot, D.couleur_pilier(i))
+        D.add_text(slide, x + 0.24, cy, w - 0.24, rh,
+                   [(txt, {"size": size, "line_spacing": 1.0})], anchor=MSO_ANCHOR.MIDDLE)
+        cy += rh
     if has_prev:
-        items.append(("line", couleur_aire, "Session courante", D.MUTED))
-        items.append(("dash", D.MUTED, "Session précédente", D.MUTED))
-    cx, cy = x, y
-    bottom = y + row_h
-    for kind, col, label, txt_col in items:
-        marqueur_w = dot if kind == "dot" else marqueur_ligne
-        tw = min(2.3, len(label) * cw)
-        item_w = marqueur_w + gap_marqueur + tw
-        if cx > x and cx + item_w > x + w + 1e-6:   # retour a la ligne
-            cx, cy = x, bottom + line_gap
-        if kind == "dot":
-            D.add_dot(slide, cx, cy + (row_h - dot) / 2, dot, col)
-        else:
-            D.add_line(slide, cx, cy + row_h / 2, cx + marqueur_w, cy + row_h / 2, col,
-                       width=2.5, dash=(D.DASH.DASH if kind == "dash" else None))
-        D.add_text(slide, cx + marqueur_w + gap_marqueur, cy, tw + 0.06, row_h,
-                   [(label, {"size": size, "color": txt_col, "line_spacing": 1.0})],
+        cy += 0.12
+        D.add_line(slide, x, cy + 0.10, x + 0.28, cy + 0.10, couleur_aire, width=2.5)
+        D.add_text(slide, x + 0.34, cy, w - 0.34, 0.22,
+                   [("Session courante", {"size": size, "color": D.MUTED})],
                    anchor=MSO_ANCHOR.MIDDLE)
-        cx += item_w + gap_item
-        bottom = cy + row_h
-    return bottom - y
+        cy += 0.24
+        D.add_line(slide, x, cy + 0.10, x + 0.28, cy + 0.10, D.MUTED, width=2.5,
+                   dash=D.DASH.DASH)
+        D.add_text(slide, x + 0.34, cy, w - 0.34, 0.22,
+                   [("Session précédente", {"size": size, "color": D.MUTED})],
+                   anchor=MSO_ANCHOR.MIDDLE)
 
 
 def _hauteur_commentaire(texte, largeur_in):
@@ -585,138 +588,115 @@ def _hauteur_commentaire(texte, largeur_in):
 
 
 def slide_radar(prs, layouts, bloc):
+    """Slide DÉDIÉE au radar (scindée du commentaire/progression le 2026-07-22,
+    demande utilisateur) : le radar occupe toute la largeur de contenu -> cercle
+    centré et libellés d'axe qui s'étalent dans de larges marges (plus d'ellipse,
+    pas de collision). Le commentaire et la progression vivent sur slide_progression,
+    juste après. Vectoriel (pptx_deck.add_polygon/add_line) à partir des mêmes
+    données (objectifs/piliers) que le PNG serveur — net à toute résolution, éditable."""
     slide = titre_slide(prs, layouts, f"{bloc['nom']} — Radar de maturité")
-
-    # Radar aligne a gauche (marge), dimensionne a sa hauteur disponible ; le
-    # panneau de texte a droite demarre juste apres la largeur REELLE occupee
-    # par le radar (calculee ci-dessous), pas a une frontiere fixe — ce qui
-    # evite tout vide entre le radar et le texte quel que soit son ratio.
-    # Vectoriel (pptx_deck.add_polygon/add_line) a partir des memes donnees
-    # (objectifs/piliers) que celles utilisees pour rasteriser le PNG cote
-    # serveur — plus net qu'un PNG a toute resolution/impression, et editable.
     axes = bloc.get("objectifs") or []
     piliers_legende = [p.get("nom", "") for p in (bloc.get("piliers") or [])]
-    # Bloc gauche = header + bandeau de legende horizontal + cercle. Largeur FIXE
-    # du bloc gauche (la legende n'est plus une colonne a droite qui l'elargissait) :
-    # laisse ~4.1in au panneau commentaire/evolution de droite.
-    LEFT_W = RADAR_COTE_MAX + 0.75   # 4.50 : cercle (<=3.75) centre + marge pour les libelles d'axe
-    w = 0
-    if len(axes) >= 3:
-        # Bandeau de section AU-DESSUS du cercle (la reglette horizontale 0-3 a ete
-        # RETIREE le 2026-07-22 : trompeuse sur un radar radial).
-        w = LEFT_W
-        _surtitre(slide, MARGE_X, CONTENU_TOP, w, "MATURITÉ PAR OBJECTIF")
-        # Legende couleurs/series en bandeau horizontal, juste sous le header.
-        couleur_aire = D.couleur_pilier(0)
-        has_prev = any(a.get("precedent") is not None for a in axes)
-        leg_top = CONTENU_TOP + RADAR_HEADER_H
-        leg_h = _legende_radar_horizontale(slide, MARGE_X, leg_top, w,
-                                           piliers_legende, has_prev, couleur_aire)
-        # Cercle sous la legende, occupant toute la hauteur restante de la bande.
-        top_radar = leg_top + leg_h + 0.14
-        radar_h = CONTENU_BOTTOM - top_radar
-        _dessiner_radar(slide, MARGE_X, top_radar, w, radar_h, axes)
+    W = 10 - 2 * MARGE_X   # pleine largeur de contenu
+    if len(axes) < 3:
+        # Radar illisible sous 3 axes : message plutot qu'une forme deformee.
+        _surtitre(slide, MARGE_X, CONTENU_TOP, W, "MATURITÉ PAR OBJECTIF")
+        D.add_text(slide, MARGE_X, CONTENU_TOP + 0.9, W, 0.4,
+                   [("Radar indisponible (moins de 3 objectifs mesurés).",
+                     {"size": D.TYPE["small"], "italic": True, "color": D.MUTED})])
+        return
+    # Légende couleurs/séries VERTICALE, compacte, à DROITE (demande utilisateur
+    # 2026-07-22) : le radar récupère toute la HAUTEUR de contenu à gauche -> cercle
+    # bien plus grand et recentré dans sa zone. Pas de sur-titre (redondant avec le
+    # titre de slide "Radar de maturité").
+    H = CONTENU_BOTTOM - CONTENU_TOP
+    couleur_aire = D.couleur_pilier(0)
+    has_prev = any(a.get("precedent") is not None for a in axes)
+    LEGENDE_W, GAP_LEG = 1.95, 0.30
+    radar_w = W - LEGENDE_W - GAP_LEG
+    _dessiner_radar(slide, MARGE_X, CONTENU_TOP, radar_w, H, axes)
+    _legende_radar_verticale(slide, MARGE_X + radar_w + GAP_LEG, CONTENU_TOP, LEGENDE_W, H,
+                             piliers_legende, has_prev, couleur_aire)
 
-    GAP_RADAR_TEXTE = 0.30
-    # Sans radar (referentiel < 3 objectifs), la colonne commentaire/evolution
-    # occupe TOUTE la largeur de contenu depuis MARGE_X — l'ancien repli 7.4
-    # coincait le panneau a droite (pw=2.05), d'ou un name_w negatif plus bas
-    # (deck corrompu, invisible au controle de debordement). Cf. filet durci.
-    px = MARGE_X + w + GAP_RADAR_TEXTE if w else MARGE_X
-    pw = 10 - px - MARGE_X
 
-    # ---- Colonne droite : commentaire (callout) puis evolution ----
-    py = CONTENU_TOP
+def slide_progression(prs, layouts, bloc):
+    """Slide « Progression & commentaire » (scindée du radar le 2026-07-22) :
+    le commentaire de restitution (callout pleine largeur) puis l'évolution par
+    pilier (précédent -> courant, barre + delta). Disposée sur toute la largeur,
+    plus lisible que l'ancienne colonne étroite à droite du radar."""
+    slide = titre_slide(prs, layouts, f"{bloc['nom']} — Progression & commentaire")
+    x = MARGE_X
+    W = 10 - 2 * MARGE_X
     commentaire = (bloc.get("commentaire") or "").strip()
-    txt_in = pw - 0.50
     comp = bloc.get("comparaison", {})
-    n_ev = len(comp.get("piliers", [])) if comp.get("disponible") else 0
+    piliers_ev = comp.get("piliers", []) if comp.get("disponible") else []
 
-    # Colonnes de la liste d'evolution (calculees ici, avant la reservation de
-    # hauteur du commentaire, car cette derniere doit tenir compte de la
-    # hauteur REELLE des lignes — un nom de pilier long se replie sur
-    # plusieurs lignes dans name_w, qui peut etre etroit) :
-    # le cluster numerique est cale a droite mais s'arrete avant le badge
-    # n° de slide (coin bas-droit) => right_lim.
-    delta_w, avap_w = 0.80, 0.95
-    right_lim = px + pw - 0.30
-    delta_x = right_lim - delta_w
-    avap_x = delta_x - avap_w
-    name_w = max(0.6, avap_x - (px + 0.22))   # garde-fou : jamais de largeur negative
-    LH_EV = LH_QUESTION   # hauteur de ligne reelle (small 10.5pt) — voir sa note plus haut
-    piliers_ev = comp.get("piliers", []) if n_ev else []
-    lignes_ev = [max(1, D.estimer_lignes(joli_nom(p.get("nom", "")), name_w, D.TYPE["small"]))
-                for p in piliers_ev]
-    hauteurs_ev = [max(0.30, nl * LH_EV + 0.14) for nl in lignes_ev]
-
-    # Hauteur du commentaire : adaptee au texte. Avec evolution, on borne le
-    # commentaire pour lui reserver la place (mesuree sur les hauteurs REELLES
-    # ci-dessus, pas une estimation fixe par ligne) ; SANS evolution, le
-    # callout occupe toute la bande (texte centre verticalement => pas de vide).
-    h_comm = _hauteur_commentaire(commentaire, txt_in)
-    reste = CONTENU_BOTTOM - py
-    if n_ev:
-        place_ev_min = 0.38 + sum(hauteurs_ev) + 0.30   # entete + lignes + gap
-        h_comm = max(0.95, min(h_comm, reste - place_ev_min))
-        ancre = MSO_ANCHOR.TOP
-        panel_top = py
-    else:
-        # Pas d'evolution : on dimensionne le callout a son contenu (+ une marge
-        # interne) et on le centre verticalement face au radar, au lieu d'etirer
-        # un grand panneau quasi vide sur toute la hauteur de la bande.
-        h_comm = max(1.10, min(h_comm + 0.30, reste))
-        ancre = MSO_ANCHOR.MIDDLE
-        panel_top = py + (reste - h_comm) / 2
-
-    # Callout : barre d'accent a gauche + panneau clair.
-    D.add_rect(slide, px, panel_top, pw, h_comm, fill=FOND_PANNEAU, line=D.LINE,
+    # ---- Commentaire de restitution : callout pleine largeur, en haut ----
+    txt_in = W - 0.52
+    h_comm = max(1.05, _hauteur_commentaire(commentaire, txt_in) + 0.22)
+    top = CONTENU_TOP
+    D.add_rect(slide, x, top, W, h_comm, fill=FOND_PANNEAU, line=D.LINE,
                line_w=0.75, rounded=True, radius=RADIUS)
-    D.add_rect(slide, px, panel_top, 0.07, h_comm, fill=CYAN, rounded=True, radius=0.5)
+    D.add_rect(slide, x, top, 0.07, h_comm, fill=CYAN, rounded=True, radius=0.5)
     lignes = [("COMMENTAIRE DE RESTITUTION",
                {"size": D.TYPE["tiny"], "bold": True, "color": D.MUTED, "space_after": 5})]
     if commentaire:
         for ligne in commentaire.split("\n"):
             lignes.append((ligne, {"size": D.TYPE["small"], "space_after": 4,
-                                   "line_spacing": 1.04}))
+                                   "line_spacing": 1.06}))
     else:
         lignes.append(("(à compléter)", {"size": D.TYPE["small"], "italic": True,
                                          "color": D.MUTED}))
-    th = h_comm - 0.30 if ancre == MSO_ANCHOR.TOP else h_comm - 0.32
-    ty = panel_top + 0.16
-    D.add_text(slide, px + 0.26, ty, txt_in, th, lignes, anchor=ancre)
+    D.add_text(slide, x + 0.28, top + 0.16, txt_in, h_comm - 0.30, lignes,
+               anchor=MSO_ANCHOR.TOP)
 
-    # ---- Evolution par pilier : lignes alignees (dot · nom · av→ap · delta) ----
-    # Hauteur de CHAQUE ligne calculee sur son propre nombre de lignes reel
-    # (hauteurs_ev, cf. plus haut) : un nom de pilier court n'herite pas de la
-    # hauteur d'un nom long empile juste apres (meme principe que le radar).
-    if n_ev:
-        ey = py + h_comm + 0.28
-        _surtitre(slide, px, ey, pw, f"ÉVOLUTION VS {comp.get('precedenteDate', '')}".upper())
-        rows_top = ey + 0.40
-        bottom = CONTENU_BOTTOM - 0.18         # marge au-dessus du n° de slide
-        dispo = max(0.10, bottom - rows_top)
-        total_h = sum(hauteurs_ev)
-        if total_h > dispo:   # garde-fou : ne jamais deborder (ex. beaucoup de piliers)
-            echelle = dispo / total_h
-            hauteurs_ev = [hh * echelle for hh in hauteurs_ev]
-        y = rows_top
-        for i, (p, row_h) in enumerate(zip(piliers_ev, hauteurs_ev)):
-            D.add_dot(slide, px, y + (min(row_h, 0.24) - 0.11) / 2, 0.11, D.couleur_pilier(i))
-            D.add_text(slide, px + 0.22, y, name_w, row_h,
-                       [(joli_nom(p["nom"]), {"size": D.TYPE["small"], "bold": True,
-                                              "line_spacing": 0.95})],
+    # ---- Évolution par pilier : nom · barre (courant, avec repère précédent) · av→ap · delta ----
+    if not piliers_ev:
+        return
+    ey = top + h_comm + 0.34
+    _surtitre(slide, x, ey, W, f"ÉVOLUTION VS {comp.get('precedenteDate', '')}".upper())
+    rows_top = ey + 0.46
+    bottom = CONTENU_BOTTOM - 0.14
+    n = len(piliers_ev)
+    # Une ligne par pilier, hauteur egale repartie dans l'espace restant (borne
+    # pour rester lisible/aere sans etirer demesurement si peu de piliers).
+    row_h = max(0.44, min(0.78, (bottom - rows_top) / max(1, n)))
+    # Colonnes : nom (gauche) | barre 0-3 | "av -> ap" | delta (droite), calees a droite
+    # en s'arretant avant le badge n° de slide.
+    right_lim = x + W - 0.20
+    delta_w, avap_w = 0.85, 1.05
+    delta_x = right_lim - delta_w
+    avap_x = delta_x - avap_w
+    bar_w = 2.4
+    bar_x = avap_x - 0.30 - bar_w
+    name_w = max(1.2, bar_x - 0.30 - (x + 0.24))
+    y = rows_top
+    for i, p in enumerate(piliers_ev):
+        cy = y + row_h / 2
+        D.add_dot(slide, x, cy - 0.06, 0.12, D.couleur_pilier(i))
+        D.add_text(slide, x + 0.24, y, name_w, row_h,
+                   [(joli_nom(p["nom"]), {"size": D.TYPE["small"], "bold": True,
+                                          "line_spacing": 0.95})],
+                   anchor=MSO_ANCHOR.MIDDLE)
+        cour = p.get("courant")
+        prec = p.get("precedent")
+        by = cy - 0.065
+        D.add_hbar(slide, bar_x, by, bar_w, 0.13,
+                   (cour / 3.0) if cour is not None else 0, D.couleur_pilier(i))
+        if prec is not None:   # repere de la valeur precedente sur la piste
+            mx = bar_x + bar_w * max(0.0, min(1.0, prec / 3.0))
+            D.add_rect(slide, mx - 0.008, by - 0.05, 0.016, 0.23, fill=D.INK)
+        D.add_text(slide, avap_x, y, avap_w, row_h,
+                   [(f"{fmt(prec)} → {fmt(cour)}",
+                     {"size": D.TYPE["small"], "color": D.MUTED, "align": PP_ALIGN.RIGHT})],
+                   anchor=MSO_ANCHOR.MIDDLE)
+        txt, col = fleche(p.get("delta"))
+        if txt:
+            D.add_text(slide, delta_x, y, delta_w, row_h,
+                       [(txt, {"size": D.TYPE["small"], "bold": True, "color": col,
+                               "align": PP_ALIGN.RIGHT})],
                        anchor=MSO_ANCHOR.MIDDLE)
-            D.add_text(slide, avap_x, y, avap_w, row_h,
-                       [(f"{fmt(p.get('precedent'))} → {fmt(p.get('courant'))}",
-                         {"size": D.TYPE["small"], "color": D.MUTED, "align": PP_ALIGN.RIGHT})],
-                       anchor=MSO_ANCHOR.MIDDLE)
-            txt, col = fleche(p.get("delta"))
-            if txt:
-                D.add_text(slide, delta_x, y, delta_w, row_h,
-                           [(txt, {"size": D.TYPE["small"], "bold": True, "color": col,
-                                   "align": PP_ALIGN.RIGHT})],
-                           anchor=MSO_ANCHOR.MIDDLE)
-            y += row_h
+        y += row_h
 
 
 # ----------------------------------------------------------------------------
@@ -1091,6 +1071,7 @@ def construire(data, template_path, out_path):
     for bloc in data.get("blocs", []):
         slide_vue_ensemble(prs, layouts, bloc)
         slide_radar(prs, layouts, bloc)
+        slide_progression(prs, layouts, bloc)
         slide_points_forts(prs, layouts, bloc)
         slide_points(prs, layouts, bloc)
 

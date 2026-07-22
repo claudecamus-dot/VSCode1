@@ -1,7 +1,8 @@
 """Test du generateur de restitution PPT (US6.4).
 
 Verifie, sans LibreOffice, que le deck genere :
-  - a le bon nombre de slides (1 couverture + 4 par bloc, dont "Points forts") ;
+  - a le bon nombre de slides (1 couverture + 5 par bloc : vue d'ensemble, radar,
+    progression, points forts, points d'attention) ;
   - ne contient AUCUNE forme hors cadre (pptx_deck.verifier_geometrie), y
     compris avec une question anormalement longue (auto-ajustement de police) ;
   - se construit aussi bien avec qu'avec radar large / sans comparaison /
@@ -169,7 +170,7 @@ def main():
     prs, problemes = gen.construire(data, gen.TEMPLATE, out)
 
     print("Structure :")
-    check(len(prs.slides) == 1 + 3 * 4, f"13 slides (couverture + 3x4) — recu {len(prs.slides)}")
+    check(len(prs.slides) == 1 + 3 * 5, f"16 slides (couverture + 3x5 : vue/radar/progression/forts/attention) — recu {len(prs.slides)}")
     check(os.path.exists(out) and os.path.getsize(out) > 0, "fichier .pptx ecrit")
 
     print("Geometrie (aucune forme hors cadre) :")
@@ -199,7 +200,7 @@ def main():
     }]}
     out2 = os.path.join(tmp, "deck2.pptx")
     prs2, pb2 = gen.construire(data2, gen.TEMPLATE, out2)
-    check(len(prs2.slides) == 4, f"4 slides (pas de couverture) — recu {len(prs2.slides)}")
+    check(len(prs2.slides) == 5, f"5 slides (pas de couverture) — recu {len(prs2.slides)}")
     check(not pb2, f"geometrie OK meme avec donnees partielles — {len(pb2)} probleme(s)")
 
     print("Robustesse — radar vectoriel avec trop peu d'axes (< 3, illisible) :")
