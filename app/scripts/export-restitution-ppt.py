@@ -694,20 +694,19 @@ def slide_radar(prs, layouts, bloc):
 # Slide 3 : Points d'attention (cartes)
 # ----------------------------------------------------------------------------
 def _entete_colonne(slide, x, w, glyphe, titre, sous):
-    """Marqueur navy portant un glyphe de SENS (▲ positif / ▼ à travailler) + titre +
-    sous-titre, puis filet fin. La couleur n'encode plus le sens (force/faiblesse) —
-    reservee a l'identite des piliers ; le sens passe par le glyphe."""
-    D.add_rect(slide, x, CONTENU_TOP - 0.02, 0.18, 0.18, fill=D.INK,
-               rounded=True, radius=0.30)
-    D.add_text(slide, x, CONTENU_TOP - 0.055, 0.18, 0.24,
-               [(glyphe, {"size": D.TYPE["tiny"], "bold": True, "color": "#ffffff",
-                          "align": PP_ALIGN.CENTER})],
-               anchor=MSO_ANCHOR.MIDDLE, align=PP_ALIGN.CENTER)
+    """En-tete de colonne epure (meme grammaire que _surtitre / "MATURITÉ PAR
+    PILIER") : glyphe de SENS (▲ positif / ▼ à travailler) en navy SANS fond +
+    titre + sous-titre, cloture par un filet CYAN (accent de charte). La couleur
+    n'encode toujours pas le sens (force/faiblesse) — reservee a l'identite des
+    piliers ; le sens passe par le glyphe, le filet est un pur accent de marque."""
+    D.add_text(slide, x, CONTENU_TOP - 0.10, 0.28, 0.34,
+               [(glyphe, {"size": D.TYPE["h3"], "bold": True, "color": D.INK})],
+               anchor=MSO_ANCHOR.MIDDLE)
     D.add_text(slide, x + 0.30, CONTENU_TOP - 0.10, w - 0.30, 0.34,
                [(titre, {"size": D.TYPE["h3"], "bold": True})])
     D.add_text(slide, x + 0.30, CONTENU_TOP + 0.26, w - 0.30, 0.22,
                [(sous, {"size": D.TYPE["tiny"], "color": D.MUTED})])
-    D.add_rect(slide, x, CONTENU_TOP + 0.52, w, 0.014, fill=D.LINE)
+    D.add_rect(slide, x, CONTENU_TOP + 0.52, w, 0.014, fill=CYAN)   # filet d'accent charte
 
 
 # Taille plancher des cartes de points forts/attention (voir D.ajuster_police).
