@@ -80,10 +80,14 @@ maison — a été corrigée : le README décrit maintenant la cohabitation des 
 styles. Une harmonisation future vers `node:assert/strict` (voire `node:test`)
 reste souhaitable mais non bloquante. `CONFIRMÉ` — 2026-07-08 · app/README.md:243-256
 
-## Seuil de couverture
+## Couverture
 
-Aucun seuil de couverture de code n'est défini ni mesuré (pas d'outil de
-coverage — `c8`, `istanbul` — dans les dépendances). `CONFIRMÉ` — onboarder · 2026-07-07 · app/package.json (absence de devDependencies)
+Mesurée par `c8` (couverture V8 native, enveloppe la chaîne `node scripts/test-*.js`) :
+`npm run test:cov`. Première mesure 2026-07-23 : **84,67 % lignes** (110/155 branches,
+30/39 fonctions). Lancée en CI (`ci.yml`, étape « Run tests (with coverage) »).
+**Aucun seuil imposé** pour l'instant : on mesure d'abord, on gate ensuite si utile
+(constat superviseur flotte — aucun projet ne mesurait sa couverture).
+`APPLIQUÉ` — agent-supervisor/orchestrator · 2026-07-23 · app/package.json (c8 + test:cov)
 
 ## Philosophie
 

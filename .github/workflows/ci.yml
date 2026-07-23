@@ -32,5 +32,8 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Run tests
-        run: npm test
+      # Couverture affichée (c8), sans seuil imposé : on mesure d'abord
+      # (constat superviseur flotte 2026-07-23 — aucun projet ne mesurait
+      # ce que ses tests couvrent). Gate éventuel plus tard.
+      - name: Run tests (with coverage)
+        run: npm run test:cov

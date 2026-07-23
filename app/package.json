@@ -15,7 +15,8 @@
     "restore": "node scripts/restore-db.js",
     "seed:demo": "node --env-file=.env.dev scripts/seed-demo.js",
     "lint": "eslint .",
-    "test": "node scripts/test-reimport.js && node scripts/test-rappel.js && node scripts/test-normalisation.js && node scripts/test-sessions.js && node scripts/test-mode.js && node scripts/test-admin-ui.js && node scripts/test-contraste-radar.js && node scripts/test-correcteur.js"
+    "test": "node scripts/test-reimport.js && node scripts/test-rappel.js && node scripts/test-normalisation.js && node scripts/test-sessions.js && node scripts/test-mode.js && node scripts/test-admin-ui.js && node scripts/test-contraste-radar.js && node scripts/test-correcteur.js",
+    "test:cov": "c8 --reporter=text-summary npm test"
   },
   "engines": {
     "node": ">=22"
@@ -29,6 +30,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "c8": "^12.0.0",
     "eslint": "^10.6.0",
     "globals": "^17.7.0"
   }
