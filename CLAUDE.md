@@ -124,6 +124,29 @@ Depuis l'install de **BMAD-METHOD v6.10.0** (`_bmad/`), `.claude/skills/` contie
 
 `.claude/agents/*.md` supporte un champ `model:` en frontmatter, appliqué par agent. Déjà en place : `orchestrator`/`orchestrator-dev`/`pathfinder`/`planner` en `sonnet`, `reviewer` en `opus` (scrutinie la plus exigeante). Ajouté cette fois : `auditor-subagent` en `haiku` — sous-agent générique lecture-seule qui produit un rapport structuré selon un protocole fixe (`audit-protocol-light`), sans jugement créatif requis, exactement le profil « subagent d'exploration » que le playbook recommande en tier léger. Les autres agents (`developer*`, `qa-engineer`, `documentarian`, `debugger`, `onboarder`, `ui/ux-designer`, `ppt-designer`) restent sans `model:` (hérite du thread principal) : leur tâche exige un jugement de qualité (diagnostic de bug, écriture de tests, refactoring sans casser la logique métier, décisions de design) où un modèle plus léger risquerait de dégrader le résultat — pas de bascule automatique là où la qualité prime sur le coût.
 
+## Rules — revue de code & couverture de tests (reprises de VSCode2 le 2026-07-23, arbitrage utilisateur)
+
+Règles DURES, applicables à chaque changement de code produit (`app/`), pas seulement en
+fin d'incrément — `revue-increment` les re-vérifie mais elles s'appliquent AVANT, au
+moment d'écrire le code. Origine : projet frère VSCode2, inscrites là-bas le 2026-07-22
+après un « il y a trop d'erreurs », reprises ici complètes sur arbitrage utilisateur :
+
+- **R1 — Tout bug corrigé ship avec son test de régression dans le même commit.** Le test
+  doit échouer sur le code d'avant (le vérifier mentalement suffit si le rejouer coûte
+  cher — le dire dans le commit). Un correctif sans test = le même bug re-signalé plus tard.
+- **R2 — Tout nouveau comportement (route, service, page, branche de template) arrive avec
+  un test qui l'exerce.** Le compte de tests (`npm test`, scripts `app/scripts/test-*.js`)
+  croît avec le diff ; un diff produit sans test nouveau se justifie explicitement
+  (refactor pur, constante…).
+- **R3 — Revue de code avant TOUT commit de code produit.** Sur un incrément significatif
+  → boucle `revue-increment` (qui délègue à `bmad-code-review`), l'auto-relecture n'est pas
+  le gate. Sur un petit diff → au minimum une passe `/code-review` ou une relecture ligne à
+  ligne du diff complet AVANT commit, en le disant. Jamais de commit « ça a l'air bon » sur
+  la seule foi des tests verts.
+- **R4 — Deck : tout défaut visuel corrigé devient un invariant testé**
+  (`app/scripts/test-ppt-charte.py` / `test-export-ppt.py`) en plus du rendu réel
+  `pptx-verify` — l'œil vérifie une fois, le test re-vérifie à chaque suite.
+
 ## Discipline de gestion des tokens (2026-07-16, cf. `docs/wiki/todo.md` et `export/optimisation-tokens.md`)
 
 Le contexte est un cache actif facturé à chaque tour, pas une mémoire gratuite — le laisser croître sans discipline pénalise coût, qualité (« lost in the middle ») et latence (source : OCTO Playbook Agentique, partie « Optimiser la consommation Tokens »). Règles concrètes, pas de changement de ton/style de réponse :

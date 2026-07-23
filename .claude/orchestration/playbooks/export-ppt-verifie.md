@@ -55,6 +55,38 @@ pas des options :
    La mémoire `feedback_brainstorm_iteratif.md` (« mockups RÉELS ») s'applique au **choix**,
    pas seulement à la validation *a posteriori*.
 
+**Boucle de rendu nominale et budgétée** (ajoutée 2026-07-23, constat superviseur VSCode2
+`inefficacite` repris ici : 7/7 runs du playbook comptés « avec reprises » alors que chaque
+« reprise » était une itération attendue de la boucle de rendu — la stat ne mesurait plus
+rien) : la séquence **rendu de contrôle → liste de défauts → correction → re-rendu** est
+l'étape nominale de `verification-rendu`, avec un budget de **2 itérations maximum** avant
+escalade à l'utilisateur (défauts restants montrés en images). Le champ `reprises` du run
+journalisé ne compte que ce qui **sort** de ce budget (imprévu, échec de contrat) — pas les
+itérations de design dans le budget.
+
+**Délégation au sous-agent `ppt-designer` = sortie autosuffisante** (ajoutée 2026-07-23,
+constat superviseur `interaction` : le seul run `partiel` de l'historique — 2026-07-22 02:10 —
+a eu son sous-agent `ppt-designer` **non reprenable, transcript expiré**, forçant à rapatrier
+les correctifs en session principale et à finir 4 constats au run suivant). Quand une
+génération **ou une revue** est déléguée au `ppt-designer`, exiger de lui, **dès son premier
+retour et en un seul passage**, une **liste de findings structurée et autosuffisante** — pour
+chaque défaut : *constat + localisation (fichier + fonction, ou n° de slide) + correctif
+proposé* — de sorte que la correction se fasse **sans le rappeler**. Ne jamais pipeliner une
+2ᵉ sollicitation de l'agent en comptant sur son contexte : son transcript peut avoir expiré.
+Corollaire de la mémoire `feedback_seconde_vague_chasseurs_adversariaux` (une sortie d'agent
+de revue doit être exploitable telle quelle, sans re-sollicitation).
+
+**`pptx-verify` (rendu vérifié) ≠ `revue-increment` (definition-of-done)** (ajoutée
+2026-07-23, constat superviseur `verification-manquante` : ~8 runs deck du 2026-07-22 listaient
+`revue-increment` en étape terminale, mais le skill n'a pas été chargé depuis le 2026-07-21
+alors que ~14 commits deck du 07-22 touchaient du code produit — le hook de commit était
+satisfait par `pptx-verify` seul). Un rendu réel qui passe **ne vaut pas** la boucle DoD
+complète (revue de code + `simplify` + capitalisation mémoire). Sur un commit touchant du
+**code produit** (`export-restitution-ppt.py`, `pptx_deck.py`, `server.js`…), il faut **soit**
+exécuter réellement la boucle `revue-increment`, **soit** assumer une DoD allégée « rendu
+vérifié seul » **et l'écrire explicitement dans le champ `notes` du run journalisé** — jamais
+la sauter en silence ni la créditer faussement (voir contrat de l'étape `revue-increment`).
+
 ```json
 {
   "nom": "export-ppt-verifie",
@@ -86,7 +118,7 @@ pas des options :
       "modele": "(thread)",
       "contrat": {
         "type": "deterministe",
-        "critere": "export .pptx produit sans exception, auto-check géométrique passé (shapes ne débordant pas du slide), tests PPT du projet verts (npm test -- test-export-ppt / test-ppt-charte, ou équivalent ciblé). Alternative selon le contexte : skill projet `restitution-ppt` ou modification directe de app/scripts/pptx_deck.py — le choix de canal ne dispense pas de l'étape verification-rendu qui suit"
+        "critere": "export .pptx produit sans exception, auto-check géométrique passé (shapes ne débordant pas du slide), tests PPT du projet verts (npm test -- test-export-ppt / test-ppt-charte, ou équivalent ciblé). Alternative selon le contexte : skill projet `restitution-ppt` ou modification directe de app/scripts/pptx_deck.py — le choix de canal ne dispense pas de l'étape verification-rendu qui suit. SI la génération OU une revue est déléguée au sous-agent ppt-designer : contrat de sortie = liste de findings structurée et AUTOSUFFISANTE (constat + localisation fichier/fonction ou n° de slide + correctif proposé) rendue en un seul passage, exploitable sans rappeler l'agent (son transcript peut expirer — cf. run partiel 2026-07-22 02:10)"
       },
       "checkpoint": false
     },
@@ -119,7 +151,7 @@ pas des options :
       "modele": "(session)",
       "contrat": {
         "type": "reel",
-        "critere": "export réel rendu en images (PowerPoint COM — seule voie fiable sur ce poste, cf. reference_rendu_pptx_verification.md) et inspecté visuellement (valeurs alignées, panneaux ni vides ni étirés, pas de collision avec le chrome du template) — jamais retirée à l'instanciation, quelle que soit la taille du changement, même si l'étape generation prétend avoir déjà vérifié"
+        "critere": "export réel rendu en images (PowerPoint COM — seule voie fiable sur ce poste, cf. reference_rendu_pptx_verification.md) et inspecté visuellement (valeurs alignées, panneaux ni vides ni étirés, pas de collision avec le chrome du template) — jamais retirée à l'instanciation, quelle que soit la taille du changement, même si l'étape generation prétend avoir déjà vérifié. Boucle nominale : rendu → liste de défauts → correction → re-rendu, budget 2 itérations max puis escalade utilisateur avec les défauts restants en images — ces itérations ne comptent PAS dans le champ reprises du run"
       },
       "checkpoint": false
     },
@@ -163,11 +195,11 @@ pas des options :
       "modele": "(session)",
       "contrat": {
         "type": "reel",
-        "critere": "SI du code produit a été modifié (app/scripts/pptx_deck.py, export-restitution-ppt.py, constantes de layout) : boucle revue + correctifs + re-vérification exécutée en entier"
+        "critere": "SI du code produit a été modifié (app/scripts/pptx_deck.py, export-restitution-ppt.py, server.js, constantes de layout) : boucle revue + correctifs + re-vérification exécutée en entier. `pptx-verify` (rendu réel vérifié) NE VAUT PAS cette boucle DoD complète — soit revue-increment est réellement chargée et exécutée, soit une DoD allégée « rendu vérifié seul » est assumée et ÉCRITE dans le champ notes du run journalisé (jamais sautée en silence ni créditée faussement — constat superviseur verification-manquante 2026-07-23)"
       },
       "checkpoint": "avant tout commit — action difficilement réversible, proposer, ne pas exécuter unilatéralement"
     }
   ],
-  "regle_reprise": "une relance ciblée par étape en échec de contrat, puis escalade utilisateur avec l'état réel"
+  "regle_reprise": "une relance ciblée par étape en échec de contrat, puis escalade utilisateur avec l'état réel ; la boucle rendu→correction→re-rendu de verification-rendu est NOMINALE dans son budget de 2 itérations et ne compte pas comme reprise — seul le hors-budget en est une"
 }
 ```

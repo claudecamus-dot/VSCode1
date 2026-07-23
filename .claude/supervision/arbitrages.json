@@ -30,6 +30,24 @@
       "decision": "Constats interaction + ko-repete (2026-07-22) : la revue design du deck a été déclarée « close » puis ré-ouverte 8+ fois — « succès » mesurait travail fait + rendu OK à MES yeux + tests verts + commit, pas l'intention design de l'utilisateur atteinte ; et des éléments à options (réglette des paliers, police) ont été implémentés-puis-commités au lieu d'être choisis sur variantes. ACCEPTÉ + APPLIQUÉ (demande utilisateur « créer des Rules »). Deux règles ajoutées au playbook export-ppt-verifie ET au skill pptx-verify (Step 6) : (1) VALIDATION UTILISATEUR AVANT COMMIT — un changement design-intent ne se commite/déclare 'fait' qu'après validation du rendu réel par l'utilisateur (étape `validation-utilisateur`, checkpoint dur) ; (2) VARIANTES RENDUES AVANT DE CHOISIR — un élément à options de layout (placement/orientation/échelle/présence) se tranche sur 2-3 variantes rendues avant d'implémenter. Mémoire feedback_validation_rendu_avant_commit_ppt.",
       "date": "2026-07-22",
       "source": "agent-supervisor étage 2, constats interaction/ko-repete — arbitré (Accepter + créer des Rules) et implémenté en session 2026-07-22"
+    },
+    {
+      "cible": "ppt-designer",
+      "decision": "Constat interaction (2026-07-23) : le seul run partiel de l'historique (2026-07-22 02:10) avait son sous-agent ppt-designer NON REPRENABLE (transcript expiré) -> correctifs rapatriés en session principale, 4 constats finis au run suivant. ACCEPTÉ + APPLIQUÉ : playbook export-ppt-verifie amendé (prose + contrat de l'étape generation) — toute délégation (génération OU revue) au ppt-designer exige, dès le 1er retour et en un seul passage, une LISTE DE FINDINGS AUTOSUFFISANTE (constat + localisation fichier/fonction ou n° de slide + correctif proposé), exploitable sans rappeler l'agent. Corollaire de la mémoire feedback_seconde_vague_chasseurs_adversariaux.",
+      "date": "2026-07-23",
+      "source": "agent-supervisor étage 2, constat interaction — arbitré (Accepter + appliquer) et implémenté en session 2026-07-23"
+    },
+    {
+      "cible": "revue-increment",
+      "decision": "Constat verification-manquante (2026-07-23) : ~8 runs deck du 2026-07-22 listaient revue-increment en étape terminale mais le skill n'a pas été chargé depuis le 2026-07-21, alors que ~14 commits deck du 07-22 touchaient du code produit (export-restitution-ppt.py, server.js) — le hook de commit était satisfait par pptx-verify seul. ACCEPTÉ + APPLIQUÉ : le contrat de l'étape revue-increment du playbook export-ppt-verifie pose désormais que pptx-verify (rendu vérifié) NE VAUT PAS la boucle DoD complète — sur un commit de code produit, soit revue-increment est réellement exécutée, soit une DoD allégée « rendu vérifié seul » est assumée ET écrite dans le champ notes du run (jamais sautée en silence). Le garde-fou du 2026-07-21 (hook warn_verif_before_commit) reste, il couvre le commit ; ce constat couvre la boucle d'amélioration distincte.",
+      "date": "2026-07-23",
+      "source": "agent-supervisor étage 2, constat verification-manquante — arbitré (Accepter + appliquer) et implémenté en session 2026-07-23"
+    },
+    {
+      "cible": "export-ppt-verifie",
+      "decision": "Constat inefficacite (2026-07-23, repris de VSCode2 #3) : la boucle de rendu (rendu->défauts->correction->re-rendu) était comptée comme reprise — ici 3 reprises/8 runs + pptx-verify 5/11, moins intense que côté VSCode2 (100%). ACCEPTÉ + DÉJÀ MITIGÉ dans la même session (import des apprentissages VSCode2) : le playbook déclare la boucle de rendu NOMINALE avec un budget de 2 itérations, seul le hors-budget compte comme reprise. À surveiller au prochain scan : re-baseliner reprises ; si élevé hors boucle de rendu, rouvrir en vraie inefficacité.",
+      "date": "2026-07-23",
+      "source": "agent-supervisor étage 2, constat inefficacite — arbitré (Accepter) ; mitigation déjà écrite en session 2026-07-23"
     }
   ]
 }

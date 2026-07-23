@@ -48,6 +48,15 @@ dupliquer la logique.
 
 ### 2. Vérification réelle (tests verts ≠ livré)
 
+- [ ] **Rules R1-R4 du `CLAUDE.md` (§ « Rules — revue de code & couverture de tests »)
+      respectées sur CE diff** : chaque bug corrigé porte son test de régression dans le
+      même commit (R1) ; chaque comportement nouveau est exercé par un test (R2) ; une
+      revue de code a eu lieu avant commit — `revue-increment`/`bmad-code-review` sur un
+      incrément significatif, `/code-review` ou relecture ligne à ligne dite explicitement
+      sur un petit diff (R3) ; chaque défaut visuel deck corrigé est verrouillé par un
+      invariant dans `test-ppt-charte.py`/`test-export-ppt.py` (R4). Reprises de VSCode2
+      le 2026-07-23 — elles s'appliquent au moment d'écrire le code, cette checklist ne
+      fait que les re-vérifier.
 - [ ] La suite de tests passe, et le compte a **augmenté** si du comportement a
       été ajouté (sinon : pourquoi ?).
 - [ ] Toute surface runtime touchée a été **exercée pour de vrai** via le
