@@ -27,6 +27,11 @@ are the project's PPT toolkit, orchestrated as the `export-ppt-verifie` playbook
 
 **Enrichment tools** — run their scripts when the task calls for it:
 
+- **deck-design-library** (`.claude/skills/deck-design-library/`): 22 slide
+  patterns from real OCTO decks, indexed by SITUATION (imported from VSCode2,
+  2026-07-23). Read it BEFORE drawing a new slide or reworking one that reads
+  as a wall of cards — pick the form from the intention, then transpose with
+  the project helpers.
 - **pptx-framed-image** (`.claude/skills/pptx-framed-image/scripts/framed_image.py`):
   fit a photo into a template frame (`round2DiagRect`, « ici mettre une Photo »)
   so it takes the frame's exact shape. Use when the template has photo frames.
@@ -39,7 +44,11 @@ are the project's PPT toolkit, orchestrated as the `export-ppt-verifie` playbook
 
 **Render gate** — **pptx-verify** (`~/.claude/skills/pptx-verify/`) codifies your
 step 3 (render to images and eye-check). It is the non-negotiable gate before you
-report a deck as done.
+report a deck as done. For a whole-deck design pass, follow
+**deck-design-review** (`.claude/skills/deck-design-review/`): it holds the
+per-slide contract of THIS project's deck (couverture, vue d'ensemble, radar,
+progression, points forts, points d'attention) — review each slide against ITS
+contract, not against an overall impression.
 
 ## Orchestration
 
@@ -73,7 +82,10 @@ deliverable to this whole bundle — not to the skills in isolation — via
 3. **Verify — both layers, always:**
    - Geometry: run `python app/scripts/test-export-ppt.py` → must be green
      (`verifier_geometrie` returns no out-of-frame shape), including edge cases
-     (missing values, no comparison, wide images).
+     (missing values, no comparison, wide images). The suite also runs
+     `verifier_debordements_texte` (pessimistic text-fits-its-box net, ported
+     from VSCode2) as a WARNING on the full deck — treat its findings as
+     candidates to triage on the real render, not noise.
    - Real render: export the .pptx to PNG and **look at it**. On Windows use
      PowerPoint COM; otherwise LibreOffice `--convert-to pdf`. If no renderer is
      available, say so honestly rather than claiming the visual is fine.

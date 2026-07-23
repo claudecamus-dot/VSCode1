@@ -118,7 +118,7 @@ la sauter en silence ni la créditer faussement (voir contrat de l'étape `revue
       "modele": "(thread)",
       "contrat": {
         "type": "deterministe",
-        "critere": "export .pptx produit sans exception, auto-check géométrique passé (shapes ne débordant pas du slide), tests PPT du projet verts (npm test -- test-export-ppt / test-ppt-charte, ou équivalent ciblé). Alternative selon le contexte : skill projet `restitution-ppt` ou modification directe de app/scripts/pptx_deck.py — le choix de canal ne dispense pas de l'étape verification-rendu qui suit. SI la génération OU une revue est déléguée au sous-agent ppt-designer : contrat de sortie = liste de findings structurée et AUTOSUFFISANTE (constat + localisation fichier/fonction ou n° de slide + correctif proposé) rendue en un seul passage, exploitable sans rappeler l'agent (son transcript peut expirer — cf. run partiel 2026-07-22 02:10)"
+        "critere": "pour une NOUVELLE slide ou une slide retravaillée en profondeur : forme choisie à partir de l'intention via deck-design-library (22 patterns OCTO, importé de VSCode2 le 2026-07-23) AVANT de dessiner. Export .pptx produit sans exception, auto-check géométrique passé (shapes ne débordant pas du slide), tests PPT du projet verts (npm test -- test-export-ppt / test-ppt-charte, ou équivalent ciblé). Alternative selon le contexte : skill projet `restitution-ppt` ou modification directe de app/scripts/pptx_deck.py — le choix de canal ne dispense pas de l'étape verification-rendu qui suit. SI la génération OU une revue est déléguée au sous-agent ppt-designer : contrat de sortie = liste de findings structurée et AUTOSUFFISANTE (constat + localisation fichier/fonction ou n° de slide + correctif proposé) rendue en un seul passage, exploitable sans rappeler l'agent (son transcript peut expirer — cf. run partiel 2026-07-22 02:10)"
       },
       "checkpoint": false
     },
@@ -162,7 +162,7 @@ la sauter en silence ni la créditer faussement (voir contrat de l'étape `revue
       "modele": "(session)",
       "contrat": {
         "type": "reel",
-        "critere": "SI le rendu passe la géométrie mais reste visuellement pauvre (mur de boîtes, hiérarchie absente, écart à la charte OCTO) : passe design appliquée puis retour à verification-rendu. Skill jamais utilisée à ce jour — prudence"
+        "critere": "SI le rendu passe la géométrie mais reste visuellement pauvre (mur de boîtes, hiérarchie absente, écart à la charte OCTO) : passe design appliquée puis retour à verification-rendu. Pour une revue du deck ENTIER (ou un signal utilisateur « pas au niveau ») : suivre les contrats PAR TYPE DE SLIDE du skill deck-design-review (importé de VSCode2 le 2026-07-23) — chaque slide revue contre SA définition, pas une impression d'ensemble"
       },
       "checkpoint": false
     },

@@ -46,6 +46,8 @@ par `agent-orchestrator` : ne pas les ériger en pipeline concurrent sur la mêm
 | `pptx-framed-image` | Remplir les cadres photo d'un template PPT — étape conditionnelle du playbook `export-ppt-verifie` | Synchrone | (session) | **Bibliothèque du bundle `ppt-designer`** — n=0 en direct ≠ mort (usage via le sous-agent, § Bundle PPT) ; pertinence : `reference_octo_cadre_frame_layout.md` (cadre = shape du slideLayout) |
 | `slide-text-polish` | Lint de la qualité rédactionnelle des slides — étape conditionnelle du playbook `export-ppt-verifie` | Synchrone | (session) | **Bibliothèque du bundle `ppt-designer`** — n=0 en direct ≠ mort (usage via le sous-agent, § Bundle PPT) ; pertinence : `feedback_pas_d_abreviations_cryptiques.md` (indicateurs en clair dans les livrables client) |
 | `restitution-ppt` | Générer/améliorer le PPT de restitution (US6.4) — structure du deck lue par le sous-agent `ppt-designer` (§ Bundle PPT) | Synchrone | (session) | **Référence du bundle `ppt-designer`** — n=0 en direct ≠ mort : la génération réelle passe par le sous-agent (§ Bundle PPT) |
+| `deck-design-library` | Choisir la FORME d'une slide à partir de son intention (22 patterns de decks OCTO réels) — à lire AVANT de dessiner/retravailler une slide | Synchrone | (session) | **Bibliothèque du bundle `ppt-designer`** — importée de VSCode2 le 2026-07-23 |
+| `deck-design-review` | Revue de design du deck ENTIER, contrat par type de slide (couverture, vue, radar, progression, forts, attention) — avant de déclarer un changement de design terminé | Synchrone | (session) | **Vérification du bundle `ppt-designer`** — importée de VSCode2 le 2026-07-23 (adaptée au deck 5-slides-par-bloc de ce projet) |
 | `agent-orchestrator` | Point d'entrée des demandes multi-étapes/multi-agents (hook `UserPromptSubmit` **branché** le 2026-07-21 — grille de qualification sur chaque prompt non-slash) | Synchrone | (session) | Neuf (import 2026-07-21) |
 | `agent-supervisor` | Diagnostic qualitatif des agents (étage 2) — depuis `revue-increment` ou sur signal SessionStart | Synchrone, ≤ 1×/14 j | (session) | Neuf (import 2026-07-21) |
 
@@ -108,9 +110,9 @@ via le playbook `export-ppt-verifie` — pas vers les skills isolément :
 | Rôle dans le bundle | Skills | Nature de l'usage |
 | --- | --- | --- |
 | Génération (nœud central) | sous-agent `ppt-designer` | lance la génération, s'appuie sur les libs ci-dessous |
-| Bibliothèques | `pptx-deck`, `restitution-ppt` | lues (helpers python-pptx, structure du deck projet) |
+| Bibliothèques | `pptx-deck`, `restitution-ppt`, `deck-design-library` | lues (helpers python-pptx, structure du deck projet, 22 patterns de slides par situation — importé de VSCode2 le 2026-07-23) |
 | Enrichissements (conditionnels) | `pptx-framed-image`, `slide-text-polish`, `restitution-deck-design` | scripts exécutés / référence suivie |
-| Vérification (obligatoire) | `pptx-verify` | rendu réel — jamais retiré |
+| Vérification (obligatoire) | `pptx-verify`, `deck-design-review` | rendu réel — jamais retiré ; revue contrat par slide du deck projet (importé de VSCode2 le 2026-07-23) |
 
 Ces skills sont les `bibliotheque_reference` de `routing-hints.json` (constat
 superviseur #2) : leur `n=0` en invocation directe ne vaut **pas** « mort » —

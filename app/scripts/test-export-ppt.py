@@ -179,6 +179,31 @@ def main():
             print("   -", p)
     check(not problemes, f"toutes les formes dans le cadre — {len(problemes)} probleme(s)")
 
+    print("Texte dans sa boite (verifier_debordements_texte, porte de VSCode2) :")
+    # 1) Contrat de la fonction (test dur) : une boite trop basse pour son texte
+    #    est flaguee, une boite dimensionnee correctement ne l'est pas.
+    from pptx import Presentation
+    prs_unit = Presentation()
+    slide_unit = prs_unit.slides.add_slide(prs_unit.slide_layouts[6])
+    long_txt = ("Un texte volontairement long qui doit se replier sur de "
+                "nombreuses lignes dans une boite bien trop basse pour lui.")
+    gen.D.add_text(slide_unit, 0.5, 0.5, 2.0, 0.2, [(long_txt, {"size": 12})])
+    gen.D.add_text(slide_unit, 0.5, 2.0, 6.0, 1.0, [("Texte court.", {"size": 12})])
+    constats_unit = gen.D.verifier_debordements_texte(prs_unit)
+    check(len(constats_unit) == 1 and "slide 1" in constats_unit[0],
+          f"le debordement volontaire est flague, la boite saine non — {constats_unit}")
+    # 2) Filet sur le deck complet : AVERTISSEMENT seulement pour l'instant.
+    #    L'estimateur est pessimiste par contrat ; le rendu actuel a ete valide a
+    #    l'oeil par l'utilisateur, donc un constat ici = candidat a trier par
+    #    rendu reel (skill deck-design-review), pas un echec automatique.
+    debords = gen.D.verifier_debordements_texte(prs)
+    if debords:
+        print(f"   (avertissement : {len(debords)} boite(s) limite(s) a trier par rendu reel)")
+        for p in debords:
+            print("   -", p)
+    else:
+        print("   aucun constat")
+
     print("Libelles pilier/objectif : jamais de parenthese affichee (verrou anti-regression) :")
     tout_le_texte = []
     for slide in prs.slides:

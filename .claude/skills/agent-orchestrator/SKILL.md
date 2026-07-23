@@ -107,6 +107,9 @@ plans (leçons payées du projet — mémoires `feedback_*`/`reference_*`) :
 | Exploration volumineuse | Sous-agent en lecture seule (`Explore`, ou `pathfinder`/`onboarder` du fleet projet), jamais la session principale |
 | Skills BMAD | Uniquement sur demande explicite, via `bmad-help` |
 | Libellés/indicateurs dans un livrable client | Pas d'abréviation cryptique (mémoire `feedback_pas_d_abreviations_cryptiques.md`) — vérifiable via `slide-text-polish` pour les slides |
+| NOUVELLE slide (ou slide retravaillée en profondeur) | `deck-design-library` lue AVANT de dessiner (forme choisie depuis l'intention, 22 patterns OCTO) — via le bundle `ppt-designer` ou en session |
+| Revue du deck ENTIER / signal « pas au niveau » | `deck-design-review` (contrat PAR TYPE de slide du deck projet) — jamais une impression d'ensemble |
+| Cadres photo du template (« ici mettre une Photo ») | `pptx-framed-image` (prstGeom cloné sur l'image — cf. `reference_octo_cadre_frame_layout.md`) |
 
 **Règle de non-convergence (évol 2026-07-22).** Si le MÊME livrable est rejeté par l'utilisateur **≥ 3 tours** (« toujours KO », « pas traité »), la boucle ne converge pas : **STOP l'itération à l'aveugle** — ne pas re-deviner le défaut. Reproduire l'artefact utilisateur exact (ligne « livrable consommé par l'utilisateur » ci-dessus) ET **demander à l'utilisateur de pointer le défaut précis** (numéro de slide, capture, écran) avant de retoucher quoi que ce soit. L'oracle, c'est l'utilisateur sur SON artefact — pas mon auto-évaluation.
 

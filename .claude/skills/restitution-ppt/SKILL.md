@@ -20,9 +20,11 @@ Infographic restitution deck for the agile/product maturity questionnaire
 ## Deck structure
 
 1. **Couverture** — OCTO template cover (layout 8): `titre`, `sousTitre`, "OCTO Technology", `date`. Kept as-is — it's good.
-2. Per **bloc** (an `equipe`, or a `departement` consolidating ≥2 teams), 3 slides on the title-only layout (keeps OCTO logo/footer/page number):
+2. Per **bloc** (an `equipe`, or a `departement` consolidating ≥2 teams), **5 slides** on the title-only layout (keeps OCTO logo/footer/page number — the radar slide was split in two on 2026-07-22, user request):
    - **Vue d'ensemble** — gauge "moyenne globale" + evolution, per-pilier colored bars (radar palette) with ▲=▼ trend, bottom chips "point fort / à renforcer".
-   - **Radar de maturité** — **vector radar** (native python-pptx shapes: `D.add_polygon`/`D.add_line`, not a rasterized PNG — see `_dessiner_radar` and the "Radar vectoriel" section below) fitted left, with a "MATURITÉ PAR OBJECTIF" section header + a 0–3 level ruler above it, commentaire de restitution callout + per-pilier evolution right.
+   - **Radar de maturité** — dedicated slide: **vector radar** (native python-pptx shapes: `D.add_polygon`/`D.add_line`, not a rasterized PNG — see `_dessiner_radar`) on the full content height, compact vertical color legend on the right; < 3 objectifs → "Radar indisponible" message, never a deformed shape.
+   - **Progression & commentaire** — commentaire de restitution as a full-width accent callout, then per-pilier evolution (précédent → courant, bar + delta).
+   - **Points forts** — 2 columns of cards (score bar), card text size shared with the points d'attention slide (`_taille_cartes_bloc`).
    - **Points d'attention** — cards: strongest disagreements (dispersion, range bar + mean marker) and weakest scores (score bar).
 
 ## Payload contract (built by server.js)
@@ -49,8 +51,8 @@ Global score = mean of non-null `piliers[].moyenne`; global delta from `comparai
 ## Workflow
 
 - **Regenerate from a payload:** `python app/scripts/export-restitution-ppt.py data.json out.pptx`. Prints slide count + geometry status.
-- **Verify (always):** `python app/scripts/test-export-ppt.py` — must print `TOUS LES TESTS PASSENT` (asserts no shape out of frame) — **and** `python app/scripts/test-ppt-charte.py` — font/color/contrast/table-alignment on the real template.
-- **See it (Windows + PowerPoint):** render the .pptx to PNG via PowerPoint COM (see the pptx-deck skill) and eye-check. Do not claim the design is good from the geometry check alone.
+- **Verify (always):** `python app/scripts/test-export-ppt.py` — must print `TOUS LES TESTS PASSENT` (asserts no shape out of frame; also runs `verifier_debordements_texte`, the pessimistic text-fits-its-box net ported from VSCode2 on 2026-07-23, as a WARNING on the full deck — its findings are candidates to triage on the real render) — **and** `python app/scripts/test-ppt-charte.py` — font/color/contrast/table-alignment on the real template.
+- **See it (Windows + PowerPoint):** render the .pptx to PNG via PowerPoint COM (see the pptx-deck skill) and eye-check. Do not claim the design is good from the geometry check alone. For a full design pass, follow the per-slide contracts in the `deck-design-review` skill.
 
 ## Layout invariants (eyeball-verified — don't regress these)
 
@@ -121,8 +123,9 @@ The deck adapts to the provided base template:
 
 ## Extending (add a slide / change design)
 
-1. Add a `slide_*` function in `export-restitution-ppt.py` using `pptx_deck` helpers; lay out inside the `CONTENU_TOP..CONTENU_BOTTOM` band; pull sizes from `D.TYPE`.
-2. Call it from `construire()`.
-3. Add/extend a case in `test-export-ppt.py`; run it (geometry must stay green).
-4. Render via PowerPoint and look at the slide before declaring it done.
-5. If you mockup a new layout first, build it as HTML at 1280×720 and screenshot it (Chrome headless) to validate the look with the user before coding the python.
+1. Pick the slide's FORM from its intention with the `deck-design-library` skill (22 patterns from real OCTO decks) before drawing anything.
+2. Add a `slide_*` function in `export-restitution-ppt.py` using `pptx_deck` helpers; lay out inside the `CONTENU_TOP..CONTENU_BOTTOM` band; pull sizes from `D.TYPE`.
+3. Call it from `construire()`.
+4. Add/extend a case in `test-export-ppt.py`; run it (geometry must stay green).
+5. Render via PowerPoint and look at the slide before declaring it done.
+6. If you mockup a new layout first, build it as HTML at 1280×720 and screenshot it (Chrome headless) to validate the look with the user before coding the python.
