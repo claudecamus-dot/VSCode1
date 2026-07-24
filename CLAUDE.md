@@ -65,15 +65,10 @@ Décisions non redérivables du code :
   (pas supprimées) si elles portent des réponses. Le mode `remplacer` est une
   purge totale irréversible, à confirmer côté UI avec les compteurs de
   `GET /api/referentiel/stats`.
-- **Export PPT — un seul script Python** : un script Python (`python-pptx`)
-  construit le `.pptx` à partir du template OCTO (`template ppt/template.pptx`),
-  **radar compris, dessiné en vectoriel natif** (plus de rasterisation). Depuis le
-  2026-07-21 l'export **ne dépend plus de Chrome/Puppeteer** : le module serveur
-  `radar-svg.js` et sa rasterisation (`rasteriserRadars`), devenus morts après le
-  passage au radar vectoriel, ont été retirés, ainsi que la dépendance
-  `puppeteer-core` devenue inutile (désinstallée). Sans
-  Python (`python-pptx`) configuré, le reste de l'application fonctionne
-  normalement — seul cet export échoue.
+- **Export PPT — un seul script Python** (`python-pptx`, template OCTO
+  `template ppt/template.pptx`), **radar dessiné en vectoriel natif** — aucune
+  dépendance Chrome/Puppeteer (retirée avec `radar-svg.js`, cf. git 2026-07-21).
+  Sans Python configuré, seul cet export échoue, le reste fonctionne.
 - **Aucune authentification** à ce stade (voir `cadrage/epics-us.md`, Epic
   10 — non implémenté) : ne pas supposer de contrôle d'accès dans le code
   existant.
@@ -100,15 +95,11 @@ Décisions non redérivables du code :
   discipline « definition of done » au bon instant. Fail-open, détection de
   vérif par le transcript. Issu du constat #1 du superviseur d'agents (voir
   `.claude/supervision/`, tests dans `.claude/hooks/tests/`).
-- `.claude/hooks/orchestrator_gate.py` (`UserPromptSubmit`, **branché le
-  2026-07-21**) injecte une grille de qualification (~50 tokens) rappelant de
-  passer par `agent-orchestrator` pour une demande multi-étapes/multi-agents ;
-  silencieux sur les slash-commands, fail-open. Voir « Skills & agents » pour la
-  décision de flotte qui a acté ce branchement.
-- `.claude/skills/restitution-ppt/` : skill projet pour la génération/
-  amélioration du PPT de restitution (US6.4), voir son `SKILL.md`.
-- `.claude/agents/` : agents projet disponibles (orchestrateurs, developer,
-  onboarder, reviewer, etc.) — voir chaque fichier pour son rôle exact.
+- `.claude/hooks/orchestrator_gate.py` (`UserPromptSubmit`) : grille de
+  qualification (~50 tokens) routant les demandes multi-étapes vers
+  `agent-orchestrator` ; silencieux sur les slash-commands, fail-open.
+- `.claude/skills/restitution-ppt/` : génération/amélioration du PPT de
+  restitution (US6.4). `.claude/agents/` : agents projet — voir chaque fichier.
 
 ## Skills & agents — comment ça se lance (post-BMAD, 2026-07-16 ; flotte arbitrée 2026-07-21)
 
@@ -118,11 +109,11 @@ Depuis l'install de **BMAD-METHOD v6.10.0** (`_bmad/`), `.claude/skills/` contie
 - **Agents BMAD** (skills `bmad-agent-*`, lancés par persona : « Amelia » dev, « John » PM, « Winston » architecte, « Sally » UX, « Mary » analyste, « Paige » tech-writer). Conservés pour leur **valeur cycle produit→dev** (`bmad-product-brief`/`bmad-prd`/`bmad-architecture`/`bmad-create-story`/`bmad-dev-story` ; routeur **`bmad-help`**), pas comme fleet de rôles concurrente de `.claude/agents/`.
 - **Skills projet** (non-`bmad-`) : `restitution-ppt`, `pptx-framed-image`, `slide-text-polish`, `deck-design-library` + `deck-design-review` (importées de VSCode2 le 2026-07-23 : 22 patterns de slides par situation + revue contrat-par-slide du deck — même import : `verifier_debordements_texte` porté dans `app/scripts/pptx_deck.py`), `revue-increment` (definition-of-done — délègue à `bmad-code-review`/`bmad-retrospective`), plus le couple orchestration/supervision importé de VSCode2 le 2026-07-21 : **`agent-orchestrator`** (qualifie une demande de travail multi-étapes, compose et exécute un plan — cascade/parallèle/async, modèle par étape — puis journalise le run via `.claude/orchestration/`) et **`agent-supervisor`** (superviseur étage 2 : diagnostic LLM des KO répétés, agents morts, vérifs manquantes, alimenté par `.claude/supervision/`).
 
-**Décision (2026-07-21)** : `.opencode/agents/` (16 définitions, doublon de `.claude/agents/` utilisé seulement par la CLI externe `opencode`) **supprimé** — mais `.opencode/skills/` (137 fichiers) **conservé** : c'est la bibliothèque de protocoles que les 16 agents `.claude/agents/` chargent (`skills:` → `.opencode/skills/…`), donc pas redondante. `.claude/agents/` retenu comme flotte de rôles canonique et le gate `agent-orchestrator` (`.claude/hooks/orchestrator_gate.py`) **branché** en `UserPromptSubmit` (grille de qualification ~50 tokens, silencieuse sur les slash-commands). BMAD **conservé volontairement** : ses personas recouvrent les rôles de `.claude/agents/` mais son apport réel est le cycle produit (prd/architecture/story) — utiliser `.claude/agents/` + `agent-orchestrator` pour le travail de dev orchestré, BMAD pour le cadrage produit. Le hook SessionStart route vers `bmad-help` en cas de doute.
+**Décision (2026-07-21)** — le piège à ne pas recréer : `.opencode/agents/` supprimé (doublon CLI externe) mais `.opencode/skills/` **conservé** — c'est la bibliothèque de protocoles que chargent les agents `.claude/agents/` (`skills:` → `.opencode/skills/…`), pas un reliquat à nettoyer. Usage : `.claude/agents/` + `agent-orchestrator` pour le dev orchestré, BMAD pour le cadrage produit, `bmad-help` en cas de doute.
 
 ## Hiérarchie de modèles pour les sous-agents (2026-07-16)
 
-`.claude/agents/*.md` supporte un champ `model:` en frontmatter, appliqué par agent. Déjà en place : `orchestrator`/`orchestrator-dev`/`pathfinder`/`planner` en `sonnet`, `reviewer` en `opus` (scrutinie la plus exigeante). Ajouté cette fois : `auditor-subagent` en `haiku` — sous-agent générique lecture-seule qui produit un rapport structuré selon un protocole fixe (`audit-protocol-light`), sans jugement créatif requis, exactement le profil « subagent d'exploration » que le playbook recommande en tier léger. Les autres agents (`developer*`, `qa-engineer`, `documentarian`, `debugger`, `onboarder`, `ui/ux-designer`, `ppt-designer`) restent sans `model:` (hérite du thread principal) : leur tâche exige un jugement de qualité (diagnostic de bug, écriture de tests, refactoring sans casser la logique métier, décisions de design) où un modèle plus léger risquerait de dégrader le résultat — pas de bascule automatique là où la qualité prime sur le coût.
+`.claude/agents/*.md` supporte un champ `model:` en frontmatter. En place : `orchestrator`/`orchestrator-dev`/`pathfinder`/`planner` en `sonnet`, `reviewer` en `opus`, `auditor-subagent` en `haiku` (rapport structuré à protocole fixe, sans jugement créatif). Les autres agents restent **sans** `model:` (héritent du thread principal) : leur tâche exige un jugement de qualité — pas de bascule automatique là où la qualité prime sur le coût.
 
 ## Rules — revue de code & couverture de tests (reprises de VSCode2 le 2026-07-23, arbitrage utilisateur)
 
