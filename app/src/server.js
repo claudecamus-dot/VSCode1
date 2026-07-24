@@ -8,6 +8,7 @@ const multer = require('multer');
 
 const db = require('./db');
 const { importFromBuffer, getReferentiel } = require('./referentiel');
+const { moyenneDe, statsNiveaux, deltaHistorique } = require('./scores');
 const { importInvitesFromBuffer, replaceInvites, getInvites, getNonRepondants, looksLikeEmail } = require('./invites');
 const { valeurCanonique } = require('./normalisation');
 const { estModeDemo } = require('./mode');
@@ -508,11 +509,6 @@ app.put('/api/sessions/:id/commentaire', (req, res) => {
   res.json({ ok: true, texte: valeur });
 });
 
-function moyenneDe(liste) {
-  const valides = liste.filter((m) => m !== null);
-  return valides.length > 0 ? valides.reduce((a, b) => a + b, 0) / valides.length : null;
-}
-
 // Agregation des resultats pour une session, restreinte par un filtre
 // { equipe } ou { departement } : structure pilier -> objectif -> question avec
 // moyennes et pre-analyses. Reutilisee par l'ecran de resultats (Epic 5/US6.2),
@@ -554,16 +550,10 @@ function agregerResultats(sessionId, filtre, manager) {
           };
         });
 
-        // Pre-analyses (US6.2) : moyenne, min, max et ecart-type (dispersion,
-        // population) des niveaux saisis ; un fort ecart-type signale un
-        // desaccord dans l'equipe, donc un point d'attention.
-        const valeurs = reponsesQuestion.map((r) => r.niveau);
-        const moyenne = valeurs.length ? valeurs.reduce((a, b) => a + b, 0) / valeurs.length : null;
-        const min = valeurs.length ? Math.min(...valeurs) : null;
-        const max = valeurs.length ? Math.max(...valeurs) : null;
-        const ecartType = valeurs.length
-          ? Math.sqrt(valeurs.reduce((s, n) => s + (n - moyenne) ** 2, 0) / valeurs.length)
-          : null;
+        // Pre-analyses (US6.2) : moyenne, min, max et ecart-type des niveaux
+        // saisis (statsNiveaux, teste unitairement) ; un fort ecart-type signale
+        // un desaccord dans l'equipe, donc un point d'attention.
+        const { moyenne, min, max, ecartType } = statsNiveaux(reponsesQuestion.map((r) => r.niveau));
 
         return { id: question.id, texte: question.texte, moyenne, min, max, ecartType, niveaux: question.niveaux, reponses: reponsesDetail };
       });
@@ -676,7 +666,7 @@ function calculerComparaison(session, equipe, manager) {
   const piliers = courant.piliers.map((pilier) => {
     const ancienPilier = ancienParPilier.get(pilier.nom);
     const precedent = ancienPilier ? ancienPilier.moyenne : null;
-    const delta = pilier.moyenne !== null && precedent !== null ? pilier.moyenne - precedent : null;
+    const delta = deltaHistorique(pilier.moyenne, precedent);
     return { nom: pilier.nom, courant: pilier.moyenne, precedent, delta };
   });
 
