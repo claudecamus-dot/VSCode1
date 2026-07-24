@@ -529,18 +529,32 @@ function agregerResultats(sessionId, filtre, manager) {
     repondants = repondants.filter((r) => !r.est_manager);
   }
   const repondantIds = new Set(repondants.map((r) => r.id));
+  // Fix N+1 (finding perf audit 2026-07-24) : UNE requete pour toutes les reponses
+  // des repondants retenus (au lieu d'une par question, imbriquee dans les boucles
+  // pilier -> sous-categorie -> question), groupees ici par question. Le lookup
+  // repondant passe aussi de find() lineaire (O(reponses x repondants)) a une Map.
+  const repondantsParId = new Map(repondants.map((r) => [r.id, r]));
+  const reponsesParQuestion = new Map();
+  if (repondantIds.size > 0) {
+    const placeholders = [...repondantIds].map(() => '?').join(',');
+    const toutes = db
+      .prepare(`SELECT repondant_id, question_id, niveau FROM reponses WHERE repondant_id IN (${placeholders})`)
+      .all(...repondantIds);
+    for (const r of toutes) {
+      if (!reponsesParQuestion.has(r.question_id)) reponsesParQuestion.set(r.question_id, []);
+      reponsesParQuestion.get(r.question_id).push(r);
+    }
+  }
 
   const piliers = referentielPourSession(sessionId);
   const resultatPiliers = piliers.map((pilier) => {
     const sousCategories = pilier.sousCategories.map((sousCategorie) => {
       const questions = sousCategorie.questions.map((question) => {
-        const reponsesQuestion = db
-          .prepare('SELECT repondant_id, niveau FROM reponses WHERE question_id = ?')
-          .all(question.id)
-          .filter((r) => repondantIds.has(r.repondant_id));
+        // Deja filtre par repondant (requete IN ci-dessus) — plus de requete ici.
+        const reponsesQuestion = reponsesParQuestion.get(question.id) || [];
 
         const reponsesDetail = reponsesQuestion.map((r) => {
-          const repondant = repondants.find((rep) => rep.id === r.repondant_id);
+          const repondant = repondantsParId.get(r.repondant_id);
           const niveauInfo = question.niveaux.find((n) => n.niveau === r.niveau);
           return {
             nom: repondant.nom,
