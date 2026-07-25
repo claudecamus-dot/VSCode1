@@ -102,6 +102,8 @@ Brouillon initial, dérivé de [experience-map.md](experience-map.md) et [diffic
 
 *Point ouvert (conception) : compte local propre à l'outil vs délégation à un fournisseur d'identité existant de l'organisation (SSO/OIDC) — à trancher selon le contexte de déploiement (Epic 8/9).*
 
+*Décision (arbitrage supervision, 2026-07-25) : suite au finding sécurité de l'audit du 2026-07-24 (« aucune authentification sur l'API, qui expose des données nominatives »), l'option retenue est d'implémenter cet Epic 10 complet (US10.1–10.6) comme chantier produit — pas de barrière provisoire (Basic Auth ou jeton d'API écartés). Aucun correctif intermédiaire ne sera posé ; le finding sécurité reste ouvert avec échéance : trancher le point ouvert ci-dessus (compte local vs SSO/OIDC) et planifier le chantier au plus tard au prochain diagnostic de supervision (2026-08-08). Réf. : arbitrages.json du hub de supervision, cible « securite:VSCode1-api-pii ».*
+
 ## Epic 11 — Gestion de plusieurs clients (organisations) avec sessions séparées
 
 *Constat : le référentiel, les rôles et les répondants sont aujourd'hui des données globales à l'outil (une seule grille, une seule liste de rôles, une seule base de répondants). Si plusieurs organisations clientes distinctes utilisent le même outil, leurs données se mélangeraient. Cet Epic introduit la notion de "client" comme cloisonnement de premier niveau, dont dépend le reste (référentiel, sessions, rôles, répondants). S'appuie sur l'authentification (Epic 10) pour savoir à quel client un animateur est rattaché.*
