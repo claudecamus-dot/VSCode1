@@ -247,10 +247,14 @@ Enchaîne (`package.json`) les scripts suivants (aucun framework de test) :
 node scripts/test-reimport.js
 node scripts/test-rappel.js
 node scripts/test-normalisation.js
+node scripts/test-scores.js
 node scripts/test-sessions.js
-node scripts/test-admin-ui.js
 node scripts/test-mode.js
+node scripts/test-admin-ui.js
+node scripts/test-contraste-radar.js
 node scripts/test-correcteur.js
+node scripts/test-export-ppt-si-dispo.js
+node scripts/test-smoke-http.js
 ```
 
 Deux styles d'assertion cohabitent, tous deux sans dépendance externe :
@@ -260,6 +264,10 @@ utilisent les assertions Node natives (`node:assert/strict`) ; `test-reimport.js
 maison `check()`. Une harmonisation vers `node:assert/strict` (voire
 `node:test`) est souhaitable mais non bloquante. `test-correcteur.js` charge le
 dictionnaire français complet et dure ~6 s.
+
+`test-smoke-http.js` est le test fonctionnel bout-en-bout : il démarre le vrai
+serveur (`src/server.js`) sur un port libre avec une base SQLite temporaire, puis
+vérifie en HTTP réel la page d'accueil, la console animateur et `/api/env`.
 
 Chaque script peut aussi être lancé individuellement (`node scripts/test-xxx.js`).
 Il existe également `scripts/test-export-ppt.py`, indépendant de `npm test`, pour
