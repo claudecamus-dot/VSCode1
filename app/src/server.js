@@ -430,21 +430,33 @@ app.post('/api/repondants/:id/soumission', (req, res) => {
 
 // --- Résultats agrégés par équipe (Epic 5, Increment 2) ---
 
+// Filtre manager='sans' partage (finding risque_technique audit 2026-07-24 : motif
+// repete ~6 fois) : liste centralisee des criteres compatibles avec est_manager (0/1).
+function estManagerExclu(manager) {
+  return manager === 'sans';
+}
+
+// Effectifs groupes par equipe/departement (finding risque_technique audit 2026-07-24 :
+// /equipes et /departements etaient des routes quasi identiques, seule la colonne de
+// regroupement variait). `colonne` est un litteral interne ('equipe'|'departement'),
+// jamais derive de req.query — pas d'injection SQL possible via ce parametre.
+function agregerEffectifPar(sessionId, colonne, manager) {
+  let sql = `SELECT ${colonne} AS cle, COUNT(*) AS effectif
+       FROM repondants
+       WHERE session_id = ? AND soumis_at IS NOT NULL`;
+  const params = [sessionId];
+  if (estManagerExclu(manager)) {
+    sql += ' AND est_manager = 0';
+  }
+  sql += ` GROUP BY ${colonne} ORDER BY ${colonne}`;
+  return db.prepare(sql).all(...params);
+}
+
 app.get('/api/sessions/:id/equipes', (req, res) => {
   const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session inconnue.' });
-  const { manager } = req.query;
-  let sql = `
-      SELECT equipe,
-             COUNT(*) AS effectif
-       FROM repondants
-       WHERE session_id = ? AND soumis_at IS NOT NULL`;
-  const params = [session.id];
-  if (manager === 'sans') {
-    sql += ' AND est_manager = 0';
-  }
-  sql += ' GROUP BY equipe ORDER BY equipe';
-  const equipes = db.prepare(sql).all(...params);
+  const equipes = agregerEffectifPar(session.id, 'equipe', req.query.manager)
+    .map((r) => ({ equipe: r.cle, effectif: r.effectif }));
   res.json(equipes);
 });
 
@@ -452,17 +464,8 @@ app.get('/api/sessions/:id/equipes', (req, res) => {
 app.get('/api/sessions/:id/departements', (req, res) => {
   const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session inconnue.' });
-  const { manager } = req.query;
-  let sql = `
-      SELECT departement, COUNT(*) AS effectif
-      FROM repondants
-      WHERE session_id = ? AND soumis_at IS NOT NULL`;
-  const params = [session.id];
-  if (manager === 'sans') {
-    sql += ' AND est_manager = 0';
-  }
-  sql += ' GROUP BY departement ORDER BY departement';
-  const departements = db.prepare(sql).all(...params);
+  const departements = agregerEffectifPar(session.id, 'departement', req.query.manager)
+    .map((r) => ({ departement: r.cle, effectif: r.effectif }));
   res.json(departements);
 });
 
@@ -525,7 +528,7 @@ function agregerResultats(sessionId, filtre, manager) {
     params.push(filtre.departement);
   }
   let repondants = db.prepare(sql).all(...params);
-  if (manager === 'sans') {
+  if (estManagerExclu(manager)) {
     repondants = repondants.filter((r) => !r.est_manager);
   }
   const repondantIds = new Set(repondants.map((r) => r.id));
@@ -593,7 +596,7 @@ app.get('/api/sessions/:id/resultats', (req, res) => {
   let membres = db
     .prepare('SELECT nom, prenom, soumis_at, est_manager FROM repondants WHERE session_id = ? AND equipe = ?')
     .all(session.id, equipe);
-  if (manager === 'sans') {
+  if (estManagerExclu(manager)) {
     membres = membres.filter((m) => m.est_manager === 0);
   }
   const repondants = membres.map((m) => ({
@@ -623,7 +626,7 @@ app.get('/api/sessions/:id/consolidation', (req, res) => {
   let reps = db
     .prepare('SELECT equipe, est_manager FROM repondants WHERE session_id = ? AND departement = ? AND soumis_at IS NOT NULL')
     .all(session.id, departement);
-  if (manager === 'sans') reps = reps.filter((r) => !r.est_manager);
+  if (estManagerExclu(manager)) reps = reps.filter((r) => !r.est_manager);
   const parEquipe = new Map();
   for (const r of reps) parEquipe.set(r.equipe, (parEquipe.get(r.equipe) || 0) + 1);
   const equipes = [...parEquipe.entries()]
@@ -843,7 +846,7 @@ app.get('/api/sessions/:id/export-ppt', (req, res) => {
     let reps = db
       .prepare('SELECT equipe, est_manager FROM repondants WHERE session_id = ? AND departement = ? AND soumis_at IS NOT NULL')
       .all(session.id, departement);
-    if (manager === 'sans') reps = reps.filter((r) => !r.est_manager);
+    if (estManagerExclu(manager)) reps = reps.filter((r) => !r.est_manager);
     const equipes = [...new Set(reps.map((r) => r.equipe))].sort((a, b) => a.localeCompare(b));
     blocs = [blocDep];
     for (const e of equipes) {
