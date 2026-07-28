@@ -83,22 +83,33 @@ Fleet custom antérieure à BMAD (cf. CLAUDE.md « Hiérarchie de modèles pour 
 sous-agents »). Invocables via `Task`/`Agent` comme n'importe quel sous-agent ; le
 paramètre modèle d'un lancement prend le pas sur le défaut déclaré si besoin.
 
-| Agent | Rôle | Modèle par défaut | Statut (2026-07-21) |
-| --- | --- | --- | --- |
-| `ppt-designer` | Génère/améliore le deck PPT de restitution, vérifie par rendu réel — **nœud central du bundle PPT** (voir § ci-dessous) | (thread) | Utilisé (×2) — le canal réel de génération PPT sur ce projet |
-| `ui-designer` | Système visuel, tokens de design | (thread) | Utilisé (×2) |
-| `ux-designer` | User flows, spécifications UX | (thread) | Utilisé (×2) |
-| `documentarian` | Doc technique/fonctionnelle, wiki | (thread) | Utilisé (×1) |
-| `onboarder` | Découverte d'un projet existant, wiki initial | (thread) | Utilisé (×1) |
-| `orchestrator` | Interface utilisateur, délègue selon le planner (Beads) | sonnet | Jamais utilisé — recoupe `agent-orchestrator` (voir tableau des 3 flottes) |
-| `orchestrator-dev` | Pilote le workflow Beads ticket par ticket | sonnet | Jamais utilisé — idem |
-| `pathfinder` | Reconnaissance rapide, estimation de complexité | sonnet | Jamais utilisé |
-| `planner` | Décompose en epics/tickets | sonnet | Jamais utilisé |
-| `reviewer` | Revue de diff structurée | opus | Jamais utilisé |
-| `auditor` / `auditor-subagent` | Audit multi-domaine / sous-agent lecture seule | (thread) / haiku | Jamais utilisés |
-| `developer` / `developer-migrator` / `developer-refactor` | Implémentation générique / migration / refactoring | (thread) | Jamais utilisés |
-| `qa-engineer` | Tests manquants (unitaires, intégration, E2E) | (thread) | Jamais utilisé |
-| `debugger` | Diagnostic de bug (crée un ticket, ne corrige pas) | (thread) | Jamais utilisé |
+**Déclencheur de routage = la colonne qui compte** (ajoutée le 2026-07-28, constat #3 du
+superviseur). Le diagnostic montrait 11 des 17 agents à 0 invocation *alors que leurs cas
+d'usage exacts s'étaient produits* les 07-24/07-25 (un audit, un refactor, de l'écriture de
+tests) — tous traités en session principale. Cause : le catalogue disait ce que fait chaque
+agent, jamais **à quel signal l'orchestrateur doit le proposer**. Règle : quand un
+déclencheur ci-dessous matche, l'étape correspondante du plan est **déléguée** ; garder la
+main en session principale reste possible mais devient une décision à écrire dans le
+`notes` du run (`"resolution: inline <agent> — <raison>"`), pas un défaut silencieux.
+
+| Agent | Rôle | Modèle par défaut | Déclencheur de routage (l'orchestrateur DOIT le proposer si…) | Usage mesuré |
+| --- | --- | --- | --- | --- |
+| `ppt-designer` | Génère/améliore le deck PPT de restitution, vérifie par rendu réel — **nœud central du bundle PPT** (voir § ci-dessous) | (thread) | Le livrable est le deck (playbook `export-ppt-verifie`) | Utilisé (×3, dernier 2026-07-21) — le canal réel de génération PPT |
+| `ui-designer` | Système visuel, tokens de design | (thread) | Harmonisation visuelle d'écrans, définition de tokens/composants | Utilisé (×2) |
+| `ux-designer` | User flows, spécifications UX | (thread) | Nouveau parcours utilisateur, friction signalée sur un écran | Utilisé (×2) |
+| `documentarian` | Doc technique/fonctionnelle, wiki | (thread) | Rédaction/refonte de doc dépassant le recalage de quelques lignes | Utilisé (×1) |
+| `onboarder` | Découverte d'un projet existant, wiki initial | (thread) | Arrivée sur un projet/périmètre inconnu | Utilisé (×1) |
+| `reviewer` | Revue de diff structurée | opus | **Règle R3** : diff de code produit `app/` non trivial avant commit — le seul cas où l'auto-relecture ne fait pas le gate | Utilisé (×1, 2026-07-21) |
+| `qa-engineer` | Tests manquants (unitaires, intégration, E2E) | (thread) | **Règles R1/R2** : correction de bug sans test de régression, ou nouveau comportement (route/service/page) sans test qui l'exerce | Jamais invoqué |
+| `auditor` (+ `auditor-subagent`) | Audit multi-domaine (sécurité, perf, a11y, éco-conception, archi, privacy) / sous-agent lecture seule | (thread) / haiku | Demande d'audit, passe « risque technique/performance », revue de sécurité d'un périmètre | Jamais invoqués — *alors qu'un audit a produit des findings le 2026-07-24 (`cbe7e4f`)* |
+| `developer-refactor` | Refactoring : extraction, renommage, mutualisation — ne touche pas la logique métier | (thread) | Mutualisation/extraction/renommage à iso-comportement (ex. `a3e41b3`, `c04eb96`) | Jamais invoqué |
+| `developer` | Implémentation générique (domaine précisé à l'invocation) | (thread) | Implémentation bornée délégable pendant qu'un autre chantier avance | Jamais invoqué |
+| `developer-migrator` | Migration (framework, version majeure, dépendance, schéma) | (thread) | Montée de version, changement de dépendance ou de schéma SQLite | Jamais invoqué |
+| `debugger` | Diagnostic de bug (analyse la cause, **ne corrige pas**) | (thread) | Bug signalé sans cause identifiée (stacktrace/log à instruire) | Jamais invoqué |
+| `pathfinder` | Reconnaissance rapide, estimation de complexité (XS→XL) | sonnet | Demande dont le périmètre est flou avant de s'engager | Jamais invoqué |
+| `planner` | Décompose en epics/tickets | sonnet | Chantier produit à découper (sinon BMAD pour le cadrage amont) | Jamais invoqué |
+| `orchestrator` | Interface utilisateur, délègue selon le planner (Beads) | sonnet | **Aucun** — rôle assuré par `agent-orchestrator` (arbitré le 2026-07-21) | Jamais utilisé, volontairement |
+| `orchestrator-dev` | Pilote le workflow Beads ticket par ticket | sonnet | **Aucun** — idem, sauf pilotage par tickets Beads explicitement demandé | Jamais utilisé, volontairement |
 
 ### Bundle PPT — `ppt-designer` + sa boîte à outils
 
@@ -142,6 +153,5 @@ composer à vide. Format : `.claude/orchestration/playbooks/FORMAT.md`.
 | Playbook | Quand | Source | Statut |
 | --- | --- | --- | --- |
 | `dev-verifie` | Dev/correction dans `app/` : tests (`npm test`) + vérif réelle (conditionnelle aux fichiers touchés) + `revue-increment` avant commit | Manuel | Éprouvé (pratique effective de tous les incréments livrés) |
-| `export-ppt-verifie` | Livrable = le deck : génération (`ppt-designer` ou code direct) + enrichissements conditionnels (`pptx-framed-image`, `slide-text-polish`, `restitution-deck-design`) + `pptx-verify` obligatoire + `revue-increment` | Manuel | Éprouvé (génération réelle ×plusieurs commits + `pptx-verify` ×1) — étapes conditionnelles jamais jouées |
-| `revue-design-parallele` | Revue multi-angles en fan-out d'`Explore` (≤4) puis consolidation | Manuel | Jamais joué sur ce projet — pattern porté depuis le projet source (y a servi pour une revue design à 4 angles réelle) |
+| `export-ppt-verifie` | Livrable = le deck : génération (`ppt-designer` ou code direct) + enrichissements conditionnels (`pptx-framed-image`, `slide-text-polish`, `restitution-deck-design`) + `pptx-verify` obligatoire + `revue-increment`. Porte aussi la **variante fan-out** de la revue (>12 slides ou >2 angles), absorbée de `revue-design-parallele` le 2026-07-28 | Manuel | Éprouvé (n=8, 7 succès) |
 | `cycle-produit-bmad` | Cycle produit BMAD (brief→PRD→archi→epics→dev→review), clos par `revue-increment` | `generate_bmad_playbook.py` (regénérer depuis `_bmad/_config/bmad-help.csv`, ne pas éditer) | Jamais joué — sur demande explicite |

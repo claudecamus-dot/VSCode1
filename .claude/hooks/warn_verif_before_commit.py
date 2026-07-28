@@ -32,6 +32,22 @@ Conception (delta assumé vs. la proposition brute) :
 Le tokenizer shell robuste (heredocs, segments quote-safe) est réutilisé de
 `guard_destructive_git.py` (même répertoire) pour ne pas diverger d'un second
 parseur du même problème ; si l'import échoue, dégradation en silence.
+
+Second signal — trace de definition-of-done (constats #1 et #2 du superviseur du
+2026-07-28, arbitrés le jour même). Le diagnostic montrait deux trous jumeaux :
+`runs.jsonl` s'était arrêté au 2026-07-23 alors que ~10 commits étaient livrés
+(orchestrations non journalisées), et `revue-increment` n'avait plus tourné
+depuis le 2026-07-21 malgré 4 commits de code produit. Le contrat arbitré le
+2026-07-23 (« soit `revue-increment` tourne, soit la DoD allégée est écrite dans
+les `notes` du run ») s'appuyait sur un artefact OPTIONNEL — sans run journalisé,
+aucune de ses deux branches n'était vérifiable. La trace est donc déplacée sur
+l'artefact obligatoire : le **commit**. Sur un commit `app/**`, le hook se tait
+si l'une de ces trois traces existe — `revue-increment` réellement lancée, run
+journalisé via `log_run.py` dans la session, ou DoD explicitement assumée dans le
+message de commit (« DoD allégée : … »). Ce dernier cas rend la trace versionnée
+et re-vérifiable par le superviseur via `git log`, sans dépendre de `runs.jsonl`.
+Les deux avertissements sont indépendants et peuvent tomber ensemble : des tests
+verts (1er signal) ne valent PAS une definition-of-done (2nd signal).
 """
 import json
 import os
@@ -53,6 +69,17 @@ _WATCHED_PREFIXES = ("app/",)
 # Signaux d'une vraie exécution de vérif dans la session (commandes Bash / skills).
 _VERIF_BASH = ("npm test", "npm run test", "node --test", "scripts/test-", "npm run lint")
 _VERIF_SKILL = ("pptx-verify", "revue-increment")
+
+# Signaux de definition-of-done : la boucle DoD complète (skill), ou le run
+# d'orchestration journalisé (où la DoD assumée se trace dans `notes`).
+_DOD_SKILL = ("revue-increment",)
+_JOURNAL_BASH = ("log_run.py",)
+# Échappatoire versionnée : DoD assumée explicitement dans le message de commit.
+# Volontairement PAS « revue-increment » : sur ce dépôt, des commits parlent du skill
+# lui-même (« Versionne le skill revue-increment ») — le citer suffirait à faire taire
+# le garde-fou sans que la boucle ait tourné. Seul le mot DoD marque l'intention.
+_DOD_MESSAGE_MARKERS = ("definition-of-done", "definition of done")
+_DOD_MESSAGE_RE = re.compile(r"\bdod\b", re.IGNORECASE)
 
 _GIT_OPTS_WITH_VALUE = ("-C", "-c", "--git-dir", "--work-tree", "--namespace")
 
@@ -86,6 +113,38 @@ def _git_commit_flags(segment):
     if "--dry-run" in rest:
         return None  # ne crée pas de commit
     return rest
+
+
+def _commit_message(commit_flags):
+    """-> message du commit reconstitué depuis les -m/--message (chaîne vide si aucun)."""
+    parts = []
+    i = 0
+    while i < len(commit_flags):
+        t = commit_flags[i]
+        if t in ("-m", "--message"):
+            if i + 1 < len(commit_flags):
+                parts.append(commit_flags[i + 1])
+                i += 2
+                continue
+        elif t.startswith("--message="):
+            parts.append(t.split("=", 1)[1])
+        elif t.startswith("-") and not t.startswith("--") and "m" in t:
+            # options courtes groupées : -mwip, -am wip, -amwip
+            after = t[t.index("m") + 1:]
+            if after:
+                parts.append(after)
+            elif i + 1 < len(commit_flags):
+                parts.append(commit_flags[i + 1])
+                i += 2
+                continue
+        i += 1
+    return "\n".join(parts)
+
+
+def _dod_assumee(message):
+    """True si le message de commit assume explicitement la definition-of-done."""
+    low = (message or "").lower()
+    return bool(_DOD_MESSAGE_RE.search(low) or any(m in low for m in _DOD_MESSAGE_MARKERS))
 
 
 def _staged_watched(cwd, commit_flags):
@@ -126,10 +185,12 @@ def _iter_tool_uses(obj):
             yield blk
 
 
-def _verif_ran(transcript_path):
-    """True si une vraie exécution de vérif est présente dans le transcript de session."""
+def _session_signals(transcript_path):
+    """-> {"verif": bool, "dod": bool, "journal": bool} d'après les VRAIES exécutions
+    d'outils du transcript de session (une seule lecture pour les deux garde-fous)."""
+    sig = {"verif": False, "dod": False, "journal": False}
     if not transcript_path or not os.path.isfile(transcript_path):
-        return False
+        return sig
     try:
         with open(transcript_path, encoding="utf-8", errors="ignore") as fh:
             for line in fh:
@@ -145,13 +206,25 @@ def _verif_ran(transcript_path):
                     if name == "Bash":
                         cmd = (inp.get("command") or "").lower()
                         if any(k in cmd for k in _VERIF_BASH):
-                            return True
+                            sig["verif"] = True
+                        if any(k in cmd for k in _JOURNAL_BASH):
+                            sig["journal"] = True
                     elif name == "Skill":
-                        if (inp.get("skill") or "").lower() in _VERIF_SKILL:
-                            return True
+                        skill = (inp.get("skill") or "").lower()
+                        if skill in _VERIF_SKILL:
+                            sig["verif"] = True
+                        if skill in _DOD_SKILL:
+                            sig["dod"] = True
+                if all(sig.values()):
+                    return sig
     except Exception:
-        return False
-    return False
+        return {"verif": False, "dod": False, "journal": False}
+    return sig
+
+
+def _verif_ran(transcript_path):
+    """True si une vraie exécution de vérif est présente dans le transcript de session."""
+    return _session_signals(transcript_path)["verif"]
 
 
 _WARNING = (
@@ -160,6 +233,16 @@ _WARNING = (
     "réel (`/revue-increment` ou `pptx-verify`). Lancer la vérif RÉELLE avant de "
     "committer le code applicatif, ou confirmer que c'est volontaire. "
     "(Garde-fou projet non bloquant — constat superviseur #1.)"
+)
+
+_WARNING_DOD = (
+    "⚠️ Trace de definition-of-done absente : ce commit touche app/ sans que "
+    "`/revue-increment` ait tourné, sans run journalisé (`log_run.py`) et sans DoD "
+    "assumée dans le message. Des tests verts ne valent PAS une definition-of-done. "
+    "Trois sorties : lancer /revue-increment, journaliser le run d'orchestration, ou "
+    "assumer explicitement la DoD allégée dans le message de commit (ex. « DoD allégée : "
+    "tests verts, pas de rendu réel »). "
+    "(Garde-fou projet non bloquant — constats superviseur #1 et #2 du 2026-07-28.)"
 )
 
 
@@ -189,14 +272,21 @@ def main() -> None:
     if not watched:
         return  # rien sous app/ dans ce commit (ou git indéterminable) — silence
 
-    if _verif_ran(data.get("transcript_path")):
-        return  # une vérif réelle a tourné cette session — pas de rappel
+    sig = _session_signals(data.get("transcript_path"))
+    avertissements = []
+    if not sig["verif"]:
+        avertissements.append(_WARNING)  # aucune vérif réelle cette session
+    if not (sig["dod"] or sig["journal"] or _dod_assumee(_commit_message(commit_flags))):
+        avertissements.append(_WARNING_DOD)  # DoD ni faite, ni journalisée, ni assumée
+    if not avertissements:
+        return
 
+    message = "\n\n".join(avertissements)
     print(json.dumps({
-        "systemMessage": _WARNING,
+        "systemMessage": message,
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
-            "additionalContext": _WARNING,
+            "additionalContext": message,
         },
     }))
 

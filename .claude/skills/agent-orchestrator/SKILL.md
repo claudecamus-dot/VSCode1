@@ -46,9 +46,8 @@ checkpoints**, ne garder que les étapes conditionnelles applicables. Playbooks 
 
 | Playbook | Pour | Statut |
 | --- | --- | --- |
-| `dev-verifie` | Implémentation/correction dans `app/` avec tests + vérif réelle + `revue-increment` avant commit | Éprouvé (pratique effective du projet) |
-| `export-ppt-verifie` | Livrable = le deck de restitution (`app/scripts/pptx_deck.py`, `export-restitution-ppt.py`) : génération + enrichissements conditionnels (cadres photo, polish, design) + `pptx-verify` obligatoire | Éprouvé (génération + 1 vérification réelle constatées) |
-| `revue-design-parallele` | Revue multi-angles d'un livrable en fan-out puis consolidation | Jamais joué sur ce projet — pattern porté depuis le projet source |
+| `dev-verifie` | Implémentation/correction dans `app/` avec tests + vérif réelle + `revue-increment` avant commit. Porte 3 étapes **déléguées** conditionnelles (`qa-engineer` R1/R2, `reviewer` R3, `auditor` passe risque) — ajout du 2026-07-28, constat #3 | Éprouvé (pratique effective du projet) |
+| `export-ppt-verifie` | Livrable = le deck de restitution (`app/scripts/pptx_deck.py`, `export-restitution-ppt.py`) : génération + enrichissements conditionnels (cadres photo, polish, design) + `pptx-verify` obligatoire. Contient la **variante fan-out** de la revue (>12 slides ou >2 angles), absorbée de `revue-design-parallele` le 2026-07-28 | Éprouvé (n=8) |
 | `cycle-produit-bmad` | Cycle produit BMAD complet (généré depuis `_bmad/_config/bmad-help.csv`) — **sur demande explicite uniquement** | Jamais joué (46 skills BMAD, 0 invocation à ce jour) |
 
 Sinon composition libre depuis le catalogue + `routing-hints.json` : préférer les

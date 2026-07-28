@@ -94,6 +94,46 @@ def test_missing_transcript_is_no_trace():
     assert H._verif_ran("/no/such/file") is False
 
 
+# --- 2nd signal : trace de definition-of-done (constats #1/#2 du 2026-07-28) ---
+def test_message_extrait_des_formes_de_m():
+    assert H._commit_message(["commit", "-m", "wip"]) == "wip"
+    assert H._commit_message(["commit", "-mwip"]) == "wip"
+    assert H._commit_message(["commit", "--message=wip"]) == "wip"
+    assert H._commit_message(["commit", "-am", "wip"]) == "wip"
+    assert H._commit_message(["commit", "-amwip"]) == "wip"
+    assert H._commit_message(["commit", "--amend"]) == ""
+
+
+def test_dod_assumee_dans_le_message():
+    assert H._dod_assumee("Corrige X\n\nDoD allégée : tests verts, pas de rendu") is True
+    assert H._dod_assumee("Corrige X (definition-of-done complète)") is True
+    assert H._dod_assumee("Corrige X") is False
+    assert H._dod_assumee("Ajoute un dodo de 2s au polling") is False  # pas de faux positif
+    # Parler du skill n'est pas assumer la DoD (commits de ce dépôt sur le skill lui-même).
+    assert H._dod_assumee("Versionne le skill revue-increment") is False
+
+
+def test_journal_de_run_detecte():
+    tp = _transcript({"type": "assistant", "message": {"content": [
+        {"type": "tool_use", "name": "Bash",
+         "input": {"command": "py .claude/orchestration/log_run.py '{}'"}}]}})
+    try:
+        sig = H._session_signals(tp)
+        assert sig["journal"] is True and sig["dod"] is False
+    finally:
+        os.unlink(tp)
+
+
+def test_skill_revue_increment_vaut_dod_et_verif():
+    tp = _transcript({"type": "assistant", "message": {"content": [
+        {"type": "tool_use", "name": "Skill", "input": {"skill": "revue-increment"}}]}})
+    try:
+        sig = H._session_signals(tp)
+        assert sig["dod"] is True and sig["verif"] is True
+    finally:
+        os.unlink(tp)
+
+
 # --- bout-en-bout sur dépôt git temporaire ---
 def _run_hook(payload):
     p = subprocess.run([sys.executable, HOOK], input=json.dumps(payload),
@@ -122,7 +162,8 @@ def test_e2e_app_staged_no_verif_warns():
         shutil.rmtree(repo, ignore_errors=True)
 
 
-def test_e2e_app_staged_with_verif_is_silent():
+def test_e2e_app_staged_with_verif_warns_dod_seulement():
+    # Tests verts mais aucune trace de DoD : seul le 2nd avertissement tombe.
     repo, git = _repo()
     tp = _transcript({"type": "assistant", "message": {"content": [
         {"type": "tool_use", "name": "Bash", "input": {"command": "npm test"}}]}})
@@ -130,9 +171,56 @@ def test_e2e_app_staged_with_verif_is_silent():
         git("add", "app/x.js")
         out = _run_hook({"tool_name": "Bash", "tool_input": {"command": "git commit -m wip"},
                          "cwd": repo, "transcript_path": tp})
+        # Le JSON de sortie échappe les accents (é) : n'assertionner que sur l'ASCII.
+        assert "Trace de definition-of-done absente" in out, out
+        assert "sans trace de `npm test`" not in out, out
+    finally:
+        shutil.rmtree(repo, ignore_errors=True); os.unlink(tp)
+
+
+def test_e2e_verif_et_run_journalise_est_silencieux():
+    repo, git = _repo()
+    tp = _transcript(
+        {"type": "assistant", "message": {"content": [
+            {"type": "tool_use", "name": "Bash", "input": {"command": "npm test"}}]}},
+        {"type": "assistant", "message": {"content": [
+            {"type": "tool_use", "name": "Bash",
+             "input": {"command": "py .claude/orchestration/log_run.py '{}'"}}]}},
+    )
+    try:
+        git("add", "app/x.js")
+        out = _run_hook({"tool_name": "Bash", "tool_input": {"command": "git commit -m wip"},
+                         "cwd": repo, "transcript_path": tp})
         assert out == "", out
     finally:
         shutil.rmtree(repo, ignore_errors=True); os.unlink(tp)
+
+
+def test_e2e_verif_et_dod_assumee_dans_le_message_est_silencieux():
+    repo, git = _repo()
+    tp = _transcript({"type": "assistant", "message": {"content": [
+        {"type": "tool_use", "name": "Bash", "input": {"command": "npm test"}}]}})
+    try:
+        git("add", "app/x.js")
+        out = _run_hook({"tool_name": "Bash",
+                         "tool_input": {"command":
+                                        "git commit -m 'Corrige X' -m 'DoD allégée : tests verts'"},
+                         "cwd": repo, "transcript_path": tp})
+        assert out == "", out
+    finally:
+        shutil.rmtree(repo, ignore_errors=True); os.unlink(tp)
+
+
+def test_e2e_sans_rien_cumule_les_deux_avertissements():
+    repo, git = _repo()
+    try:
+        git("add", "app/x.js")
+        out = _run_hook({"tool_name": "Bash", "tool_input": {"command": "git commit -m wip"},
+                         "cwd": repo, "transcript_path": "/no/file"})
+        assert "sans trace de `npm test`" in out, out          # 1er avertissement
+        assert "Trace de definition-of-done absente" in out, out  # 2nd avertissement
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
 
 
 def test_e2e_docs_only_is_silent():

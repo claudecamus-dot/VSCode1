@@ -39,10 +39,16 @@ agents: [onboarder]
    possible sur un libellé très long en PPT (repli volontaire). Détail :
    [`../../export/points-amelioration-ppt.md`](../../export/points-amelioration-ppt.md).
 
-3. **Lancer `agent-supervisor` pour investiguer les axes d'amélioration.**
-   Diagnostic étage 2 sur les données du superviseur (usage, runs d'orchestration
-   journalisés cette session, signaux git/mémoire) → propositions concrètes
-   (champ `proposition`, arbitrées par l'humain). Cadence/état :
+3. **Lancer `agent-supervisor` pour investiguer les axes d'amélioration.** ✅ **Fait,
+   dernier passage le 2026-07-28** : 4 constats, les 4 arbitrés et appliqués le jour même
+   — (1)+(2) la trace de vérif ET de definition-of-done passe sur l'artefact obligatoire
+   (le commit) via un 2ᵉ signal de `warn_verif_before_commit.py`, après 5 jours sans run
+   journalisé ; (3) les 11 agents jamais invoqués reçoivent un **déclencheur de routage**
+   dans le catalogue + 3 étapes déléguées réelles dans `dev-verifie` (`qa-engineer`,
+   `reviewer`, `auditor`) ; (4) `revue-design-parallele` (jamais joué) absorbé comme
+   variante fan-out d'`export-ppt-verifie`, playbook autonome retiré. Prochaine échéance
+   posée : **2026-08-16** — revue groupée BMAD (46 skills à 0 usage) et re-mesure des
+   agents de la flotte. Cadence/état :
    [`technical/agents-supervision.md`](technical/agents-supervision.md).
 
 ## Chantier deck PPT — qualité & fidélité charte

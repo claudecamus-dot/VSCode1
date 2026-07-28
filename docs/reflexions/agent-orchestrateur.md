@@ -126,7 +126,11 @@ initiaux, tirés de la pratique réelle du projet :
 - `exploration-parallele` — fan-out de sous-agents Explore sur des questions indépendantes
   puis consolidation ;
 - `revue-design-parallele` — le pattern US9.12 (N agents de revue en parallèle sur des
-  angles distincts), aujourd'hui non capitalisé.
+  angles distincts), aujourd'hui non capitalisé. **Suite sur ce projet (2026-07-28)** :
+  capitalisé un temps en playbook autonome, il n'a jamais été joué en 7 jours alors que
+  8 revues design réelles passaient par `export-ppt-verifie` — le pattern y a donc été
+  absorbé comme *variante fan-out* de l'étape `design-review`, et le playbook autonome
+  retiré (constat #4 du superviseur).
 
 ## 5. Choix du mode d'exécution — règles simples
 

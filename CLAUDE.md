@@ -90,11 +90,14 @@ Décisions non redérivables du code :
   fail-open en cas d'erreur de parsing. Parsing `shlex` (gère `VAR=value git
   push --force`), tests versionnés dans `.claude/hooks/tests/`.
 - `.claude/hooks/warn_verif_before_commit.py` **avertit sans bloquer** avant un
-  `git commit` touchant `app/**` si aucune vérif réelle (`npm test`, rendu
-  `pptx-verify`, ou `revue-increment`) n'a tourné dans la session — ancre la
-  discipline « definition of done » au bon instant. Fail-open, détection de
-  vérif par le transcript. Issu du constat #1 du superviseur d'agents (voir
-  `.claude/supervision/`, tests dans `.claude/hooks/tests/`).
+  `git commit` touchant `app/**`, sur **deux signaux indépendants** : (1) aucune
+  vérif réelle (`npm test`, rendu `pptx-verify`, `revue-increment`) dans la
+  session ; (2) aucune trace de definition-of-done — ni `revue-increment`, ni run
+  journalisé (`log_run.py`), ni DoD assumée dans le message de commit
+  (« DoD allégée : … »). Des tests verts ne valent pas une DoD ; la trace vit
+  dans le commit, donc re-vérifiable via `git log` sans dépendre de `runs.jsonl`.
+  Détection par le transcript. Constats #1 (2026-07-21) puis #1/#2 (2026-07-28)
+  du superviseur (voir `.claude/supervision/`, tests dans `.claude/hooks/tests/`).
 - `.claude/hooks/orchestrator_gate.py` (`UserPromptSubmit`) : grille de
   qualification (~50 tokens) routant les demandes multi-étapes vers
   `agent-orchestrator` ; silencieux sur les slash-commands, fail-open.

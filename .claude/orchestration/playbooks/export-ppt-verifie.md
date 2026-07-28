@@ -87,6 +87,22 @@ exécuter réellement la boucle `revue-increment`, **soit** assumer une DoD all�
 vérifié seul » **et l'écrire explicitement dans le champ `notes` du run journalisé** — jamais
 la sauter en silence ni la créditer faussement (voir contrat de l'étape `revue-increment`).
 
+**Variante fan-out de la revue** (absorbée le 2026-07-28 depuis le playbook
+`revue-design-parallele`, constat #4 du superviseur : jamais joué en 7 jours alors que
+8 revues design réelles ont toutes pris ce playbook-ci — un chemin de moins à choisir au
+moment de qualifier, le pattern conservé là où il sert). Quand la revue porte sur **plus de
+~12 slides** ou sur **plus de 2 angles réellement indépendants** (parcours/lecture,
+cohérence visuelle, contenu rédactionnel, accessibilité), l'étape `design-review` s'instancie
+en fan-out : 2 à 4 sous-agents en **lecture seule** (`Explore`, ou `ppt-designer` sur l'angle
+design), un angle par agent avec son périmètre et son format de rapport (constats courts +
+gravité), puis **consolidation obligatoire** en un backlog dédoublonné et priorisé, les
+contradictions entre angles arbitrées explicitement. Règles héritées : jamais d'écriture
+concurrente pendant le fan-out, rapports courts (chaque sous-agent repart d'un contexte
+froid facturé), et **garde exhaustivité** — un fan-out d'`Explore` lit des *extraits*, donc
+si la revue sert à recenser toutes les références à un identifiant **avant suppression ou
+renommage**, la consolidation se termine par un `grep -r` déterministe de chaque
+identifiant sur tout le dépôt, dont le résultat **prime** sur les rapports des sous-agents.
+
 ```json
 {
   "nom": "export-ppt-verifie",
@@ -162,7 +178,7 @@ la sauter en silence ni la créditer faussement (voir contrat de l'étape `revue
       "modele": "(session)",
       "contrat": {
         "type": "reel",
-        "critere": "SI le rendu passe la géométrie mais reste visuellement pauvre (mur de boîtes, hiérarchie absente, écart à la charte OCTO) : passe design appliquée puis retour à verification-rendu. Pour une revue du deck ENTIER (ou un signal utilisateur « pas au niveau ») : suivre les contrats PAR TYPE DE SLIDE du skill deck-design-review (importé de VSCode2 le 2026-07-23) — chaque slide revue contre SA définition, pas une impression d'ensemble"
+        "critere": "SI le rendu passe la géométrie mais reste visuellement pauvre (mur de boîtes, hiérarchie absente, écart à la charte OCTO) : passe design appliquée puis retour à verification-rendu. Pour une revue du deck ENTIER (ou un signal utilisateur « pas au niveau ») : suivre les contrats PAR TYPE DE SLIDE du skill deck-design-review (importé de VSCode2 le 2026-07-23) — chaque slide revue contre SA définition, pas une impression d'ensemble. VARIANTE FAN-OUT (absorbée de revue-design-parallele le 2026-07-28) : SI plus de ~12 slides ou plus de 2 angles indépendants, instancier cette étape en 2 à 4 sous-agents lecture seule (un angle chacun, périmètre et format de rapport définis avant) puis CONSOLIDER en un backlog dédoublonné et priorisé, contradictions arbitrées ; si le fan-out sert à énumérer des identifiants avant suppression/renommage, garde déterministe finale obligatoire (grep -r sur tout le dépôt, qui prime sur les rapports des sous-agents)"
       },
       "checkpoint": false
     },
