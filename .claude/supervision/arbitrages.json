@@ -1,77 +1,85 @@
 {
-  "_doc": "Décisions humaines qui closent un constat automatique du superviseur (fichier VERSIONNÉ, édité à la main — le scan le lit, ne l'écrit jamais). cible : nom de skill, ou famille:<Nom> pour une famille entière. Un constat arbitré disparaît des TODO auto mais reste visible dans la section « Arbitrages enregistrés » du tableau de bord ; l'usage réel reste mesuré (un arbitrage n'est pas une preuve d'utilité — le superviseur étage 2 peut le re-challenger avec des données nouvelles).",
-  "arbitrages": [
-    {
-      "cible": "revue-increment",
-      "decision": "Constat #1 (vérif de fin d'incrément systématiquement sautée) accepté. Réponse retenue : un garde-fou au COMMIT plutôt que de forcer l'invocation de revue-increment — hook PreToolUse .claude/hooks/warn_verif_before_commit.py, non bloquant, ciblé app/, silencieux si une vraie vérif (npm test / pptx-verify / revue-increment) a tourné dans la session. La vérif est ainsi rappelée au bon instant ; l'usage réel de revue-increment reste mesuré et re-challengeable.",
-      "date": "2026-07-21",
-      "source": "agent-supervisor étage 2, constat #1 — arbitré et implémenté en session 2026-07-21"
-    },
-    {
-      "cible": "famille:BMAD",
-      "decision": "Constat #3 : 46 skills BMAD à 0 usage à J+5 (installés le 2026-07-16). Décision d'OBSERVATION (pas de tri tranché maintenant) : BMAD n'est pas routé par défaut — déjà le cas, l'orchestrateur n'y route que sur demande explicite via bmad-help. Revue datée à l'échéance 2026-08-16 : si toujours 0 usage réel mesuré, désinstaller / mettre en sommeil en bloc plutôt que skill par skill. NB : la flotte canonique a été arbitrée le 2026-07-21 — .claude/agents/ est la flotte de rôles canonique (gate agent-orchestrator branché en UserPromptSubmit), BMAD conservé pour le cycle produit uniquement (cf. CLAUDE.md § Skills & agents). Décision réversible, re-challengeable par le superviseur avec des données nouvelles.",
-      "date": "2026-07-21",
-      "source": "agent-supervisor étage 2, constat #3 — décision d'observation datée en session 2026-07-21 (échéance de revue 2026-08-16)"
-    },
-    {
-      "cible": "export-ppt-verifie",
-      "decision": "Constat interaction (2026-07-21) : la revue design du deck re-note d'un run à l'autre les mêmes décisions produit non tranchées (radar vs tableau, contraste GOLD) au lieu de les forcer. ACCEPTÉ + APPLIQUÉ : ajout de l'étape `gate-decision-produit` (checkpoint) au playbook export-ppt-verifie — une passe qui bute sur une décision produit non tranchée produit UNE décision explicite à arbitrer (options rendues RÉELLEMENT + reco) et suspend le rework gated jusqu'à l'arbitrage utilisateur, au lieu de re-noter le blocage.",
-      "date": "2026-07-21",
-      "source": "agent-supervisor étage 2, constat interaction — arbitré (Accepter + appliquer) et implémenté en session 2026-07-21"
-    },
-    {
-      "cible": "pptx-verify",
-      "decision": "Constat verification-manquante (2026-07-21) : aucune étape du loop design ne vérifie le contraste WCAG des libellés ; le GOLD #b8860b (3.25:1 < AA 4.5:1) colore les libellés d'axe, partagé web (resultats.html/pilotage.html) + PPT (_dessiner_radar). ACCEPTÉ, implémenté DANS le chantier #2 (revue design radar) : ajout d'un check de contraste (luminance relative WCAG, seuil 4.5:1) sur les couleurs de libellés, palette pilier comme source unique testée par les deux surfaces. La VALEUR du GOLD (assombrir ou garder) reste tranchée dans le chantier #2 sur rendu réel (#2d), pas ici.",
-      "date": "2026-07-21",
-      "source": "agent-supervisor étage 2, constat verification-manquante — arbitré (Accepter, implémenter dans le chantier #2) en session 2026-07-21"
-    },
-    {
-      "cible": "export-ppt-verifie",
-      "decision": "Constats interaction + ko-repete (2026-07-22) : la revue design du deck a été déclarée « close » puis ré-ouverte 8+ fois — « succès » mesurait travail fait + rendu OK à MES yeux + tests verts + commit, pas l'intention design de l'utilisateur atteinte ; et des éléments à options (réglette des paliers, police) ont été implémentés-puis-commités au lieu d'être choisis sur variantes. ACCEPTÉ + APPLIQUÉ (demande utilisateur « créer des Rules »). Deux règles ajoutées au playbook export-ppt-verifie ET au skill pptx-verify (Step 6) : (1) VALIDATION UTILISATEUR AVANT COMMIT — un changement design-intent ne se commite/déclare 'fait' qu'après validation du rendu réel par l'utilisateur (étape `validation-utilisateur`, checkpoint dur) ; (2) VARIANTES RENDUES AVANT DE CHOISIR — un élément à options de layout (placement/orientation/échelle/présence) se tranche sur 2-3 variantes rendues avant d'implémenter. Mémoire feedback_validation_rendu_avant_commit_ppt.",
-      "date": "2026-07-22",
-      "source": "agent-supervisor étage 2, constats interaction/ko-repete — arbitré (Accepter + créer des Rules) et implémenté en session 2026-07-22"
-    },
-    {
-      "cible": "ppt-designer",
-      "decision": "Constat interaction (2026-07-23) : le seul run partiel de l'historique (2026-07-22 02:10) avait son sous-agent ppt-designer NON REPRENABLE (transcript expiré) -> correctifs rapatriés en session principale, 4 constats finis au run suivant. ACCEPTÉ + APPLIQUÉ : playbook export-ppt-verifie amendé (prose + contrat de l'étape generation) — toute délégation (génération OU revue) au ppt-designer exige, dès le 1er retour et en un seul passage, une LISTE DE FINDINGS AUTOSUFFISANTE (constat + localisation fichier/fonction ou n° de slide + correctif proposé), exploitable sans rappeler l'agent. Corollaire de la mémoire feedback_seconde_vague_chasseurs_adversariaux.",
-      "date": "2026-07-23",
-      "source": "agent-supervisor étage 2, constat interaction — arbitré (Accepter + appliquer) et implémenté en session 2026-07-23"
-    },
-    {
-      "cible": "revue-increment",
-      "decision": "Constat verification-manquante (2026-07-23) : ~8 runs deck du 2026-07-22 listaient revue-increment en étape terminale mais le skill n'a pas été chargé depuis le 2026-07-21, alors que ~14 commits deck du 07-22 touchaient du code produit (export-restitution-ppt.py, server.js) — le hook de commit était satisfait par pptx-verify seul. ACCEPTÉ + APPLIQUÉ : le contrat de l'étape revue-increment du playbook export-ppt-verifie pose désormais que pptx-verify (rendu vérifié) NE VAUT PAS la boucle DoD complète — sur un commit de code produit, soit revue-increment est réellement exécutée, soit une DoD allégée « rendu vérifié seul » est assumée ET écrite dans le champ notes du run (jamais sautée en silence). Le garde-fou du 2026-07-21 (hook warn_verif_before_commit) reste, il couvre le commit ; ce constat couvre la boucle d'amélioration distincte.",
-      "date": "2026-07-23",
-      "source": "agent-supervisor étage 2, constat verification-manquante — arbitré (Accepter + appliquer) et implémenté en session 2026-07-23"
-    },
-    {
-      "cible": "export-ppt-verifie",
-      "decision": "Constat inefficacite (2026-07-23, repris de VSCode2 #3) : la boucle de rendu (rendu->défauts->correction->re-rendu) était comptée comme reprise — ici 3 reprises/8 runs + pptx-verify 5/11, moins intense que côté VSCode2 (100%). ACCEPTÉ + DÉJÀ MITIGÉ dans la même session (import des apprentissages VSCode2) : le playbook déclare la boucle de rendu NOMINALE avec un budget de 2 itérations, seul le hors-budget compte comme reprise. À surveiller au prochain scan : re-baseliner reprises ; si élevé hors boucle de rendu, rouvrir en vraie inefficacité.",
-      "date": "2026-07-23",
-      "source": "agent-supervisor étage 2, constat inefficacite — arbitré (Accepter) ; mitigation déjà écrite en session 2026-07-23"
-    },
-    {
-      "cible": "agent-orchestrator",
-      "decision": "Constat interaction (2026-07-28) : chaîne gate -> orchestrateur -> journalisation rompue depuis le 2026-07-23 (runs.jsonl figé, ~10 commits livrés depuis, hook UserPromptSubmit pourtant branché) ; conséquence : prudence/trous_catalogue/verifications_oubliees vides = faux négatifs, l'étage 1 ne mesure plus rien. ACCEPTÉ + APPLIQUÉ : la journalisation devient non-oubliable au lieu d'être déclarative — warn_verif_before_commit.py porte un 2nd avertissement (non bloquant) qui tombe sur un commit app/ sans run journalisé (log_run.py détecté dans le transcript), sans revue-increment et sans DoD assumée dans le message. Les stats plan-vs-réel redeviennent alimentées ou, à défaut, le trou est visible dans git.",
-      "date": "2026-07-28",
-      "source": "agent-supervisor étage 2, constat #1 — arbitré (corriger) et implémenté en session 2026-07-28"
-    },
-    {
-      "cible": "revue-increment",
-      "decision": "Constat verification-manquante (2026-07-28, RÉCIDIVE du constat du 2026-07-23) : revue-increment inutilisée depuis le 2026-07-21 malgré 4 commits de code produit les 07-24/07-25, et le contrat C2 du 07-23 (tracer la DoD allégée dans les notes du run) inapplicable puisque aucun run n'était journalisé. ACCEPTÉ + APPLIQUÉ : la trace de definition-of-done passe de l'artefact OPTIONNEL (run) à l'artefact OBLIGATOIRE (commit). Trois sorties acceptées par le hook : revue-increment réellement lancée, run journalisé, ou DoD assumée par écrit dans le message de commit (« DoD allégée : … ») — re-vérifiable par le superviseur via git log. Le contrat de l'étape revue-increment de dev-verifie l'inscrit aussi. Des tests verts ne valent PAS une DoD.",
-      "date": "2026-07-28",
-      "source": "agent-supervisor étage 2, constat #2 — arbitré (corriger) et implémenté en session 2026-07-28"
-    },
-    {
-      "cible": "flotte:.claude/agents",
-      "decision": "Constat agent-mort (2026-07-28) : 11 des 17 agents de la flotte canonique à 0 invocation alors que leurs cas d'usage exacts (audit cbe7e4f, refactor a3e41b3/c04eb96, écriture de tests 1c89950) se sont produits les 07-24/07-25 en session principale. ACCEPTÉ + APPLIQUÉ (demande utilisateur : « assure-toi que les agents non invoqués soient reliés à agent-orchestrator ») : (1) le catalogue porte désormais une colonne DÉCLENCHEUR DE ROUTAGE par agent — le manque n'était pas la description du rôle mais le signal d'appel ; (2) le playbook dev-verifie porte 3 étapes déléguées conditionnelles réelles : qa-engineer (R1/R2, tests manquants), reviewer (R3, revue de diff avant commit), auditor (passe risque/perf/sécurité) ; (3) garder la main en session principale reste permis mais s'écrit dans les notes du run (« resolution: inline <agent> — <raison> »). orchestrator et orchestrator-dev restent volontairement sans déclencheur (rôle assuré par agent-orchestrator, arbitrage du 2026-07-21). Re-mesurable au prochain scan : si toujours 0 usage au 2026-08-16, mise en sommeil groupée.",
-      "date": "2026-07-28",
-      "source": "agent-supervisor étage 2, constat #3 — arbitré (relier à l'orchestrateur) et implémenté en session 2026-07-28"
-    },
-    {
-      "cible": "revue-design-parallele",
-      "decision": "Constat agent-mort (2026-07-28) : playbook jamais joué depuis son import du 2026-07-21 alors que 8 revues design réelles ont eu lieu, toutes via export-ppt-verifie. ACCEPTÉ + APPLIQUÉ : fusion plutôt que perte — le pattern devient la VARIANTE FAN-OUT de l'étape design-review d'export-ppt-verifie (>12 slides ou >2 angles : 2 à 4 sous-agents lecture seule, un angle chacun, consolidation obligatoire), avec sa garde exhaustivité conservée (grep -r déterministe qui prime sur les rapports des sous-agents avant toute suppression/renommage). Le playbook autonome est retiré (fichier supprimé, ligne retirée du catalogue et de la table de la skill ; historique git conservé) — un chemin de moins à choisir au moment de qualifier.",
-      "date": "2026-07-28",
-      "source": "agent-supervisor étage 2, constat #4 — arbitré (fusionner) et implémenté en session 2026-07-28"
-    }
-  ]
+ "_doc": "Décisions humaines qui closent un constat automatique du superviseur (fichier VERSIONNÉ, édité à la main — le scan le lit, ne l'écrit jamais). cible : nom de skill, ou famille:<Nom> pour une famille entière. Un constat arbitré disparaît des TODO auto mais reste visible dans la section « Arbitrages enregistrés » du tableau de bord ; l'usage réel reste mesuré (un arbitrage n'est pas une preuve d'utilité — le superviseur étage 2 peut le re-challenger avec des données nouvelles).",
+ "arbitrages": [
+  {
+   "cible": "revue-increment",
+   "decision": "Constat #1 (vérif de fin d'incrément systématiquement sautée) accepté. Réponse retenue : un garde-fou au COMMIT plutôt que de forcer l'invocation de revue-increment — hook PreToolUse .claude/hooks/warn_verif_before_commit.py, non bloquant, ciblé app/, silencieux si une vraie vérif (npm test / pptx-verify / revue-increment) a tourné dans la session. La vérif est ainsi rappelée au bon instant ; l'usage réel de revue-increment reste mesuré et re-challengeable.",
+   "date": "2026-07-21",
+   "source": "agent-supervisor étage 2, constat #1 — arbitré et implémenté en session 2026-07-21"
+  },
+  {
+   "cible": "famille:BMAD",
+   "decision": "Constat #3 : 46 skills BMAD à 0 usage à J+5 (installés le 2026-07-16). Décision d'OBSERVATION (pas de tri tranché maintenant) : BMAD n'est pas routé par défaut — déjà le cas, l'orchestrateur n'y route que sur demande explicite via bmad-help. Revue datée à l'échéance 2026-08-16 : si toujours 0 usage réel mesuré, désinstaller / mettre en sommeil en bloc plutôt que skill par skill. NB : la flotte canonique a été arbitrée le 2026-07-21 — .claude/agents/ est la flotte de rôles canonique (gate agent-orchestrator branché en UserPromptSubmit), BMAD conservé pour le cycle produit uniquement (cf. CLAUDE.md § Skills & agents). Décision réversible, re-challengeable par le superviseur avec des données nouvelles.",
+   "date": "2026-07-21",
+   "source": "agent-supervisor étage 2, constat #3 — décision d'observation datée en session 2026-07-21 (échéance de revue 2026-08-16)"
+  },
+  {
+   "cible": "export-ppt-verifie",
+   "decision": "Constat interaction (2026-07-21) : la revue design du deck re-note d'un run à l'autre les mêmes décisions produit non tranchées (radar vs tableau, contraste GOLD) au lieu de les forcer. ACCEPTÉ + APPLIQUÉ : ajout de l'étape `gate-decision-produit` (checkpoint) au playbook export-ppt-verifie — une passe qui bute sur une décision produit non tranchée produit UNE décision explicite à arbitrer (options rendues RÉELLEMENT + reco) et suspend le rework gated jusqu'à l'arbitrage utilisateur, au lieu de re-noter le blocage.",
+   "date": "2026-07-21",
+   "source": "agent-supervisor étage 2, constat interaction — arbitré (Accepter + appliquer) et implémenté en session 2026-07-21"
+  },
+  {
+   "cible": "pptx-verify",
+   "decision": "Constat verification-manquante (2026-07-21) : aucune étape du loop design ne vérifie le contraste WCAG des libellés ; le GOLD #b8860b (3.25:1 < AA 4.5:1) colore les libellés d'axe, partagé web (resultats.html/pilotage.html) + PPT (_dessiner_radar). ACCEPTÉ, implémenté DANS le chantier #2 (revue design radar) : ajout d'un check de contraste (luminance relative WCAG, seuil 4.5:1) sur les couleurs de libellés, palette pilier comme source unique testée par les deux surfaces. La VALEUR du GOLD (assombrir ou garder) reste tranchée dans le chantier #2 sur rendu réel (#2d), pas ici.",
+   "date": "2026-07-21",
+   "source": "agent-supervisor étage 2, constat verification-manquante — arbitré (Accepter, implémenter dans le chantier #2) en session 2026-07-21"
+  },
+  {
+   "cible": "export-ppt-verifie",
+   "decision": "Constats interaction + ko-repete (2026-07-22) : la revue design du deck a été déclarée « close » puis ré-ouverte 8+ fois — « succès » mesurait travail fait + rendu OK à MES yeux + tests verts + commit, pas l'intention design de l'utilisateur atteinte ; et des éléments à options (réglette des paliers, police) ont été implémentés-puis-commités au lieu d'être choisis sur variantes. ACCEPTÉ + APPLIQUÉ (demande utilisateur « créer des Rules »). Deux règles ajoutées au playbook export-ppt-verifie ET au skill pptx-verify (Step 6) : (1) VALIDATION UTILISATEUR AVANT COMMIT — un changement design-intent ne se commite/déclare 'fait' qu'après validation du rendu réel par l'utilisateur (étape `validation-utilisateur`, checkpoint dur) ; (2) VARIANTES RENDUES AVANT DE CHOISIR — un élément à options de layout (placement/orientation/échelle/présence) se tranche sur 2-3 variantes rendues avant d'implémenter. Mémoire feedback_validation_rendu_avant_commit_ppt.",
+   "date": "2026-07-22",
+   "source": "agent-supervisor étage 2, constats interaction/ko-repete — arbitré (Accepter + créer des Rules) et implémenté en session 2026-07-22"
+  },
+  {
+   "cible": "ppt-designer",
+   "decision": "Constat interaction (2026-07-23) : le seul run partiel de l'historique (2026-07-22 02:10) avait son sous-agent ppt-designer NON REPRENABLE (transcript expiré) -> correctifs rapatriés en session principale, 4 constats finis au run suivant. ACCEPTÉ + APPLIQUÉ : playbook export-ppt-verifie amendé (prose + contrat de l'étape generation) — toute délégation (génération OU revue) au ppt-designer exige, dès le 1er retour et en un seul passage, une LISTE DE FINDINGS AUTOSUFFISANTE (constat + localisation fichier/fonction ou n° de slide + correctif proposé), exploitable sans rappeler l'agent. Corollaire de la mémoire feedback_seconde_vague_chasseurs_adversariaux.",
+   "date": "2026-07-23",
+   "source": "agent-supervisor étage 2, constat interaction — arbitré (Accepter + appliquer) et implémenté en session 2026-07-23"
+  },
+  {
+   "cible": "revue-increment",
+   "decision": "Constat verification-manquante (2026-07-23) : ~8 runs deck du 2026-07-22 listaient revue-increment en étape terminale mais le skill n'a pas été chargé depuis le 2026-07-21, alors que ~14 commits deck du 07-22 touchaient du code produit (export-restitution-ppt.py, server.js) — le hook de commit était satisfait par pptx-verify seul. ACCEPTÉ + APPLIQUÉ : le contrat de l'étape revue-increment du playbook export-ppt-verifie pose désormais que pptx-verify (rendu vérifié) NE VAUT PAS la boucle DoD complète — sur un commit de code produit, soit revue-increment est réellement exécutée, soit une DoD allégée « rendu vérifié seul » est assumée ET écrite dans le champ notes du run (jamais sautée en silence). Le garde-fou du 2026-07-21 (hook warn_verif_before_commit) reste, il couvre le commit ; ce constat couvre la boucle d'amélioration distincte.",
+   "date": "2026-07-23",
+   "source": "agent-supervisor étage 2, constat verification-manquante — arbitré (Accepter + appliquer) et implémenté en session 2026-07-23"
+  },
+  {
+   "cible": "export-ppt-verifie",
+   "decision": "Constat inefficacite (2026-07-23, repris de VSCode2 #3) : la boucle de rendu (rendu->défauts->correction->re-rendu) était comptée comme reprise — ici 3 reprises/8 runs + pptx-verify 5/11, moins intense que côté VSCode2 (100%). ACCEPTÉ + DÉJÀ MITIGÉ dans la même session (import des apprentissages VSCode2) : le playbook déclare la boucle de rendu NOMINALE avec un budget de 2 itérations, seul le hors-budget compte comme reprise. À surveiller au prochain scan : re-baseliner reprises ; si élevé hors boucle de rendu, rouvrir en vraie inefficacité.",
+   "date": "2026-07-23",
+   "source": "agent-supervisor étage 2, constat inefficacite — arbitré (Accepter) ; mitigation déjà écrite en session 2026-07-23"
+  },
+  {
+   "cible": "agent-orchestrator",
+   "decision": "Constat interaction (2026-07-28) : chaîne gate -> orchestrateur -> journalisation rompue depuis le 2026-07-23 (runs.jsonl figé, ~10 commits livrés depuis, hook UserPromptSubmit pourtant branché) ; conséquence : prudence/trous_catalogue/verifications_oubliees vides = faux négatifs, l'étage 1 ne mesure plus rien. ACCEPTÉ + APPLIQUÉ : la journalisation devient non-oubliable au lieu d'être déclarative — warn_verif_before_commit.py porte un 2nd avertissement (non bloquant) qui tombe sur un commit app/ sans run journalisé (log_run.py détecté dans le transcript), sans revue-increment et sans DoD assumée dans le message. Les stats plan-vs-réel redeviennent alimentées ou, à défaut, le trou est visible dans git.",
+   "date": "2026-07-28",
+   "source": "agent-supervisor étage 2, constat #1 — arbitré (corriger) et implémenté en session 2026-07-28"
+  },
+  {
+   "cible": "revue-increment",
+   "decision": "Constat verification-manquante (2026-07-28, RÉCIDIVE du constat du 2026-07-23) : revue-increment inutilisée depuis le 2026-07-21 malgré 4 commits de code produit les 07-24/07-25, et le contrat C2 du 07-23 (tracer la DoD allégée dans les notes du run) inapplicable puisque aucun run n'était journalisé. ACCEPTÉ + APPLIQUÉ : la trace de definition-of-done passe de l'artefact OPTIONNEL (run) à l'artefact OBLIGATOIRE (commit). Trois sorties acceptées par le hook : revue-increment réellement lancée, run journalisé, ou DoD assumée par écrit dans le message de commit (« DoD allégée : … ») — re-vérifiable par le superviseur via git log. Le contrat de l'étape revue-increment de dev-verifie l'inscrit aussi. Des tests verts ne valent PAS une DoD.",
+   "date": "2026-07-28",
+   "source": "agent-supervisor étage 2, constat #2 — arbitré (corriger) et implémenté en session 2026-07-28"
+  },
+  {
+   "cible": "flotte:.claude/agents",
+   "decision": "Constat agent-mort (2026-07-28) : 11 des 17 agents de la flotte canonique à 0 invocation alors que leurs cas d'usage exacts (audit cbe7e4f, refactor a3e41b3/c04eb96, écriture de tests 1c89950) se sont produits les 07-24/07-25 en session principale. ACCEPTÉ + APPLIQUÉ (demande utilisateur : « assure-toi que les agents non invoqués soient reliés à agent-orchestrator ») : (1) le catalogue porte désormais une colonne DÉCLENCHEUR DE ROUTAGE par agent — le manque n'était pas la description du rôle mais le signal d'appel ; (2) le playbook dev-verifie porte 3 étapes déléguées conditionnelles réelles : qa-engineer (R1/R2, tests manquants), reviewer (R3, revue de diff avant commit), auditor (passe risque/perf/sécurité) ; (3) garder la main en session principale reste permis mais s'écrit dans les notes du run (« resolution: inline <agent> — <raison> »). orchestrator et orchestrator-dev restent volontairement sans déclencheur (rôle assuré par agent-orchestrator, arbitrage du 2026-07-21). Re-mesurable au prochain scan : si toujours 0 usage au 2026-08-16, mise en sommeil groupée.",
+   "date": "2026-07-28",
+   "source": "agent-supervisor étage 2, constat #3 — arbitré (relier à l'orchestrateur) et implémenté en session 2026-07-28"
+  },
+  {
+   "cible": "revue-design-parallele",
+   "decision": "Constat agent-mort (2026-07-28) : playbook jamais joué depuis son import du 2026-07-21 alors que 8 revues design réelles ont eu lieu, toutes via export-ppt-verifie. ACCEPTÉ + APPLIQUÉ : fusion plutôt que perte — le pattern devient la VARIANTE FAN-OUT de l'étape design-review d'export-ppt-verifie (>12 slides ou >2 angles : 2 à 4 sous-agents lecture seule, un angle chacun, consolidation obligatoire), avec sa garde exhaustivité conservée (grep -r déterministe qui prime sur les rapports des sous-agents avant toute suppression/renommage). Le playbook autonome est retiré (fichier supprimé, ligne retirée du catalogue et de la table de la skill ; historique git conservé) — un chemin de moins à choisir au moment de qualifier.",
+   "date": "2026-07-28",
+   "source": "agent-supervisor étage 2, constat #4 — arbitré (fusionner) et implémenté en session 2026-07-28"
+  },
+  {
+   "cible": "flotte .claude/agents/",
+   "date": "2026-07-29",
+   "categories": [
+    "agent-mort"
+   ],
+   "decision": "ACCEPTÉ + APPLIQUÉ (hub, « traite les actions correctives identifiées pour VSCode1 ») : entrée à la CIBLE EXACTE du finding — l'arbitrage du 2026-07-28 existait déjà sous la cible sœur « flotte:.claude/agents » mais le filtre du scan compare en égalité de chaîne, le finding restait donc affiché ouvert (même mécanisme que bmad-catalogue-codex, 2026-07-27). Vérifié sur l'état réel (R1) : la remédiation (1) est DÉJÀ appliquée — dev-verifie.md porte les étapes déléguées réelles qa-engineer (tests) et auditor (passe risque) au lieu de « session principale » ; AUCUN geste refait. La décision (2) reste datée : si toujours 0 usage des 11 agents au 2026-08-16 (échéance commune à la revue BMAD), mise en sommeil groupée du sous-ensemble jamais appelé — décision unique, pas au fil de l'eau."
+  }
+ ]
 }
