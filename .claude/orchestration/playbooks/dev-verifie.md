@@ -82,7 +82,7 @@ tableau « Flotte projet » du catalogue.
       "modele": "(session)",
       "contrat": {
         "type": "deterministe",
-        "critere": "verdict lu sur la sortie RÉELLE de la suite (scripts scripts/test-*.js enchaînés, assertions node:assert/strict + helper check()) — jamais sur un résumé filtré (le proxy rtk réécrit les commandes de ce projet) ni une sortie tronquée ; en cas de doute, relancer via `rtk proxy npm test` ou rediriger toute la sortie dans un fichier",
+        "critere": "verdict lu sur la sortie RÉELLE de la suite (scripts scripts/test-*.js enchaînés, assertions node:assert/strict + helper check()) — jamais sur un résumé filtré ni une sortie tronquée ; en cas de doute, rediriger toute la sortie dans un fichier",
         "commande": "npm test"
       },
       "checkpoint": false
