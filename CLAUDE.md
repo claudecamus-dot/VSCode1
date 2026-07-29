@@ -13,13 +13,10 @@ avec 4 **niveaux** de réponse (0 à 3) ; **animateur** (celui qui pilote une
 session) vs **répondant** ; **session** (une campagne d'évaluation pour une
 équipe) ; **pilotage** (vue consolidée par département).
 
-Documentation de cadrage fonctionnel (personas, parcours, découpage
-Epics/US) : voir [`cadrage/`](cadrage/). Vue d'ensemble consultable par
-défaut (métier, technique, roadmap) : [`docs/wiki.html`](docs/wiki.html) —
-la roadmap y est intégrée directement (graphique + détail par Epic), source
-éditable `.roadmap/roadmap.json`. **Peut être en avance ou en retard sur le
-code réel**, vérifier contre `git log`/`git status` avant de lui faire
-confiance.
+Cadrage fonctionnel (personas, parcours, Epics/US) : [`cadrage/`](cadrage/), synthèse 1 page
+dans [`docs/product-brief.md`](docs/product-brief.md). Vue d'ensemble (métier, technique,
+roadmap intégrée, source `.roadmap/roadmap.json`) : [`docs/wiki.html`](docs/wiki.html) —
+**peut retarder sur le code réel**, vérifier contre `git log`/`git status`.
 
 ## Commandes
 
@@ -78,45 +75,43 @@ Décisions non redérivables du code :
 
 ## Claude Code — configuration du projet
 
-- `.claude/settings.json` est **versionné** : mécanisme de hook
-  (`PreToolUse` sur `Bash|PowerShell`) + `permissions.deny` sur les secrets
-  (`.env`, `secrets/**`, `config/credentials.json`). Ne pas y accumuler de
-  règles `permissions.allow` one-off.
-- `.claude/settings.local.json` est **local, non versionné** (ignoré via
-  `.gitignore`) : c'est là que s'accumulent naturellement les autorisations
-  au fil des sessions.
-- `.claude/hooks/guard_destructive_git.py` bloque `git push --force` (sans
-  `--force-with-lease`) et `git reset --hard` — garde-fou déterministe,
-  fail-open en cas d'erreur de parsing. Parsing `shlex` (gère `VAR=value git
-  push --force`), tests versionnés dans `.claude/hooks/tests/`.
-- `.claude/hooks/warn_verif_before_commit.py` **avertit sans bloquer** avant un
-  `git commit` touchant `app/**`, sur **deux signaux indépendants** : (1) aucune
-  vérif réelle (`npm test`, rendu `pptx-verify`, `revue-increment`) dans la
-  session ; (2) aucune trace de definition-of-done — ni `revue-increment`, ni run
-  journalisé (`log_run.py`), ni DoD assumée dans le message de commit
-  (« DoD allégée : … »). Des tests verts ne valent pas une DoD ; la trace vit
-  dans le commit, donc re-vérifiable via `git log` sans dépendre de `runs.jsonl`.
-  Détection par le transcript. Constats #1 (2026-07-21) puis #1/#2 (2026-07-28)
-  du superviseur (voir `.claude/supervision/`, tests dans `.claude/hooks/tests/`).
-- `.claude/hooks/orchestrator_gate.py` (`UserPromptSubmit`) : grille de
-  qualification (~50 tokens) routant les demandes multi-étapes vers
-  `agent-orchestrator` ; silencieux sur les slash-commands, fail-open.
-- `.claude/skills/restitution-ppt/` : génération/amélioration du PPT de
-  restitution (US6.4). `.claude/agents/` : agents projet — voir chaque fichier.
+- `.claude/settings.json` **versionné** (hooks + `permissions.deny` sur les secrets) : ne
+  pas y accumuler de `permissions.allow` one-off — ils vont dans
+  `settings.local.json`, local et gitignoré.
+- `guard_destructive_git.py` **bloque** `git push --force` (sans `--force-with-lease`) et
+  `git reset --hard`. Parsing `shlex`, fail-open, tests dans `.claude/hooks/tests/`.
+- `warn_verif_before_commit.py` **avertit sans bloquer** avant un commit touchant `app/**`,
+  sur deux signaux indépendants : (1) aucune vérif réelle dans la session (`npm test`,
+  `pptx-verify`, `revue-increment`) ; (2) aucune trace de definition-of-done — ni
+  `revue-increment`, ni run journalisé, ni « DoD allégée : … » dans le message. Des tests
+  verts ne valent pas une DoD, et la trace vit dans le commit : re-vérifiable via `git log`.
+- `orchestrator_gate.py` (`UserPromptSubmit`) : grille ~50 tokens routant les demandes
+  multi-étapes vers `agent-orchestrator` ; silencieux sur les slash-commands, fail-open.
 
-## Skills & agents — comment ça se lance (post-BMAD, 2026-07-16 ; flotte arbitrée 2026-07-21)
+## Skills & agents — flotte canonique (arbitrée 2026-07-21)
 
-Depuis l'install de **BMAD-METHOD v6.10.0** (`_bmad/`), `.claude/skills/` contient ~46 skills `bmad-*` en plus des skills projet. **Flotte canonique tranchée le 2026-07-21** (voir « Décision » ci-dessous) : `.claude/agents/` piloté par l'orchestrateur, BMAD conservé pour son cycle produit, `.opencode/agents/` retiré (doublon ; `.opencode/skills/` **conservé**, c'est la bibliothèque de protocoles que chargent les agents `.claude/agents/`). Ce qui reste :
+`.claude/skills/` mêle ~46 skills BMAD v6.10.0 (`_bmad/`) et les skills projet. Répartition
+tranchée, à ne pas ré-ouvrir :
 
-- **Agents projet `.claude/agents/`** (orchestrator, developer, reviewer, auditor, planner, ux/ui-designer, ppt-designer…) : **la flotte de rôles canonique**, lancée comme sous-agents (Task), orchestrée par `agent-orchestrator` (gate `UserPromptSubmit` **branché**).
-- **Agents BMAD** (skills `bmad-agent-*`, lancés par persona : « Amelia » dev, « John » PM, « Winston » architecte, « Sally » UX, « Mary » analyste, « Paige » tech-writer). Conservés pour leur **valeur cycle produit→dev** (`bmad-product-brief`/`bmad-prd`/`bmad-architecture`/`bmad-create-story`/`bmad-dev-story` ; routeur **`bmad-help`**), pas comme fleet de rôles concurrente de `.claude/agents/`.
-- **Skills projet** (non-`bmad-`) : `restitution-ppt`, `pptx-framed-image`, `slide-text-polish`, `deck-design-library` + `deck-design-review` (importées de VSCode2 le 2026-07-23 : 22 patterns de slides par situation + revue contrat-par-slide du deck — même import : `verifier_debordements_texte` porté dans `app/scripts/pptx_deck.py`), `revue-increment` (definition-of-done — délègue à `bmad-code-review`/`bmad-retrospective`), plus le couple orchestration/supervision importé de VSCode2 le 2026-07-21 : **`agent-orchestrator`** (qualifie une demande de travail multi-étapes, compose et exécute un plan — cascade/parallèle/async, modèle par étape — puis journalise le run via `.claude/orchestration/`) et **`agent-supervisor`** (superviseur étage 2 : diagnostic LLM des KO répétés, agents morts, vérifs manquantes, alimenté par `.claude/supervision/`).
+- **`.claude/agents/`** (orchestrator, developer, reviewer, auditor, planner, ux/ui-designer,
+  ppt-designer…) : la flotte de rôles canonique, lancée en sous-agents et orchestrée par
+  `agent-orchestrator` (gate `UserPromptSubmit` branché).
+- **BMAD** : conservé pour le cycle produit→dev (`bmad-product-brief`/`bmad-prd`/
+  `bmad-architecture`/`bmad-create-story`/`bmad-dev-story`, routeur `bmad-help`), **pas**
+  comme flotte de rôles concurrente.
+- **Skills projet** : `restitution-ppt`, `pptx-framed-image`, `slide-text-polish`,
+  `deck-design-library`/`deck-design-review`, `revue-increment`, plus le couple
+  `agent-orchestrator`/`agent-supervisor` (journal `.claude/orchestration/`, mesures
+  `.claude/supervision/`).
 
-**Décision (2026-07-21)** — le piège à ne pas recréer : `.opencode/agents/` supprimé (doublon CLI externe) mais `.opencode/skills/` **conservé** — c'est la bibliothèque de protocoles que chargent les agents `.claude/agents/` (`skills:` → `.opencode/skills/…`), pas un reliquat à nettoyer. Usage : `.claude/agents/` + `agent-orchestrator` pour le dev orchestré, BMAD pour le cadrage produit, `bmad-help` en cas de doute.
+**Le piège à ne pas recréer** : `.opencode/agents/` a été supprimé (doublon CLI externe)
+mais `.opencode/skills/` est **conservé** — c'est la bibliothèque de protocoles que chargent
+les agents `.claude/agents/` (`skills:` → `.opencode/skills/…`), pas un reliquat à nettoyer.
 
-## Hiérarchie de modèles pour les sous-agents (2026-07-16)
-
-`.claude/agents/*.md` supporte un champ `model:` en frontmatter. En place : `orchestrator`/`orchestrator-dev`/`pathfinder`/`planner` en `sonnet`, `reviewer` en `opus`, `auditor-subagent` en `haiku` (rapport structuré à protocole fixe, sans jugement créatif). Les autres agents restent **sans** `model:` (héritent du thread principal) : leur tâche exige un jugement de qualité — pas de bascule automatique là où la qualité prime sur le coût.
+**Modèle par sous-agent** (`model:` en frontmatter de `.claude/agents/*.md`) :
+`orchestrator`/`orchestrator-dev`/`pathfinder`/`planner` en `sonnet`, `reviewer` en `opus`,
+`auditor-subagent` en `haiku`. Les autres n'en portent pas et héritent du thread principal —
+leur tâche exige un jugement de qualité, pas une bascule au coût.
 
 ## Rules — revue de code & couverture de tests (reprises de VSCode2 le 2026-07-23, arbitrage utilisateur)
 
