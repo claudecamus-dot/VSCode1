@@ -12,9 +12,18 @@ const { moyenneDe, statsNiveaux, deltaHistorique } = require('./scores');
 const { importInvitesFromBuffer, replaceInvites, getInvites, getNonRepondants, looksLikeEmail } = require('./invites');
 const { valeurCanonique } = require('./normalisation');
 const { estModeDemo } = require('./mode');
+const { barriereAuth } = require('./auth');
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+
+// Barriere d'acces INTERIMAIRE sur la surface animateur / PII (arbitrage
+// securite:VSCode1-api-pii, option A « Basic Auth »). Placee en tete de chaine
+// pour couvrir a la fois les pages animateur et les routes /api sensibles.
+// Active seulement si AUTH_USER/AUTH_PASS sont poses ; laisse le parcours
+// repondant ouvert (US10.5). Mesure provisoire — l'Epic 10 reste le chantier
+// de fond. Voir app/src/auth.js.
+app.use(barriereAuth());
 
 app.use(express.json());
 // index.html est la page d'accueil : elle oriente vers le mode "demo" (donnees

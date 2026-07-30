@@ -97,6 +97,16 @@ ne jamais committer un vrai `.env` avec des chemins/données machine) :
 | `DB_PATH` | `./data/app.db` | Chemin du fichier SQLite (toutes les données persistantes). Créé au premier démarrage si absent. |
 | `BACKUP_DIR` | `<dossier de DB_PATH>/backups` | Dossier de sortie des sauvegardes (`scripts/backup-db.js`). |
 | `PYTHON` | `python` | Interpréteur Python invoqué pour générer le PPT (`scripts/export-restitution-ppt.py`). |
+| `AUTH_USER` | *(vide)* | **Barrière d'accès intérimaire** (Basic Auth). Identifiant animateur. Désactivée si vide. |
+| `AUTH_PASS` | *(vide)* | Mot de passe animateur. La barrière ne s'active que si `AUTH_USER` **et** `AUTH_PASS` sont posés. |
+
+**Barrière d'accès intérimaire (`src/auth.js`)** — mesure provisoire en attendant l'**Epic 10**
+(authentification produit ; voir [`../cadrage/epics-us.md`](../cadrage/epics-us.md)). L'API expose des
+données nominatives : tant que l'Epic 10 n'est pas livré, poser `AUTH_USER` + `AUTH_PASS` en PROD active
+une protection HTTP Basic sur **la surface animateur** (console + routes `/api` sensibles). Le **parcours
+répondant** reste ouvert (accès au questionnaire par lien de session, sans compte — US10.5). Sans ces deux
+variables, le comportement est **strictement inchangé** (dev/CI ouverts) et un avertissement le rappelle au
+démarrage. Ne jamais committer les identifiants réels (seulement des placeholders dans `.env.example`).
 
 ## Utiliser l'outil : importer un référentiel, créer une session
 
