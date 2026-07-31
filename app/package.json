@@ -7,15 +7,15 @@
   "type": "commonjs",
   "scripts": {
     "start": "node src/server.js",
-    "start:dev": "node --env-file=.env.dev src/server.js",
-    "start:preprod": "node --env-file=.env.preprod src/server.js",
-    "start:prod": "node --env-file=.env.prod src/server.js",
+    "start:dev": "node --env-file=.env.dev --env-file-if-exists=.env.dev.local src/server.js",
+    "start:preprod": "node --env-file=.env.preprod --env-file-if-exists=.env.preprod.local src/server.js",
+    "start:prod": "node --env-file=.env.prod --env-file-if-exists=.env.prod.local src/server.js",
     "build:artifact": "node scripts/build-artifact.js",
     "backup": "node scripts/backup-db.js",
     "restore": "node scripts/restore-db.js",
     "seed:demo": "node --env-file=.env.dev scripts/seed-demo.js",
     "lint": "eslint .",
-    "test": "node scripts/test-reimport.js && node scripts/test-rappel.js && node scripts/test-normalisation.js && node scripts/test-scores.js && node scripts/test-sessions.js && node scripts/test-mode.js && node scripts/test-admin-ui.js && node scripts/test-contraste-radar.js && node scripts/test-correcteur.js && node scripts/test-export-ppt-si-dispo.js && node scripts/test-smoke-http.js && node scripts/test-auth.js",
+    "test": "node scripts/test-reimport.js && node scripts/test-rappel.js && node scripts/test-normalisation.js && node scripts/test-scores.js && node scripts/test-sessions.js && node scripts/test-mode.js && node scripts/test-admin-ui.js && node scripts/test-contraste-radar.js && node scripts/test-correcteur.js && node scripts/test-export-ppt-si-dispo.js && node scripts/test-smoke-http.js && node scripts/test-auth.js && node scripts/test-env-sans-secret.js",
     "test:cov": "c8 --reporter=text-summary npm test"
   },
   "engines": {

@@ -1,3 +1,10 @@
 node_modules/
 data/**/*.db
 coverage/
+
+# Canal des SECRETS. Les .env.dev / .env.preprod / .env.prod sont versionnes a
+# dessein (parametrage d'environnement : APP_ENV, PORT, DB_PATH) ; ils ne doivent
+# donc JAMAIS porter d'identifiant. Ce qui est secret va dans un .env.<env>.local,
+# ignore ici et charge par --env-file-if-exists (voir les scripts start:* de
+# package.json). Garde-fou : scripts/test-env-sans-secret.js, chaine dans npm test.
+.env*.local
