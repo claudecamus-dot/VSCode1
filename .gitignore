@@ -25,3 +25,8 @@ _bmad-output/
 .claude/supervision/diagnostic.json
 .claude/orchestration/runs.jsonl
 .claude/orchestration/routing-hints.json
+
+# Serveur de dev (npm run start:*) — pid/logs de process local, jamais du contenu source.
+app/dev-server.pid
+app/dev-server.out.log
+app/dev-server.err.log
