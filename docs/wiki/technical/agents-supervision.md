@@ -8,18 +8,19 @@ generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, ét
 > ⚠️ **Page générée automatiquement** (hook SessionStart → `.claude/supervision/scan_transcripts.py`).
 > **Ne pas éditer à la main** — toute modification serait écrasée au prochain scan.
 
-Dernier scan : 2026-09-01T10:09:39+02:00 · **20 sessions** (transcripts) · **34** invocations de skills · **11** lancements de sous-agents.
+Dernier scan : 2026-09-01T11:57:11+02:00 · **20 sessions** (transcripts) · **37** invocations de skills · **15** lancements de sous-agents.
 
 ## Skills — usage réel
 
 | Skill | Famille | Invocations | Première | Dernière |
 | --- | --- | --- | --- | --- |
-| `agent-orchestrator` | projet | 9 | 2026-07-21 | 2026-07-28 |
+| `agent-orchestrator` | projet | 10 | 2026-07-21 | 2026-09-01 |
 | `agent-supervisor` | projet | 7 | 2026-07-21 | 2026-07-28 |
 | `revue-increment` | projet | 6 | 2026-07-21 | 2026-07-28 |
 | `run` | (builtin/session) | 5 | 2026-07-01 | 2026-07-28 |
+| `artifact-design` | (builtin/session) | 3 | 2026-07-07 | 2026-09-01 |
 | `pptx-verify` | global | 3 | 2026-07-01 | 2026-07-21 |
-| `artifact-design` | (builtin/session) | 2 | 2026-07-07 | 2026-07-21 |
+| `dataviz` | (builtin/session) | 1 | 2026-09-01 | 2026-09-01 |
 | `roadmap-keeper` | global | 1 | 2026-07-01 | 2026-07-01 |
 | `skill-creator` | global | 1 | 2026-07-07 | 2026-07-07 |
 
@@ -28,12 +29,15 @@ Dernier scan : 2026-09-01T10:09:39+02:00 · **20 sessions** (transcripts) · **3
 | Sous-agent | Lancements | Premier | Dernier |
 | --- | --- | --- | --- |
 | `ppt-designer` | 3 | 2026-07-08 | 2026-07-21 |
+| `ux-designer` | 3 | 2026-07-01 | 2026-09-01 |
 | `ui-designer` | 2 | 2026-07-01 | 2026-07-01 |
-| `ux-designer` | 2 | 2026-07-01 | 2026-07-01 |
 | `Explore` | 1 | 2026-07-08 | 2026-07-08 |
+| `bmad-revue` | 1 | 2026-09-01 | 2026-09-01 |
 | `documentarian` | 1 | 2026-07-01 | 2026-07-01 |
+| `general-purpose` | 1 | 2026-09-01 | 2026-09-01 |
 | `onboarder` | 1 | 2026-07-07 | 2026-07-07 |
 | `reviewer` | 1 | 2026-07-21 | 2026-07-21 |
+| `security-auditor` | 1 | 2026-09-01 | 2026-09-01 |
 
 ## Jamais utilisés
 
@@ -58,7 +62,7 @@ _Consommés en lisant/exécutant leurs `scripts/`, ou via un sous-agent qui les 
 ## TODO agents (constats automatiques)
 
 1. **Skills projet sans usage** : `audit-technique`, `veille-agentic` — vérifier pertinence et déclencheurs.
-2. **Skills en sommeil (>30 j sans usage)** : `agent-orchestrator`, `agent-supervisor`, `artifact-design`, `pptx-verify`, `revue-increment`, `roadmap-keeper`, `run`, `skill-creator`.
+2. **Skills en sommeil (>30 j sans usage)** : `agent-supervisor`, `pptx-verify`, `revue-increment`, `roadmap-keeper`, `run`, `skill-creator`.
 
 ## Arbitrages enregistrés
 
