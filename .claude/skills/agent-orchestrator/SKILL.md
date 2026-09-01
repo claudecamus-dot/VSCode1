@@ -13,8 +13,8 @@ d'office, stats plan-vs-réel par playbook/agent, `prudence` issu du diagnostic 
 `docs/wiki/technical/agents-supervision.md` (tableau de bord humain des mêmes données) et
 `.claude/orchestration/playbooks/` (workflows récurrents — format dans `playbooks/FORMAT.md`).
 
-<!-- SOCLE-PROVENANCE: socle : b5d29c5 du 2026-09-01 -->
-> **Socle généré** — tout ce qui suit `## Méthode` vient du hub de supervision (`b5d29c5`, 2026-09-01) et sera **réécrit** à la prochaine propagation.
+<!-- SOCLE-PROVENANCE: socle : f2490bf du 2026-09-01 -->
+> **Socle généré** — tout ce qui suit `## Méthode` vient du hub de supervision (`f2490bf`, 2026-09-01) et sera **réécrit** à la prochaine propagation.
 > Le chapitre « Portée sur ce projet » ci-dessous, lui, n'est jamais réécrit : c'est le travail local.
 
 ## Portée sur ce projet (import du 2026-07-21 ; flotte arbitrée le 2026-07-21)
@@ -30,6 +30,38 @@ silencieuse sur les slash-commands) sur *chaque* prompt non-slash, et est le poi
 par défaut des demandes multi-étapes/multi-agents. `.opencode/agents/` (doublon) a été
 supprimé ; `.opencode/skills/` reste (bibliothèque de protocoles des agents `.claude/agents/`).
 BMAD est conservé pour son cycle produit, pas comme fleet de rôles concurrente.
+
+**Modèle par agent, déjà déclaré dans le fleet projet.** Certains agents de
+`.claude/agents/*.md` portent leur propre `model:` : `reviewer` en opus,
+`auditor-subagent` en haiku ; les autres héritent du thread principal. Ne pas leur
+imposer un modèle depuis le plan quand ils en déclarent un.
+
+**`dev-verifie` porte ici trois étapes DÉLÉGUÉES conditionnelles** (ajout du 2026-07-28,
+constat #3) : `qa-engineer` sur R1/R2, `reviewer` sur R3, `auditor` sur la passe risque.
+Le playbook est éprouvé sur ce projet, et l'implémentation se fait dans `app/`.
+
+**Conception** : `docs/reflexions/agent-orchestrateur.md` — doc de référence portée depuis
+le hub.
+
+**Playbooks de ce dépôt, avec leurs statuts locaux** (le socle donne les génériques) :
+
+| Playbook | Pour | Statut |
+| --- | --- | --- |
+| `dev-verifie` | Implémentation/correction dans `app/` avec tests + vérif réelle + `revue-increment` avant commit. Porte 3 étapes **déléguées** conditionnelles (`qa-engineer` R1/R2, `reviewer` R3, `auditor` passe risque) — ajout du 2026-07-28, constat #3 | Éprouvé (pratique effective du projet) |
+| `export-ppt-verifie` | Livrable = le deck de restitution (`app/scripts/pptx_deck.py`, `export-restitution-ppt.py`) : génération + enrichissements conditionnels (cadres photo, polish, design) + `pptx-verify` obligatoire. Contient la **variante fan-out** de la revue (>12 slides ou >2 angles), absorbée de `revue-design-parallele` le 2026-07-28 | Éprouvé (n=8) |
+| `cycle-produit-bmad` | Cycle produit BMAD complet (généré depuis `_bmad/_config/bmad-help.csv`) — **sur demande explicite uniquement** | Jamais joué (46 skills BMAD, 0 invocation à ce jour) |
+
+**Vérifications obligatoires propres à ce dépôt** :
+
+| Si le plan touche… | Alors le plan contient… |
+| --- | --- |
+| `app/scripts/pptx_deck.py`, `export-restitution-ppt.py`, `build-synthese-ppt.py`, ou le deck retravaillé via le sous-agent `ppt-designer` | `pptx-verify` (rendu réel — python-pptx est un parseur tolérant, mémoire `reference_rendu_pptx_verification.md`) |
+| Pages HTML/CSS/JS de `app/src/public/` | Screenshot réel via le skill `run` (pas seulement les tests) |
+| Fin d'incrément / avant commit | `revue-increment` en étape terminale |
+
+**Modèle par agent, exemples locaux** : Haiku pour le fan-out mécanique (`auditor-subagent`,
+4 × `Explore` sur des questions factuelles) ; Opus/Fable pour le structurant (`reviewer`,
+`Plan`, revue de conception).
 
 ## Méthode — 5 étapes
 
