@@ -6,7 +6,19 @@ const dbPath = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'app.db
 // Cree le dossier de la base au besoin (sinon DB_PATH pointant vers un dossier
 // d'environnement inexistant — ./data/dev, ./data/prod… — ferait echouer l'ouverture).
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-const db = new DatabaseSync(dbPath);
+// `timeout` : duree pendant laquelle une ecriture qui trouve la base verrouillee
+// REESSAIE avant d'echouer. Sans lui, busy_timeout vaut 0 ms (mesure le
+// 2026-09-01) : une sauvegarde lancee pendant qu'un repondant enregistre un
+// pilier faisait echouer l'un des deux cotes immediatement, sans reessai.
+const db = new DatabaseSync(dbPath, { timeout: 5000 });
+
+// WAL : lecteurs et ecrivain ne se bloquent plus mutuellement — le cas normal ici,
+// ou l'animateur lit ses resultats pendant que l'equipe repond. Compatible avec les
+// deux scripts qui touchent au fichier : backup-db.js passe par `VACUUM INTO` (qui
+// lit dans une transaction, donc voit le WAL) et restore-db.js retire deja les
+// fichiers -wal/-shm avant d'ecraser la base. Ces deux fichiers sont ignores par
+// app/.gitignore, ou le glob `*.db` ne suffisait pas a les couvrir.
+db.exec('PRAGMA journal_mode = WAL');
 
 db.exec(`
   PRAGMA foreign_keys = ON;
@@ -114,6 +126,34 @@ for (const table of ['piliers', 'sous_categories', 'questions']) {
 // n'ayant pas soumis. Nullable, car les repondants anterieurs n'en ont pas.
 if (!db.prepare('PRAGMA table_info(repondants)').all().some((c) => c.name === 'email')) {
   db.exec('ALTER TABLE repondants ADD COLUMN email TEXT');
+}
+
+// Migration : un email ne s'identifie qu'UNE fois par session. Sans cette
+// contrainte, rouvrir le lien et re-remplir l'ecran d'identification creait une
+// seconde ligne, avec son propre jeu de reponses : la personne comptait double
+// dans l'effectif et dans les moyennes, et la relance (qui deduplique par email)
+// n'alertait de rien. Index PARTIEL : les repondants anterieurs a US2.5 n'ont pas
+// d'email, et plusieurs NULL ne se comparent pas entre eux en SQLite de toute
+// facon — la clause `WHERE email IS NOT NULL` le rend explicite.
+// La creation echoue si la base porte deja des doublons : on ne bloque pas le
+// demarrage pour autant (la garde applicative de POST /repondants suffit a ne
+// plus en creer), mais on le DIT, faute de quoi la base resterait silencieusement
+// sans contrainte.
+try {
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_repondants_session_email ON repondants (session_id, email) WHERE email IS NOT NULL');
+} catch (err) {
+  // NE PAS renvoyer vers /api/repondants/fusion : cette route ne fusionne que des
+  // LIBELLES de departement/equipe (UPDATE), elle ne supprime aucune ligne et ne
+  // peut donc pas resoudre un doublon (session_id, email). L'exploitant qui la
+  // suivait redemarrait sur le meme avertissement, indefiniment.
+  console.warn(
+    "[db] Index d'unicite (session_id, email) non cree : la base porte deja des doublons.",
+    'Les lister avec : SELECT session_id, email, COUNT(*) FROM repondants',
+    'WHERE email IS NOT NULL GROUP BY 1, 2 HAVING COUNT(*) > 1 ;',
+    "puis supprimer les lignes en trop (la garde applicative de POST /repondants",
+    "empeche d'en creer de nouveaux entre-temps), et redemarrer.",
+    String(err.message)
+  );
 }
 
 // Migration : texte d'accueil parametrable par session (US3.5). Nullable :

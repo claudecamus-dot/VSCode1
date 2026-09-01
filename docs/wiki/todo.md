@@ -172,3 +172,44 @@ non-LLM, coût réel des sous-agents inline vs délégué.
 *Snapshot établi en cours de session — un agent `ppt-designer` peut être en
 train de faire avancer ces points : recroiser avec
 `export/points-amelioration-ppt.md` avant de le tenir pour définitif.*
+
+## Durcissement de l'app — reste ouvert apres l'increment du 2026-09-01
+
+L'increment « robustesse » (transactions, fenetre de saisie, unicite d'email,
+confidentialite de la consolidation, correcteur en worker) est livre et couvert
+par 6 nouvelles suites de tests. Deux sujets en sont sortis **non traites**, parce
+qu'ils sont des decisions de conception et non des correctifs :
+
+1. **L'impasse du 409 sur l'email.** Un email ne peut s'identifier qu'une fois par
+   session — necessaire (sinon la personne comptait double dans les moyennes),
+   mais sans porte de sortie : le front garde l'identifiant du repondant dans le
+   `localStorage` du navigateur (`app/src/public/repondre.html:113`, efface en
+   `:165` des qu'une relecture echoue) et **aucune route ne permet de liberer ou
+   de retrouver un repondant** — le seul `app.delete` du serveur est
+   `/api/roles/:nom`. Consequence verifiee : telephone puis ordinateur,
+   navigation privee, cache vide, poste partage → la personne ne peut plus
+   repondre, et le message lui dit pourtant « contactez l'animateur », qui n'a
+   aucun levier. Contrainte a tenir : le lien de session est diffuse a toute
+   l'equipe, donc rendre l'acces sur simple connaissance d'un email laisserait
+   lire et reecrire le questionnaire d'un collegue.
+
+2. **La fenetre destructive de l'import « remplacer ».** Depuis le passage du
+   correcteur orthographique dans un worker, le serveur repond pendant les ~7 s
+   de correction ; puis `remplacerTout` (`app/src/referentiel.js:245-261`) purge
+   `commentaires`, `reponses`, `session_questions`, `invites`, `repondants`,
+   `sessions` et le referentiel. Une soumission arrivee dans cette fenetre est
+   acceptee (200, ecran de confirmation) **puis effacee sans aucune trace**.
+   Avant le worker, la boucle bloquee rendait le cas impossible : c'est le gain
+   de reactivite qui a ouvert la fenetre.
+
+Une table ronde a instruit les deux sujets le 2026-09-01 ; **l'arbitrage
+utilisateur reste a poser** avant tout developpement.
+
+**Mineurs differes de la meme revue** (aucun n'est atteignable par l'IHM
+aujourd'hui) : `scripts/backup-db.js` ouvre toujours la base sans `timeout`
+(seul le cote application a ete repare) ; l'echec de creation de l'index
+d'unicite n'est signale qu'au demarrage et n'est observable par aucune route ;
+`dateValide` accepte du non-ISO que `new Date()` sait lire, alors que les
+comparaisons SQL sont lexicographiques ; le worker du correcteur n'a pas de
+delai de garde (un worker silencieux laisserait l'import pendu) ; un pilier sans
+question active rend 200 sur une sauvegarde qui n'ecrit rien.

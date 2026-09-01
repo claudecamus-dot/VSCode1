@@ -7,6 +7,7 @@ const express = require('express');
 const multer = require('multer');
 
 const db = require('./db');
+const { enTransaction } = require('./tx');
 const { importFromBuffer, getReferentiel } = require('./referentiel');
 const { moyenneDe, statsNiveaux, deltaHistorique } = require('./scores');
 const { importInvitesFromBuffer, replaceInvites, getInvites, getNonRepondants, looksLikeEmail } = require('./invites');
@@ -57,10 +58,22 @@ const TEXTE_INTRO_DEFAUT =
   "L'email sert uniquement à suivre votre participation et à ne pas vous relancer une fois votre questionnaire soumis. " +
   "Vos réponses détaillées ne seront jamais visibles directement par les autres répondants.";
 
+// Une date ISO exploitable. `new Date('nawak').getTime()` vaut NaN, et TOUTE
+// comparaison avec NaN est fausse : sans ce test, une session a dates illisibles
+// passait la validation de creation (NaN <= NaN est faux, donc « fermeture apres
+// ouverture » etait satisfait) puis se declarait ouverte pour toujours.
+function dateValide(valeur) {
+  return typeof valeur === 'string' && !Number.isNaN(new Date(valeur).getTime());
+}
+
 function sessionStatus(session) {
   const now = Date.now();
   const ouverture = new Date(session.ouverture_at).getTime();
   const fermeture = new Date(session.fermeture_at).getTime();
+  // Dates illisibles : on ferme. Les creations sont validees en amont depuis le
+  // 2026-09-01, mais une base anterieure peut porter de telles sessions — et
+  // « ouverte pour toujours » sur une donnee corrompue est le pire des defauts.
+  if (Number.isNaN(ouverture) || Number.isNaN(fermeture)) return 'fermee';
   if (now < ouverture) return 'pas_encore_ouverte';
   if (now > fermeture) return 'fermee';
   return 'ouverte';
@@ -220,6 +233,9 @@ app.post('/api/sessions', (req, res) => {
   if (texte_intro !== undefined && typeof texte_intro !== 'string') {
     return res.status(400).json({ error: 'texte_intro doit etre une chaine de caracteres.' });
   }
+  if (!dateValide(ouverture_at) || !dateValide(fermeture_at)) {
+    return res.status(400).json({ error: 'ouverture_at et fermeture_at doivent etre des dates ISO 8601 valides.' });
+  }
   if (new Date(fermeture_at) <= new Date(ouverture_at)) {
     return res.status(400).json({ error: 'fermeture_at doit etre apres ouverture_at.' });
   }
@@ -251,17 +267,22 @@ app.post('/api/sessions', (req, res) => {
   // Texte vide => null : la session retombe sur le message par defaut a la lecture.
   const texteIntro = texte_intro && texte_intro.trim() ? texte_intro.trim() : null;
 
+  // Session + perimetre en UNE transaction : une session dont le perimetre n'est
+  // ecrit qu'a moitie retombe sur le repli « aucune ligne = tout est actif » de
+  // activeQuestionIds(), donc sur un questionnaire qui n'est pas celui cadre.
   const id = crypto.randomUUID();
-  db.prepare('INSERT INTO sessions (id, ouverture_at, fermeture_at, created_at, texte_intro, est_demo) VALUES (?, ?, ?, ?, ?, ?)').run(
-    id,
-    ouverture_at,
-    fermeture_at,
-    nowIso(),
-    texteIntro,
-    estModeDemo(req.headers.cookie) ? 1 : 0
-  );
-  const insertActive = db.prepare('INSERT INTO session_questions (session_id, question_id) VALUES (?, ?)');
-  for (const qid of actives) insertActive.run(id, qid);
+  enTransaction(() => {
+    db.prepare('INSERT INTO sessions (id, ouverture_at, fermeture_at, created_at, texte_intro, est_demo) VALUES (?, ?, ?, ?, ?, ?)').run(
+      id,
+      ouverture_at,
+      fermeture_at,
+      nowIso(),
+      texteIntro,
+      estModeDemo(req.headers.cookie) ? 1 : 0
+    );
+    const insertActive = db.prepare('INSERT INTO session_questions (session_id, question_id) VALUES (?, ?)');
+    for (const qid of actives) insertActive.run(id, qid);
+  });
 
   res.json({ id, lien: `/repondre.html?session=${id}`, questions_actives: actives.length });
 });
@@ -297,13 +318,20 @@ app.post('/api/sessions/:id/invites', upload.single('fichier'), async (req, res,
     const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
     if (!session) return res.status(404).json({ error: 'Session inconnue.' });
     if (!req.file) return res.status(400).json({ error: 'Fichier manquant (champ "fichier").' });
+    let invites;
     try {
-      const invites = await importInvitesFromBuffer(req.file.buffer, req.file.originalname);
-      replaceInvites(session.id, invites);
-      res.json({ ok: true, invites: invites.length });
+      invites = await importInvitesFromBuffer(req.file.buffer, req.file.originalname);
     } catch (err) {
-      res.status(400).json({ error: err.message });
+      return res.status(400).json({ error: err.message });
     }
+    // L'ECRITURE est hors du `try` ci-dessus, a dessein : lui seul qualifie un
+    // fichier illisible. Une panne de base (verrou tenu au-dela des 5 s, disque
+    // plein, ROLLBACK impossible) doit partir en next(err) -> 500, sinon
+    // l'animateur refait son classeur Excel en boucle pendant que sa liste
+    // d'invites est dans un etat incertain — exactement ce que le commentaire
+    // ci-dessus revendiquait sans que le code le fasse.
+    replaceInvites(session.id, invites);
+    res.json({ ok: true, invites: invites.length });
   } catch (err) {
     next(err);
   }
@@ -346,6 +374,22 @@ app.post('/api/sessions/:id/repondants', (req, res) => {
     return res.status(400).json({ error: 'est_manager et dans_equipe doivent etre des booleens.' });
   }
 
+  // Un email ne s'identifie qu'une fois par session (index d'unicite pose dans
+  // db.js). On refuse plutot que de renvoyer le repondant existant : le lien de
+  // reponse est diffuse a toute l'equipe, donc rendre l'identifiant sur simple
+  // connaissance d'un email laisserait lire ET reecrire le questionnaire d'un
+  // collegue. Celui qui reprend son propre parcours passe par le lien memorise
+  // dans son navigateur, jamais par ce chemin.
+  const emailNormalise = email.trim().toLowerCase();
+  const dejaIdentifie = db
+    .prepare('SELECT 1 FROM repondants WHERE session_id = ? AND email = ?')
+    .get(session.id, emailNormalise);
+  if (dejaIdentifie) {
+    return res.status(409).json({
+      error: "Cet email s'est deja identifie sur cette session. Reprenez votre questionnaire depuis le lien de votre navigateur, ou contactez l'animateur.",
+    });
+  }
+
   // Saisie tolerante (US3.3) : on rattache departement/equipe a une orthographe
   // deja connue qui n'en differe que par la casse, les accents ou les espaces,
   // afin de ne pas fragmenter les resultats. Catalogue global (les equipes/
@@ -362,7 +406,7 @@ app.post('/api/sessions/:id/repondants', (req, res) => {
   ).run(
     id,
     session.id,
-    email.trim().toLowerCase(),
+    emailNormalise,
     nom.trim(),
     prenom.trim(),
     departementCanon,
@@ -386,6 +430,27 @@ function getRepondantOr404(req, res) {
   return repondant;
 }
 
+// La fenetre de saisie s'applique a CHAQUE ecriture, pas seulement a
+// l'identification. Elle n'etait controlee qu'a la creation du repondant : celui
+// qui s'etait identifie avant la cloture continuait ensuite d'enregistrer et de
+// soumettre indefiniment — l'animateur fermait sa session, lisait ses resultats,
+// exportait son PPT, et les agregats bougeaient encore derriere.
+function sessionOuverteOu409(repondant, res) {
+  const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(repondant.session_id);
+  const statut = session ? sessionStatus(session) : 'fermee';
+  if (statut !== 'ouverte') {
+    res.status(409).json({
+      error:
+        statut === 'pas_encore_ouverte'
+          ? "Cette session n'est pas encore ouverte a la saisie."
+          : 'Cette session est fermee : vos reponses deja enregistrees sont conservees, mais elles ne peuvent plus etre modifiees.',
+      statut,
+    });
+    return false;
+  }
+  return true;
+}
+
 app.get('/api/repondants/:id', (req, res) => {
   const repondant = getRepondantOr404(req, res);
   if (!repondant) return;
@@ -399,6 +464,7 @@ app.put('/api/repondants/:id/piliers/:pilierId/reponses', (req, res) => {
   if (repondant.soumis_at) {
     return res.status(409).json({ error: 'Questionnaire deja soumis, modification impossible.' });
   }
+  if (!sessionOuverteOu409(repondant, res)) return;
 
   const pilierId = Number(req.params.pilierId);
   // On ne considère que les questions du pilier *actives pour cette session*.
@@ -420,14 +486,38 @@ app.put('/api/repondants/:id/piliers/:pilierId/reponses', (req, res) => {
     return res.status(400).json({ error: 'Toutes les questions de ce pilier doivent etre repondues pour le sauvegarder.' });
   }
 
-  const upsert = db.prepare(
-    `INSERT INTO reponses (repondant_id, question_id, niveau) VALUES (?, ?, ?)
-     ON CONFLICT(repondant_id, question_id) DO UPDATE SET niveau = excluded.niveau`
-  );
-
+  // TOUT valider avant d'ecrire quoi que ce soit. L'ancienne boucle validait et
+  // ecrivait au meme tour : sur cinq reponses dont la quatrieme portait un niveau
+  // hors bornes, les trois premieres etaient persistees, puis l'API rendait un 400
+  // en affirmant qu'un pilier ne se sauvegarde que complet — elle venait d'en
+  // enregistrer un partiel. La transaction ci-dessous couvre en plus l'echec
+  // d'ecriture lui-meme (verrou, disque).
+  const vues = new Set();
   for (const reponse of reponses) {
+    // Une entree qui n'est pas un objet faisait lever `reponse.question_id` : le
+    // repondant recevait un 500 « prevenez l'exploitant » pour une saisie mal
+    // formee, et l'exploitant une alerte pour ce qui est un 400.
+    if (!reponse || typeof reponse !== 'object') {
+      return res.status(400).json({ error: 'Chaque reponse doit etre un objet { question_id, niveau }.' });
+    }
     if (!questionIds.has(reponse.question_id)) {
       return res.status(400).json({ error: `La question ${reponse.question_id} n'appartient pas a ce pilier.` });
+    }
+    // La meme question deux fois : le controle de completude ci-dessus compte les
+    // ENTREES, pas les questions couvertes. Onze fois la question 1 sur un pilier
+    // de onze questions satisfaisait donc `reponses.length === questionIds.size`,
+    // l'API repondait { ok: true } apres avoir ecrit UNE ligne, et le repondant
+    // se retrouvait bloque a la soumission (1/40) sans savoir quoi rouvrir.
+    if (vues.has(reponse.question_id)) {
+      return res.status(400).json({ error: `La question ${reponse.question_id} est presente plusieurs fois dans l'envoi.` });
+    }
+    vues.add(reponse.question_id);
+    // Le niveau doit etre un ENTIER avant d'etre lie : node:sqlite refuse un
+    // booleen, un objet ou un tableau (« Provided value cannot be bound to SQLite
+    // parameter »), ce qui partait en 500 au lieu du 400 que merite une saisie
+    // mal formee.
+    if (!Number.isInteger(reponse.niveau)) {
+      return res.status(400).json({ error: `Niveau invalide pour la question ${reponse.question_id}.` });
     }
     const niveauValide = db
       .prepare('SELECT 1 FROM niveaux WHERE question_id = ? AND niveau = ?')
@@ -435,8 +525,17 @@ app.put('/api/repondants/:id/piliers/:pilierId/reponses', (req, res) => {
     if (!niveauValide) {
       return res.status(400).json({ error: `Niveau invalide pour la question ${reponse.question_id}.` });
     }
-    upsert.run(repondant.id, reponse.question_id, reponse.niveau);
   }
+
+  const upsert = db.prepare(
+    `INSERT INTO reponses (repondant_id, question_id, niveau) VALUES (?, ?, ?)
+     ON CONFLICT(repondant_id, question_id) DO UPDATE SET niveau = excluded.niveau`
+  );
+  enTransaction(() => {
+    for (const reponse of reponses) {
+      upsert.run(repondant.id, reponse.question_id, reponse.niveau);
+    }
+  });
 
   res.json({ ok: true });
 });
@@ -447,6 +546,7 @@ app.post('/api/repondants/:id/soumission', (req, res) => {
   if (repondant.soumis_at) {
     return res.status(409).json({ error: 'Questionnaire deja soumis.' });
   }
+  if (!sessionOuverteOu409(repondant, res)) return;
 
   // La complétude se mesure sur le périmètre actif de la session, pas sur tout
   // le référentiel.
@@ -554,7 +654,15 @@ app.put('/api/sessions/:id/commentaire', (req, res) => {
 // { equipe } ou { departement } : structure pilier -> objectif -> question avec
 // moyennes et pre-analyses. Reutilisee par l'ecran de resultats (Epic 5/US6.2),
 // la comparaison historique (US6.5) et la consolidation departement (Epic 7).
-function agregerResultats(sessionId, filtre, manager) {
+// `options.nominatif` : faux retire le detail « qui a repondu quoi » du resultat.
+// Il n'a de destinataire legitime que l'ecran animateur d'UNE equipe (drill-down
+// US6.2) et l'export PPT, qui reste cote serveur. La consolidation departement et
+// la comparaison historique n'en affichent rien mais le recevaient quand meme :
+// le navigateur du sponsor telechargeait nom, prenom et niveau de chaque reponse
+// du departement, alors que le document des personas lui promet une granularite
+// equipe minimum.
+function agregerResultats(sessionId, filtre, manager, options = {}) {
+  const nominatif = options.nominatif !== false;
   let sql = 'SELECT * FROM repondants WHERE session_id = ? AND soumis_at IS NOT NULL';
   const params = [sessionId];
   if (filtre.equipe !== undefined) {
@@ -594,16 +702,18 @@ function agregerResultats(sessionId, filtre, manager) {
         // Deja filtre par repondant (requete IN ci-dessus) — plus de requete ici.
         const reponsesQuestion = reponsesParQuestion.get(question.id) || [];
 
-        const reponsesDetail = reponsesQuestion.map((r) => {
-          const repondant = repondantsParId.get(r.repondant_id);
-          const niveauInfo = question.niveaux.find((n) => n.niveau === r.niveau);
-          return {
-            nom: repondant.nom,
-            prenom: repondant.prenom,
-            niveau: r.niveau,
-            niveau_texte: niveauInfo ? niveauInfo.texte : null,
-          };
-        });
+        const reponsesDetail = nominatif
+          ? reponsesQuestion.map((r) => {
+              const repondant = repondantsParId.get(r.repondant_id);
+              const niveauInfo = question.niveaux.find((n) => n.niveau === r.niveau);
+              return {
+                nom: repondant.nom,
+                prenom: repondant.prenom,
+                niveau: r.niveau,
+                niveau_texte: niveauInfo ? niveauInfo.texte : null,
+              };
+            })
+          : [];
 
         // Pre-analyses (US6.2) : moyenne, min, max et ecart-type des niveaux
         // saisis (statsNiveaux, teste unitairement) ; un fort ecart-type signale
@@ -658,7 +768,7 @@ app.get('/api/sessions/:id/consolidation', (req, res) => {
   const { departement, manager } = req.query;
   if (!departement) return res.status(400).json({ error: "Le parametre 'departement' est requis." });
 
-  const { effectif, piliers } = agregerResultats(session.id, { departement }, manager);
+  const { effectif, piliers } = agregerResultats(session.id, { departement }, manager, { nominatif: false });
 
   // Repartition par equipe au sein du departement (meme filtre manager).
   let reps = db
@@ -686,14 +796,23 @@ function calculerComparaison(session, equipe, manager) {
        FROM sessions s
        JOIN repondants r ON r.session_id = s.id
        WHERE s.id != ? AND r.equipe = ? AND r.soumis_at IS NOT NULL AND s.ouverture_at < ?
+         AND s.est_demo = ?
        ORDER BY s.ouverture_at DESC
        LIMIT 1`
     )
-    .get(session.id, equipe, session.ouverture_at);
+    // `est_demo` egal a celui de la session courante : le jeu de demonstration
+    // cree des equipes ouvertes 60 jours plus tot, et rien n'empeche une equipe
+    // reelle de porter le meme libelle. La progression affichee a l'ecran et dans
+    // le PPT presente au client se serait alors calculee contre des donnees
+    // fictives. Une session de demo se compare a une demo, une reelle a une reelle.
+    .get(session.id, equipe, session.ouverture_at, session.est_demo ? 1 : 0);
   if (!precedente) return { disponible: false };
 
-  const courant = agregerResultats(session.id, { equipe }, manager);
-  const ancien = agregerResultats(precedente.id, { equipe }, manager);
+  // La comparaison ne restitue que des moyennes par pilier et par objectif : le
+  // detail nominatif des DEUX sessions n'y a aucun usage, et celui de la session
+  // precedente est encore plus sensible (elle peut avoir change de perimetre).
+  const courant = agregerResultats(session.id, { equipe }, manager, { nominatif: false });
+  const ancien = agregerResultats(precedente.id, { equipe }, manager, { nominatif: false });
 
   // Alignement par nom : on ancre sur le referentiel de la session courante.
   const ancienParPilier = new Map(ancien.piliers.map((p) => [p.nom, p]));
@@ -922,12 +1041,47 @@ app.get('/api/sessions/:id/export-ppt', (req, res) => {
     return res.status(500).json({ error: 'Preparation de l\'export impossible.', detail: String(err.message).slice(0, 500) });
   }
 
-  execFile(python, [script, jsonPath, outPath], (err, stdout, stderr) => {
+  // `timeout` : un python-pptx qui part en boucle, ou un interpreteur qui attend
+  // une entree, laissait sinon la requete ouverte jusqu'au delai reseau du client.
+  // 120 s couvre largement un export reel (mesure : quelques secondes).
+  execFile(python, [script, jsonPath, outPath], { timeout: 120_000 }, (err, stdout, stderr) => {
     if (err) {
       nettoyer();
-      return res.status(500).json({ error: 'Echec de la generation du PPT.', detail: String(stderr || err.message).slice(0, 500) });
+      const expire = err.killed || err.signal === 'SIGTERM';
+      return res.status(500).json({
+        error: expire ? "La generation du PPT a depasse le delai de 2 minutes." : 'Echec de la generation du PPT.',
+        detail: String(stderr || err.message).slice(0, 500),
+      });
     }
-    res.download(outPath, nomFichier, nettoyer);
+    // Python peut sortir en 0 sans avoir ecrit son fichier : sans ce controle,
+    // res.download echouait APRES l'envoi des en-tetes et la requete restait
+    // pendante.
+    // Existence NE SUFFIT PAS : python peut sortir en 0 apres avoir cree le
+    // fichier sans l'ecrire (template introuvable en fin de script, disque plein
+    // sur le save final). `res.download` servait alors un .pptx de 0 octet en
+    // HTTP 200 — PowerPoint refuse de l'ouvrir, et `nettoyer()` efface la piece a
+    // conviction juste apres. On mesure donc la TAILLE.
+    let tailleProduite;
+    try {
+      tailleProduite = fs.statSync(outPath).size;
+    } catch {
+      tailleProduite = 0;
+    }
+    if (tailleProduite === 0) {
+      nettoyer();
+      return res.status(500).json({
+        error: "L'export s'est termine sans produire de fichier exploitable.",
+        detail: String(stdout || '').slice(0, 500),
+      });
+    }
+    // Le nettoyage etait passe tel quel comme rappel de `download` : il ignorait
+    // son argument d'erreur, donc un envoi interrompu ne repondait jamais.
+    res.download(outPath, nomFichier, (errEnvoi) => {
+      nettoyer();
+      if (errEnvoi && !res.headersSent) {
+        res.status(500).json({ error: 'Envoi du PPT impossible.' });
+      }
+    });
   });
 });
 

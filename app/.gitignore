@@ -1,5 +1,15 @@
 node_modules/
 data/**/*.db
+# Journal WAL et memoire partagee de SQLite (db.js pose `journal_mode = WAL`).
+# `app.db-wal` NE SE TERMINE PAS par `.db` : le glob ci-dessus ne le couvre donc
+# pas, alors que le WAL contient les pages recemment ecrites — donc du nominatif.
+# Meme piege que la copie de sauvegarde de restore-db.js (corrige le 2026-09-01).
+data/**/*.db-wal
+data/**/*.db-shm
+# `journal_mode = WAL` est persistant, mais la base retombe en mode rollback
+# (donc `app.db-journal`) si le fichier passe sur un montage reseau ou qu'un
+# outil externe la rouvre autrement. Le raisonnement ci-dessus vaut a l'identique.
+data/**/*.db-journal
 coverage/
 
 # Canal des SECRETS. Les .env.dev / .env.preprod / .env.prod sont versionnes a

@@ -8,13 +8,13 @@ generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, ét
 > ⚠️ **Page générée automatiquement** (hook SessionStart → `.claude/supervision/scan_transcripts.py`).
 > **Ne pas éditer à la main** — toute modification serait écrasée au prochain scan.
 
-Dernier scan : 2026-09-01T18:01:11+02:00 · **20 sessions** (transcripts) · **39** invocations de skills · **18** lancements de sous-agents.
+Dernier scan : 2026-09-01T21:11:17+02:00 · **22 sessions** (transcripts) · **42** invocations de skills · **23** lancements de sous-agents.
 
 ## Skills — usage réel
 
 | Skill | Famille | Invocations | Première | Dernière |
 | --- | --- | --- | --- | --- |
-| `agent-orchestrator` | projet | 11 | 2026-07-21 | 2026-09-01 |
+| `agent-orchestrator` | projet | 14 | 2026-07-21 | 2026-09-01 |
 | `agent-supervisor` | projet | 7 | 2026-07-21 | 2026-07-28 |
 | `revue-increment` | projet | 6 | 2026-07-21 | 2026-07-28 |
 | `run` | (builtin/session) | 6 | 2026-07-01 | 2026-09-01 |
@@ -28,17 +28,17 @@ Dernier scan : 2026-09-01T18:01:11+02:00 · **20 sessions** (transcripts) · **3
 
 | Sous-agent | Lancements | Premier | Dernier |
 | --- | --- | --- | --- |
+| `Explore` | 3 | 2026-07-08 | 2026-09-01 |
+| `bmad-revue` | 3 | 2026-09-01 | 2026-09-01 |
 | `ppt-designer` | 3 | 2026-07-08 | 2026-07-21 |
 | `ux-designer` | 3 | 2026-07-01 | 2026-09-01 |
+| `qa-engineer` | 2 | 2026-09-01 | 2026-09-01 |
 | `reviewer` | 2 | 2026-07-21 | 2026-09-01 |
 | `ui-designer` | 2 | 2026-07-01 | 2026-07-01 |
-| `Explore` | 1 | 2026-07-08 | 2026-07-08 |
 | `auditor` | 1 | 2026-09-01 | 2026-09-01 |
-| `bmad-revue` | 1 | 2026-09-01 | 2026-09-01 |
 | `documentarian` | 1 | 2026-07-01 | 2026-07-01 |
 | `general-purpose` | 1 | 2026-09-01 | 2026-09-01 |
 | `onboarder` | 1 | 2026-07-07 | 2026-07-07 |
-| `qa-engineer` | 1 | 2026-09-01 | 2026-09-01 |
 | `security-auditor` | 1 | 2026-09-01 | 2026-09-01 |
 
 ## Jamais utilisés

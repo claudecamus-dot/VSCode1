@@ -1,5 +1,6 @@
 const ExcelJS = require('exceljs');
 const db = require('./db');
+const { enTransaction } = require('./tx');
 
 function cellText(cell) {
   if (cell === null || cell === undefined) return null;
@@ -56,12 +57,19 @@ async function importInvitesFromBuffer(buffer, nomFichier) {
   return invites;
 }
 
+// Remplacement de la liste d'invites : DELETE puis INSERT, donc destructif avant
+// d'etre constructif. Hors transaction, un echec au 300e insert laissait la
+// session avec 299 invites et l'ancienne liste definitivement perdue — le taux de
+// participation devenait faux sans aucune trace. En transaction, l'echec ramene
+// la liste precedente intacte.
 function replaceInvites(sessionId, invites) {
-  db.prepare('DELETE FROM invites WHERE session_id = ?').run(sessionId);
-  const insert = db.prepare('INSERT INTO invites (session_id, email, nom) VALUES (?, ?, ?)');
-  for (const invite of invites) {
-    insert.run(sessionId, invite.email, invite.nom);
-  }
+  enTransaction(() => {
+    db.prepare('DELETE FROM invites WHERE session_id = ?').run(sessionId);
+    const insert = db.prepare('INSERT INTO invites (session_id, email, nom) VALUES (?, ?, ?)');
+    for (const invite of invites) {
+      insert.run(sessionId, invite.email, invite.nom);
+    }
+  });
 }
 
 function getInvites(sessionId) {

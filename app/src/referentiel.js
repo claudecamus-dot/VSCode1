@@ -275,13 +275,16 @@ async function importFromBuffer(buffer, mode = 'conserver') {
   if (piliers.length === 0) {
     throw new Error("Aucun pilier/objectif/question detecte dans le fichier. Verifiez le format attendu (lignes d'entete 'PILIER - OBJECTIF').");
   }
-  await corrigerReferentiel(piliers);
-  const archivees = mode === 'remplacer' ? remplacerTout(piliers) : reconcileReferentiel(piliers);
+  // Le correcteur tourne dans un worker depuis le 2026-09-01 : il rend une COPIE
+  // corrigee, il ne modifie plus `piliers` en place. Reaffecter, sinon la suite
+  // travaille sur le texte non corrige.
+  const corriges = await corrigerReferentiel(piliers);
+  const archivees = mode === 'remplacer' ? remplacerTout(corriges) : reconcileReferentiel(corriges);
   return {
     mode: mode === 'remplacer' ? 'remplacer' : 'conserver',
-    piliers: piliers.length,
-    sousCategories: piliers.reduce((sum, p) => sum + p.sousCategories.length, 0),
-    questions: piliers.reduce((sum, p) => sum + p.sousCategories.reduce((s, sc) => s + sc.questions.length, 0), 0),
+    piliers: corriges.length,
+    sousCategories: corriges.reduce((sum, p) => sum + p.sousCategories.length, 0),
+    questions: corriges.reduce((sum, p) => sum + p.sousCategories.reduce((s, sc) => s + sc.questions.length, 0), 0),
     archivees,
   };
 }
