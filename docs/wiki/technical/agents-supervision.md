@@ -1,5 +1,5 @@
 ---
-updated: 2026-07-31
+updated: 2026-09-01
 generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, étage 1)
 ---
 
@@ -7,9 +7,8 @@ generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, ét
 
 > ⚠️ **Page générée automatiquement** (hook SessionStart → `.claude/supervision/scan_transcripts.py`).
 > **Ne pas éditer à la main** — toute modification serait écrasée au prochain scan.
-> Conception et phasage : [../../reflexions/agent-superviseur.md](../../reflexions/agent-superviseur.md).
 
-Dernier scan : 2026-07-31T16:17:21+02:00 · **18 sessions** (transcripts) · **34** invocations de skills · **11** lancements de sous-agents.
+Dernier scan : 2026-09-01T10:09:39+02:00 · **20 sessions** (transcripts) · **34** invocations de skills · **11** lancements de sous-agents.
 
 ## Skills — usage réel
 
@@ -38,6 +37,10 @@ Dernier scan : 2026-07-31T16:17:21+02:00 · **18 sessions** (transcripts) · **3
 
 ## Jamais utilisés
 
+**projet** — 2/11 jamais invoqués :
+
+`audit-technique`, `veille-agentic`
+
 **BMAD** — 46/46 jamais invoqués :
 
 <details><summary>Voir la liste</summary>
@@ -50,11 +53,12 @@ Dernier scan : 2026-07-31T16:17:21+02:00 · **18 sessions** (transcripts) · **3
 
 _Consommés en lisant/exécutant leurs `scripts/`, ou via un sous-agent qui les suit (ex. `ppt-designer`, qui n'a pas l'outil Skill) — le compteur d'invocations ne peut structurellement pas les voir. `n=0` n'y vaut donc PAS « mort » : ne pas désinstaller sur ce seul signal (constat superviseur #2)._
 
-`deck-design-library`, `deck-design-review`, `pptx-deck`, `pptx-framed-image`, `restitution-deck-design`, `restitution-ppt`, `slide-text-polish`
+`deck-design-library`, `deck-design-review`, `pdf-quality`, `pptx-deck`, `pptx-framed-image`, `restitution-deck-design`, `restitution-ppt`, `slide-text-polish`
 
 ## TODO agents (constats automatiques)
 
-_(aucun constat — rien à signaler sur les données actuelles)_
+1. **Skills projet sans usage** : `audit-technique`, `veille-agentic` — vérifier pertinence et déclencheurs.
+2. **Skills en sommeil (>30 j sans usage)** : `agent-orchestrator`, `agent-supervisor`, `artifact-design`, `pptx-verify`, `revue-increment`, `roadmap-keeper`, `run`, `skill-creator`.
 
 ## Arbitrages enregistrés
 
@@ -77,7 +81,7 @@ _Constats clos par décision humaine (`.claude/supervision/arbitrages.json`) —
 
 ## Diagnostic qualitatif (étage 2 — `agent-supervisor`)
 
-_Diagnostic à jour — rien à signaler, tous les constats précédents ont été arbitrés._
+_Diagnostic ⚠️ à relancer (> 14 j) — rien à signaler, tous les constats précédents ont été arbitrés._
 
 _4 constat(s) de ce diagnostic écarté(s) par un arbitrage — pour en rouvrir un, demander au superviseur un `re_challenge` avec des données nouvelles :_
 

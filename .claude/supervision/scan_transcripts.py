@@ -42,7 +42,6 @@ Env (surcharges, utilisées par les tests) : AGENT_SUPERVISION_TRANSCRIPTS,
 AGENT_SUPERVISION_STATE, AGENT_SUPERVISION_WIKI_PAGE, AGENT_SUPERVISION_WIKI_INDEX,
 AGENT_SUPERVISION_RUNS, AGENT_SUPERVISION_ROUTING_HINTS, AGENT_SUPERVISION_DIAGNOSTIC,
 AGENT_SUPERVISION_OPENHUB_DB, AGENT_SUPERVISION_ARBITRAGES.
-Conception : docs/reflexions/agent-superviseur.md, docs/reflexions/agent-orchestrateur.md §6.
 """
 import datetime as dt
 import glob
@@ -128,8 +127,19 @@ def load_state() -> dict:
 
 
 def save_state(state: dict) -> None:
-    with open(STATE_PATH, "w", encoding="utf-8") as fh:
-        json.dump(state, fh, ensure_ascii=False, indent=1)
+    """Écriture ATOMIQUE. Un `open(STATE_PATH, "w")` interrompu (Ctrl-C, coupure,
+    valeur non sérialisable en fin de dict) laisse un state.json tronqué que
+    `load_state` ne sait plus relire : le scan repart alors de zéro, en silence, et
+    réagrège tout l'historique. On écrit à côté puis `os.replace` — atomique sous
+    Windows comme sous POSIX : l'état publié est complet, ou reste le précédent."""
+    tmp = f"{STATE_PATH}.{os.getpid()}.tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(state, fh, ensure_ascii=False, indent=1)
+        os.replace(tmp, STATE_PATH)
+    finally:
+        if os.path.exists(tmp):   # échec en cours d'écriture : pas de reliquat
+            os.remove(tmp)
 
 
 def read_new_lines(path: str, offset: int):
@@ -350,10 +360,24 @@ def days_since(ts: str):
     return (now - t).days
 
 
+# Lignes JSONL non parsables au dernier passage, par chemin — lues par main() pour
+# les SIGNALER. Un journal abîmé ne doit ni casser le démarrage ni disparaître sans
+# un mot : le run que porte la ligne perdue n'apparaît nulle part ailleurs.
+LIGNES_ILLISIBLES = {}
+
+
 def load_jsonl(path: str) -> list:
+    """Journal JSONL, lecture TOLÉRANTE aux octets invalides.
+
+    `errors="replace"` : un seul octet non-UTF-8 — ce que produit `Add-Content` en
+    PowerShell — levait `UnicodeDecodeError`, qui échappait à `except OSError`,
+    remontait jusqu'au `except Exception` de `main()` et annulait TOUT le scan de
+    démarrage avec pour seule trace « scan ignore ». Les lignes qui restent non
+    parsables sont comptées dans `LIGNES_ILLISIBLES[path]`, plus sautées en silence."""
     out = []
+    illisibles = 0
     try:
-        with open(path, encoding="utf-8") as fh:
+        with open(path, encoding="utf-8", errors="replace") as fh:
             for line in fh:
                 line = line.strip()
                 if not line:
@@ -361,9 +385,10 @@ def load_jsonl(path: str) -> list:
                 try:
                     out.append(json.loads(line))
                 except ValueError:
-                    continue
+                    illisibles += 1
     except OSError:
         pass
+    LIGNES_ILLISIBLES[path] = illisibles
     return out
 
 
@@ -606,13 +631,32 @@ def build_runs_stats(runs: list):
     taux à la baisse. Un `en_cours` qui ne se solde jamais est le signal utile — c'est un
     run interrompu ou abandonné, exactement ce que l'ancien schéma « journaliser à la fin »
     perdait en silence.
+
+    `en-attente-validation` et `partiel` suivent EXACTEMENT le même principe (finding
+    mesuré 2026-08-31 : `evolution-flotte` = 36 runs = 30 succès + 4 en-attente-validation
+    + 2 partiel, 0 échec — avant ce correctif ils gonflaient `n` sans jamais incrémenter
+    `succes` ni `echecs`, ramenant le taux à 30/36 = 83 % alors qu'aucun des 36 runs n'a
+    échoué). Ni l'un ni l'autre n'est un verdict terminal : R5 interdit de logger `succes`
+    tant que l'utilisateur n'a pas validé, et un `partiel` attend encore la suite avant de
+    se solder en `succes` ou `echec`. Les exclure de `n` sans les compter à part serait le
+    même bug déplacé (des non-soldés qui disparaissent en silence au lieu de fausser le
+    taux) — `en_attente_validation` et `partiels` restent donc visibles, comme `en_cours`.
     """
+    NON_TERMINAUX = {
+        "en-cours": "en_cours",
+        "en-attente-validation": "en_attente_validation",
+        "partiel": "partiels",
+    }
     par_playbook, par_agent = {}, {}
 
     def cumuler(agg: dict, cle: str, resultat, reprises: int) -> None:
-        e = agg.setdefault(cle, {"n": 0, "succes": 0, "echecs": 0, "reprises": 0, "en_cours": 0})
-        if resultat == "en-cours":
-            e["en_cours"] += 1
+        e = agg.setdefault(cle, {
+            "n": 0, "succes": 0, "echecs": 0, "reprises": 0,
+            "en_cours": 0, "en_attente_validation": 0, "partiels": 0,
+        })
+        cle_non_terminale = NON_TERMINAUX.get(resultat)
+        if cle_non_terminale:
+            e[cle_non_terminale] += 1
             return
         e["n"] += 1
         e["reprises"] += reprises
@@ -818,7 +862,6 @@ def build_page(state: dict, fam: dict, todos: list, diag_todos: list = None, dia
         "",
         "> ⚠️ **Page générée automatiquement** (hook SessionStart → `.claude/supervision/scan_transcripts.py`).",
         "> **Ne pas éditer à la main** — toute modification serait écrasée au prochain scan.",
-        "> Conception et phasage : [../../reflexions/agent-superviseur.md](../../reflexions/agent-superviseur.md).",
         "",
         f"Dernier scan : {state.get('last_scan', '?')} · **{nb_files} sessions** (transcripts) · "
         f"**{total_skill}** invocations de skills · **{total_sub}** lancements de sous-agents.",
@@ -1076,7 +1119,7 @@ def build_html_section(state: dict, fam: dict, todos: list, diag_todos: list = N
       <p class="file-meta"><span>docs/wiki/technical/agents-supervision.md</span><span>généré : {_esc(state.get('last_scan', '?'))}</span></p>
 
       <div class="fact">
-        <p><strong>Bloc généré automatiquement</strong> à chaque session (hook SessionStart → <code>.claude/supervision/scan_transcripts.py</code>, scan incrémental des transcripts, 0 token LLM) — ne pas éditer à la main. <strong>{nb_files} sessions</strong> couvertes · <strong>{total_skill}</strong> invocations de skills · <strong>{total_sub}</strong> lancements de sous-agents. Conception : <code>docs/reflexions/agent-superviseur.md</code> (étage 2 : skill <code>agent-supervisor</code>, section diagnostic ci-dessous).</p>
+        <p><strong>Bloc généré automatiquement</strong> à chaque session (hook SessionStart → <code>.claude/supervision/scan_transcripts.py</code>, scan incrémental des transcripts, 0 token LLM) — ne pas éditer à la main. <strong>{nb_files} sessions</strong> couvertes · <strong>{total_skill}</strong> invocations de skills · <strong>{total_sub}</strong> lancements de sous-agents. Diagnostic qualitatif : skill <code>agent-supervisor</code> (étage 2, section diagnostic ci-dessous).</p>
         <span class="tag tag-confirme">CONFIRMÉ</span>
         <div class="tag-source">scan_transcripts.py · {today} · ~/.claude/projects/&lt;slug&gt;/*.jsonl</div>
       </div>
@@ -1164,8 +1207,17 @@ def update_index(todos: list) -> None:
     try:
         with open(WIKI_INDEX, encoding="utf-8") as fh:
             txt = fh.read()
-    except OSError:
-        txt = ""
+    except FileNotFoundError:
+        txt = ""   # premier passage : la page est créée avec le bloc seul
+    except OSError as exc:
+        # Un échec de LECTURE ne doit JAMAIS devenir un ÉCRASEMENT. Rabattre sur ""
+        # puis réécrire en "w" détruisait la page rédigée à la main (reproduit :
+        # 1466 -> 422 octets, sans un message). On renonce à la mise à jour et on le
+        # dit : fail-open — la section TODO n'est pas rafraîchie, rien de plus, le
+        # démarrage de session n'est pas cassé pour autant.
+        print(f"  index.md non mis a jour : lecture impossible "
+              f"({exc.__class__.__name__}) - section TODO agents laissee en l'etat.")
+        return
     if MARK_START in txt and MARK_END in txt:
         pattern = re.escape(MARK_START) + r".*?" + re.escape(MARK_END)
         txt = re.sub(pattern, lambda m: block, txt, flags=re.DOTALL)
@@ -1309,6 +1361,9 @@ def main(argv) -> int:
     if inconnues:
         detail += (" (arbitrages.json : categorie(s) hors vocabulaire, sans effet -> "
                    + ", ".join(inconnues) + ")")
+    illisibles = LIGNES_ILLISIBLES.get(RUNS_PATH, 0)
+    if illisibles:
+        detail += f" ({illisibles} ligne(s) illisible(s) dans runs.jsonl, ignoree(s))"
     print(
         f"Supervision agents : +{new_events} evenement(s), {len(state.get('files', {}))} sessions couvertes, "
         f"{len(todos)} TODO, {len(runs)} run(s) orchestrateur -> agents-supervision.md, index.md"
@@ -1318,8 +1373,15 @@ def main(argv) -> int:
     # subprocess (console cp1252 sur Windows) — un caractere hors cp1252 y leve
     # UnicodeDecodeError et rend stdout None (incident verifie le 2026-07-29).
     for run in runs_a_solder(runs):
+        # ts COMPLET, jamais tronque : `log_run.py --solde` exige EXACTEMENT une
+        # correspondance de prefixe et rend rc=1 sinon. Tronquer a l'heure ([:13])
+        # rendait donc la commande officielle inutilisable des que deux runs
+        # partageaient l'heure -- mesure du 2026-08-31 sur le journal reel : 24
+        # prefixes horaires sur 36 en collision, les 8 runs en attente touches. Or
+        # R5 interdit l'edition manuelle du journal : sans prefixe unique, la
+        # boucle en-attente-validation ne se referme plus.
         print(f"  run a solder (il y a {run['heures']} h) : {run['demande']} "
-              f"-> py .claude/orchestration/log_run.py --solde {run['ts'][:13]} succes \"note\"")
+              f"-> py .claude/orchestration/log_run.py --solde \"{run['ts']}\" succes \"note\"")
     if apparus:
         print(f"  sous-agent(s) desormais adressable(s) par l'outil Agent : "
               f"{', '.join(apparus)} - ecrit(s) hors de cette session, donc utilisable(s) "
