@@ -157,6 +157,107 @@ const textesV4 = refV4.flatMap((p) => p.sousCategories.flatMap((sc) => sc.questi
 check(refV4.length === 1 && refV4[0].nom === 'Pilier B', 'seul Pilier B subsiste');
 check(textesV4.length === 1 && textesV4[0] === 'Question neuve', 'seule la nouvelle question subsiste (aucun residu archive)');
 
+console.log('Perimetre d\'une session : une question CADREE mais SANS reponse survit au re-import :');
+// Regression BLOQUANTE reproduite le 2026-09-01. Une question sans reponse etait
+// SUPPRIMEE ; `session_questions.question_id` est en ON DELETE CASCADE, donc le
+// cadrage de la session partait avec elle. `activeQuestionIds` (server.js) retombait
+// alors sur son repli « aucune ligne = tout le referentiel est actif » — repli concu
+// pour les sessions anterieures a la fonctionnalite, incapable de distinguer
+// « jamais cadree » de « cadrage efface ». Resultat vecu : l'animateur corrige une
+// coquille dans le texte de deux questions (le TEXTE est la cle de rapprochement,
+// donc elles passent pour disparues), et le repondant recoit les 5 questions du
+// referentiel au lieu des 2 de son perimetre.
+function grilleC(textes) {
+  return [
+    {
+      nom: 'Pilier C',
+      ordre: 0,
+      sousCategories: [
+        { nom: 'Objectif Q', ordre: 0, questions: textes.map((t) => ({ texte: t, niveaux: niveaux() })) },
+      ],
+    },
+  ];
+}
+
+// Repliques exactes de server.js (activeQuestionIds l.64-70, referentielPourSession
+// l.77-92) : ces deux fonctions ne sont pas exportees, mais ce sont elles qui
+// decident de ce que le repondant recoit. Les recopier ici est le seul moyen de
+// mesurer l'effet du re-import sur le perimetre reellement servi.
+function activeQuestionIds(sessionId) {
+  const rows = db.prepare('SELECT question_id FROM session_questions WHERE session_id = ?').all(sessionId);
+  if (rows.length === 0) {
+    return new Set(db.prepare('SELECT id FROM questions WHERE archive = 0').all().map((q) => q.id));
+  }
+  return new Set(rows.map((r) => r.question_id));
+}
+function referentielPourSession(sessionId) {
+  const actives = activeQuestionIds(sessionId);
+  return getReferentiel({ includeArchived: true })
+    .map((pilier) => ({
+      ...pilier,
+      sousCategories: pilier.sousCategories
+        .map((sc) => ({ ...sc, questions: sc.questions.filter((q) => actives.has(q.id)) }))
+        .filter((sc) => sc.questions.length > 0),
+    }))
+    .filter((pilier) => pilier.sousCategories.length > 0);
+}
+
+// Base a neuf : 5 questions, aucune reponse nulle part.
+remplacerTout(grilleC(['C1', 'C2', 'C3', 'C4', 'C5']));
+const idC2 = db.prepare("SELECT id FROM questions WHERE texte = 'C2'").get().id;
+const idC4 = db.prepare("SELECT id FROM questions WHERE texte = 'C4'").get().id;
+
+const sessionCadree = crypto.randomUUID();
+db.prepare('INSERT INTO sessions (id, ouverture_at, fermeture_at, created_at) VALUES (?, ?, ?, ?)').run(
+  sessionCadree, '2026-01-01T00:00:00Z', '2026-12-31T00:00:00Z', '2026-01-01T00:00:00Z'
+);
+const insSqCadree = db.prepare('INSERT INTO session_questions (session_id, question_id) VALUES (?, ?)');
+insSqCadree.run(sessionCadree, idC2);
+insSqCadree.run(sessionCadree, idC4);
+
+check(db.prepare('SELECT COUNT(*) AS n FROM reponses').get().n === 0, 'pre-condition : AUCUNE reponse en base');
+check(db.prepare('SELECT COUNT(*) AS n FROM questions').get().n === 5, 'pre-condition : 5 questions au referentiel');
+check(activeQuestionIds(sessionCadree).size === 2, 'pre-condition : la session est cadree sur 2 questions');
+
+// L'animateur corrige le texte de C2 et C4 (elles paraissent disparues), et
+// retire C5 (ni cadree ni repondue : elle, doit bien etre supprimee).
+const archiveesCadrage = reconcileReferentiel(grilleC(['C1', 'C2 corrigee', 'C3', 'C4 corrigee']));
+
+check(archiveesCadrage === 2, `2 questions archivees car cadrees (recu ${archiveesCadrage})`);
+check(
+  db.prepare('SELECT COUNT(*) AS n FROM session_questions WHERE session_id = ?').get(sessionCadree).n === 2,
+  'session_questions conserve ses 2 lignes (le cadrage n\'a pas ete emporte par la cascade)'
+);
+const idsCadres = db.prepare('SELECT question_id FROM session_questions WHERE session_id = ? ORDER BY question_id').all(sessionCadree).map((r) => r.question_id);
+check(idsCadres.includes(idC2) && idsCadres.includes(idC4), 'le cadrage pointe toujours sur les MEMES question_id');
+// `get()` rend undefined si la question a ete SUPPRIMEE : on teste la ligne
+// avant son champ, sinon l'echec se manifeste en TypeError au lieu d'un FAIL lisible.
+const ligneC2 = db.prepare('SELECT archive FROM questions WHERE id = ?').get(idC2);
+const ligneC4 = db.prepare('SELECT archive FROM questions WHERE id = ?').get(idC4);
+check(!!ligneC2 && ligneC2.archive === 1, 'C2 archivee (non supprimee)');
+check(!!ligneC4 && ligneC4.archive === 1, 'C4 archivee (non supprimee)');
+check(!db.prepare("SELECT 1 FROM questions WHERE texte = 'C5'").get(), 'C5 (ni cadree ni repondue) reste supprimee');
+
+const activesApres = activeQuestionIds(sessionCadree);
+check(activesApres.size === 2, `activeQuestionIds rend 2 questions, pas tout le referentiel (recu ${activesApres.size})`);
+check(activesApres.has(idC2) && activesApres.has(idC4), 'le perimetre actif est bien C2 et C4');
+
+const refSession = referentielPourSession(sessionCadree);
+const textesSession = refSession.flatMap((p) => p.sousCategories.flatMap((sc) => sc.questions.map((q) => q.texte)));
+check(textesSession.length === 2, `le repondant recoit 2 questions (recu ${textesSession.length})`);
+check(
+  textesSession.includes('C2') && textesSession.includes('C4'),
+  `la session sert la formulation avec laquelle elle a ete lancee (recu ${JSON.stringify(textesSession)})`
+);
+
+// Les nouvelles formulations existent bien, actives, pour les prochaines sessions.
+const textesActifsApres = getReferentiel().flatMap((p) => p.sousCategories.flatMap((sc) => sc.questions.map((q) => q.texte)));
+check(textesActifsApres.length === 4, `4 questions actives au referentiel apres correction (recu ${textesActifsApres.length})`);
+check(
+  textesActifsApres.includes('C2 corrigee') && textesActifsApres.includes('C4 corrigee'),
+  'les textes corriges sont actifs pour les futures sessions'
+);
+
 // Nettoyage
 try { fs.rmSync(dbFile); } catch { /* nettoyage best-effort */ }
 

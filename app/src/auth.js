@@ -65,12 +65,27 @@ const PAGES_OUVERTES = new Set([
 ]);
 
 function estRepondant(method, pathname) {
-  if (PAGES_OUVERTES.has(pathname)) return true;
-  // Ressources statiques non-.html (css/js/images) : ouvertes — elles ne
-  // portent pas de PII, seul l'/api en porte. Les pages .html animateur sont
-  // traitees comme protegees ci-dessous (retour false).
-  if (!pathname.startsWith('/api/') && !pathname.endsWith('.html')) return true;
-  return ROUTES_REPONDANT.some((r) => r.m === method && r.re.test(pathname));
+  // NORMALISATION DE CASSE AVANT TOUTE DECISION. `startsWith`/`endsWith` et les
+  // regex ci-dessus sont sensibles a la casse, alors que ce qui route la requete
+  // en aval ne l'est PAS : le routeur Express (option « case sensitive routing »
+  // desactivee par defaut) et le systeme de fichiers Windows. Sans cette ligne,
+  // `/API/sessions/<id>/resultats` n'etait « ni /api/ ni .html », donc traite en
+  // ressource statique ouverte — puis route quand meme vers la vraie route par
+  // Express. La barriere tombait sans identifiants, en lecture nominative comme
+  // en ecriture (reproduit le 2026-09-01 ; cf. tests test-auth.js « casse »).
+  const chemin = String(pathname || '').toLowerCase();
+  if (PAGES_OUVERTES.has(chemin)) return true;
+  // FAIL-CLOSED INTEGRAL : tout ce qui n'est pas explicitement ouvert est
+  // protege. La version precedente ouvrait « tout ce qui n'est ni /api/ ni
+  // .html » pour laisser passer css/js/images — mais `src/public/` n'en contient
+  // aucun hors `env-banner.js`, deja liste ci-dessus, et cette branche ouvrait
+  // par defaut tout futur fichier statique (un export .csv, un .json). Un
+  // nouvel asset a servir au repondant s'ajoute a PAGES_OUVERTES : le defaut
+  // doit etre le refus, c'est ce que « fail-closed » promet.
+  // NB : la casse du METHOD n'est volontairement pas normalisee — une methode
+  // inattendue ne matche alors aucune entree de la liste blanche, donc la
+  // requete est protegee. Echouer vers le refus est le bon sens ici.
+  return ROUTES_REPONDANT.some((r) => r.m === method && r.re.test(chemin));
 }
 
 function refuser(res) {
@@ -88,8 +103,23 @@ function barriereAuth(env = process.env) {
   const active = Boolean(user && pass);
 
   if (!active) {
-    // No-op explicite : comportement inchange. Un avertissement unique au
-    // demarrage signale que la surface PII n'est pas protegee.
+    // En PRODUCTION, l'absence d'identifiants n'est pas un choix : c'est un
+    // oubli de configuration qui laisse la surface PII ouverte sur le reseau.
+    // Un `console.warn` dans un journal que personne ne lit n'a jamais empeche
+    // un demarrage (constat du 2026-09-01 : `.env.prod` ne pose pas AUTH_*, et
+    // `.env.prod.local` — le canal des secrets — n'existe pas sur le disque).
+    // On refuse donc de demarrer, meme idiome que scripts/seed-demo.js qui
+    // refuse deja de semer la demo en PROD.
+    if ((env.APP_ENV || '') === 'PROD') {
+      console.error(
+        '[securite] Refus de demarrer : APP_ENV=PROD sans AUTH_USER/AUTH_PASS. '
+          + "L'API expose des donnees nominatives ; posez les deux variables dans "
+          + '.env.prod.local (hors depot) avant de lancer la production.',
+      );
+      process.exit(1);
+    }
+    // Hors PROD : no-op explicite, comportement inchange (dev, CI, tests). Un
+    // avertissement unique au demarrage signale que la surface PII est ouverte.
     console.warn(
       '[securite] Barriere Basic Auth INACTIVE (AUTH_USER/AUTH_PASS non poses) : '
         + "l'API PII reste ouverte. Mesure interimaire de l'arbitrage securite:VSCode1-api-pii ; "

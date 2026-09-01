@@ -205,6 +205,13 @@
     // partout sur cette page — sans cet echappement, un repondant qui saisit
     // "<img src=x onerror=...>" comme nom l'executerait dans le navigateur de
     // l'animateur qui consulte les resultats.
+    //
+    // PIEGE VERIFIE (deux occurrences corrigees le 2026-09-01, titres « Points
+    // d'attention » et « Points forts ») : echapper a l'ECRITURE de l'<option>
+    // ne protege PAS la LECTURE. `select.innerHTML = ...esc(e.equipe)...` pose
+    // bien une valeur echappee dans le HTML, mais le navigateur la decode en la
+    // parsant : `$('equipe').value` rend ensuite la chaine d'ORIGINE. Toute
+    // valeur relue du DOM doit donc etre re-echappee avant reinjection.
     function esc(valeur) {
       return String(valeur).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     }
@@ -430,7 +437,7 @@
         `<li>${esc(q.texte)} <span class="metrique">moyenne ${fmt(q.moyenne)} / 3</span> <span class="contexte">(${q.contexte})</span></li>`;
 
       $('pointsAttention').innerHTML = `
-        <h2 class="repli-toggle"><span class="caret">▸</span> Points d'attention — ${$('equipe').value}</h2>
+        <h2 class="repli-toggle"><span class="caret">▸</span> Points d'attention — ${esc($('equipe').value)}</h2>
         <div class="repli-contenu ferme">
           <h3>Plus fort désaccord (dispersion)</h3>
           <ul>${dispersion.map(ligneDispersion).join('')}</ul>
@@ -470,7 +477,7 @@
         `<li><span class="fleche">▲</span>${esc(q.texte)} <span class="metrique">écart-type ${fmt(q.ecartType)}</span> <span class="contexte">(min ${q.min} / max ${q.max} — ${q.contexte})</span></li>`;
 
       $('pointsForts').innerHTML = `
-        <h2 class="repli-toggle"><span class="caret">▸</span> Points forts — ${$('equipe').value}</h2>
+        <h2 class="repli-toggle"><span class="caret">▸</span> Points forts — ${esc($('equipe').value)}</h2>
         <div class="repli-contenu ferme">
           <h3>Scores les plus hauts</h3>
           <ul>${hauts.map(ligneHaut).join('')}</ul>

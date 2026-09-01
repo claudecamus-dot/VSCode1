@@ -8,16 +8,16 @@ generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, ét
 > ⚠️ **Page générée automatiquement** (hook SessionStart → `.claude/supervision/scan_transcripts.py`).
 > **Ne pas éditer à la main** — toute modification serait écrasée au prochain scan.
 
-Dernier scan : 2026-09-01T11:57:11+02:00 · **20 sessions** (transcripts) · **37** invocations de skills · **15** lancements de sous-agents.
+Dernier scan : 2026-09-01T16:45:15+02:00 · **20 sessions** (transcripts) · **39** invocations de skills · **18** lancements de sous-agents.
 
 ## Skills — usage réel
 
 | Skill | Famille | Invocations | Première | Dernière |
 | --- | --- | --- | --- | --- |
-| `agent-orchestrator` | projet | 10 | 2026-07-21 | 2026-09-01 |
+| `agent-orchestrator` | projet | 11 | 2026-07-21 | 2026-09-01 |
 | `agent-supervisor` | projet | 7 | 2026-07-21 | 2026-07-28 |
 | `revue-increment` | projet | 6 | 2026-07-21 | 2026-07-28 |
-| `run` | (builtin/session) | 5 | 2026-07-01 | 2026-07-28 |
+| `run` | (builtin/session) | 6 | 2026-07-01 | 2026-09-01 |
 | `artifact-design` | (builtin/session) | 3 | 2026-07-07 | 2026-09-01 |
 | `pptx-verify` | global | 3 | 2026-07-01 | 2026-07-21 |
 | `dataviz` | (builtin/session) | 1 | 2026-09-01 | 2026-09-01 |
@@ -30,13 +30,15 @@ Dernier scan : 2026-09-01T11:57:11+02:00 · **20 sessions** (transcripts) · **3
 | --- | --- | --- | --- |
 | `ppt-designer` | 3 | 2026-07-08 | 2026-07-21 |
 | `ux-designer` | 3 | 2026-07-01 | 2026-09-01 |
+| `reviewer` | 2 | 2026-07-21 | 2026-09-01 |
 | `ui-designer` | 2 | 2026-07-01 | 2026-07-01 |
 | `Explore` | 1 | 2026-07-08 | 2026-07-08 |
+| `auditor` | 1 | 2026-09-01 | 2026-09-01 |
 | `bmad-revue` | 1 | 2026-09-01 | 2026-09-01 |
 | `documentarian` | 1 | 2026-07-01 | 2026-07-01 |
 | `general-purpose` | 1 | 2026-09-01 | 2026-09-01 |
 | `onboarder` | 1 | 2026-07-07 | 2026-07-07 |
-| `reviewer` | 1 | 2026-07-21 | 2026-07-21 |
+| `qa-engineer` | 1 | 2026-09-01 | 2026-09-01 |
 | `security-auditor` | 1 | 2026-09-01 | 2026-09-01 |
 
 ## Jamais utilisés
@@ -62,7 +64,7 @@ _Consommés en lisant/exécutant leurs `scripts/`, ou via un sous-agent qui les 
 ## TODO agents (constats automatiques)
 
 1. **Skills projet sans usage** : `audit-technique`, `veille-agentic` — vérifier pertinence et déclencheurs.
-2. **Skills en sommeil (>30 j sans usage)** : `agent-supervisor`, `pptx-verify`, `revue-increment`, `roadmap-keeper`, `run`, `skill-creator`.
+2. **Skills en sommeil (>30 j sans usage)** : `agent-supervisor`, `pptx-verify`, `revue-increment`, `roadmap-keeper`, `skill-creator`.
 
 ## Arbitrages enregistrés
 
@@ -85,14 +87,13 @@ _Constats clos par décision humaine (`.claude/supervision/arbitrages.json`) —
 
 ## Diagnostic qualitatif (étage 2 — `agent-supervisor`)
 
-_Diagnostic ⚠️ à relancer (> 14 j) — rien à signaler, tous les constats précédents ont été arbitrés._
+_Diagnostic à jour._
 
-_4 constat(s) de ce diagnostic écarté(s) par un arbitrage — pour en rouvrir un, demander au superviseur un `re_challenge` avec des données nouvelles :_
-
-- ~~Chaine gate -> orchestrateur -> journalisation rompue depuis le 2026-07-23 : ~10 commits livres, 0 run journalise, donc etage 1 aveugle (prudence/trous_catalogue vides = faux negatifs, pas bonne sante)~~ (`agent-orchestrator`)
-- ~~RECIDIVE du constat du 2026-07-23 : revue-increment n'a pas tourne depuis le 2026-07-21 alors que 4 commits de code produit ont ete livres les 07-24/07-25 - et le contrat C2 arbitre le 07-23 (tracer la DoD allegee dans les notes du run) est inapplicable puisque aucun run n'est journalise~~ (`revue-increment`)
-- ~~11 des 17 agents de la flotte declaree canonique le 2026-07-21 n'ont JAMAIS ete invoques - alors que leurs cas d'usage exacts (audit, refactor, tests) se sont produits les 07-24/07-25 et ont ete traites en session principale~~ (`flotte .claude/agents/`)
-- ~~Playbook revue-design-parallele : jamais joue depuis son import du 2026-07-21, alors que 8 revues design reelles ont eu lieu depuis - elles ont toutes pris export-ppt-verifie~~ (`revue-design-parallele`)
+1. **La barriere Basic Auth declaree « fail-closed, activee en PROD » ne l'est ni l'une ni l'autre : contournement par la CASSE prouve sur HEAD, et aucun environnement ne pose AUTH_USER/AUTH_PASS - la dimension securite « moyen » du 2026-07-30 sous-estimait le risque** — Ne pas re-noter la dimension securite sur un diff en vol : elle se re-mesure apres commit, sur le code publie. Et arbitrer l'echeance Epic 10 plutot que de la laisser courir - c'est le 2e depassement silencieux du projet. · **Proposition** : Trois gestes, arbitrables separement : (a) inscrire dans test-auth.js deux cas de non-regression EXECUTABLES - une requete de casse variee (/API/... et /RESULTATS.HTML) doit rendre 401, et barriereAuth({APP_ENV:'PROD'}) sans AUTH_* doit refuser le demarrage ; sans eux la prochaine recopie du fichier reintroduit le trou en silence ; (b) poser comme contrat de la dimension securite qu'une barriere ne se declare « fail-closed » qu'apres une requete qui TENTE de la contourner - la presence du middleware ne prouve pas son fonctionnement (corollaire R6 : l'etage 1 mesure la presence, jamais le fonctionnement) ; (c) re-arbitrer l'Epic 10 : nouvelle echeance datee, ou repli assume (barriere interimaire durcie + AUTH_* obligatoires en PROD) declare comme cible finale du MVP. Relancer audit-technique sur VSCode1 APRES le commit des correctifs, pas avant.
+2. **3e recidive du trou de journalisation/DoD : 19 commits en 35 jours pour 0 run journalise, 0 marqueur DoD et revue-increment jamais rechargee - le garde-fou arbitre le 2026-07-28 etait aveugle au shell primaire pendant toute la periode** — Deux remediations successives (2026-07-21 hook de commit, 2026-07-28 second signal) ont echoue par le meme mecanisme : un avertissement non bloquant, evalue sur un signal fragile. Ne pas en ecrire une troisieme du meme genre. · **Proposition** : Trancher entre deux options, sans les cumuler : (A) MESURER au lieu de DECLARER - le scan etage 1 leve lui-meme le constat quand des commits touchant app/** sont posterieurs au dernier run journalise (comparaison git log / runs.jsonl, 0 token, independante du hook, du shell et du transcript) et l'affiche dans le wiki comme un ecart chiffre ; (B) ASSUMER que les sessions courtes ne sont pas journalisees, retirer runs.jsonl du socle de preuve du superviseur et cesser de publier les stats plan-vs-reel comme un indicateur. Dans les deux cas, generaliser ce que 5497bf8 a fait pour PowerShell : tout garde-fou qu'une recopie depuis le hub peut annuler se verrouille par un test versionne qui echoue contre la version d'avant.
+3. **La resynchro canon du 2026-09-01 a propage a l'envers : elle a ressuscite un playbook qu'un arbitrage avait supprime, et laisse le superviseur local incapable d'ecrire le moindre constat de pratique** — Une propagation par recopie qui ne lit pas les arbitrages de la cible defait des decisions humaines en silence, pendant que le scan continue d'afficher l'arbitrage comme APPLIQUE. Le retard inverse (vocabulaire du superviseur) montre que la recopie n'est pas non plus exhaustive : elle est simplement non verifiee. · **Proposition** : Donner a la propagation canon un mode `--check` obligatoire AVANT ecriture, rendant deux listes : les fichiers qu'elle recreerait alors qu'une entree de arbitrages.json a acte leur suppression (ici revue-design-parallele.md), et les fichiers du canon plus recents que la copie locale qu'elle ne touche pas (ici write_diagnostic.py, en retard de tout le volet 2). Puis deux arbitrages distincts : (a) re-supprimer revue-design-parallele.md conformement a la decision du 2026-07-28, ou annuler cet arbitrage explicitement - pas le laisser ressuscite sans trace ; (b) aligner le vocabulaire de categories de write_diagnostic.py sur le canon du hub, sans quoi ce projet ne pourra jamais porter un constat de test, de revue ou de documentation.
+4. **La revue multi-agents du 2026-09-01 a trouve des defauts bloquants et remis 3 arbitrages a l'utilisateur - aucun n'a de canal : arbitrages.json s'arrete au 2026-07-29 et le diagnostic n'avait pas bouge depuis le 2026-07-28** — Une revue dont le livrable est une page publiee produit de la lecture, pas des decisions. Les trois arbitrages doivent entrer dans le canal qui en produit. · **Proposition** : Le present diagnostic reverse le premier des trois (echeance Epic 10 -> finding securite:barriere-auth-fail-closed). Poser les deux autres explicitement : « modele de session : equipe vs campagne » (choix produit structurant, a arbitrer AVANT tout developpement qui en depend) et « mandat de correction des defauts de la revue » (perimetre : quels constats sont corriges dans cet increment, lesquels sont assumes) - soit en entrees datees de arbitrages.json, soit en findings au prochain diagnostic. Et amender le contrat de l'etape de consolidation du playbook de revue : le livrable d'une revue n'est pas le rapport mais les ENTREES OUVERTES dans le canal d'arbitrage ; un run `en-attente-validation` ne se solde pas tant qu'elles n'y sont pas.
+5. **Les deux decisions datees au 2026-08-16 (mise en sommeil groupee des agents jamais appeles, tri des 46 skills BMAD) n'ont pas ete prises : 16 jours de retard, et la remediation par « declencheur de routage » du 2026-07-28 n'a rien change au routage reel** — Une echeance datee que personne ne tient est un arbitrage qui n'a pas eu lieu. La tenir maintenant, en une seule decision groupee, plutot que de la reporter une troisieme fois. · **Proposition** : Solder les deux echeances en un seul arbitrage : (1) mettre en sommeil le sous-ensemble des 11 agents jamais appeles (deplacer les .md hors de .claude/agents/, historique git conserve), en gardant explicitement ceux dont le role est deja assure autrement (orchestrator/orchestrator-dev couverts par agent-orchestrator, decision du 2026-07-21) ; (2) trancher BMAD en bloc - la mesure de 46 skills a 0 usage sur 47 jours est faite, l'observation a rendu son verdict. Si le choix est de CONSERVER, alors acter que ces 46 skills ne sont pas routees et cesser de les compter comme dispositif dans le wiki. Ne pas re-decouper cette decision agent par agent : c'est ce decoupage qui l'a fait glisser deux fois.
 
 ---
 

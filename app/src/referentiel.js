@@ -170,12 +170,29 @@ function reconcileReferentielInTx(piliers) {
 
     // --- Entrees disparues de la nouvelle grille ---
     const aDesReponses = db.prepare('SELECT 1 FROM reponses WHERE question_id = ? LIMIT 1');
+    // Une question peut n'avoir AUCUNE reponse et rester indispensable : celles
+    // qu'une session a inscrites a son perimetre (US1.3bis). `session_questions`
+    // est en ON DELETE CASCADE (db.js) et `PRAGMA foreign_keys = ON`, donc la
+    // supprimer emportait silencieusement les lignes de cadrage. Quand elles
+    // tombaient toutes, `activeQuestionIds` (server.js) retombait sur son repli
+    // « aucune ligne = tout le referentiel est actif » — repli concu pour les
+    // sessions anterieures a la fonctionnalite, incapable de distinguer
+    // « jamais cadree » de « cadrage efface ». Reproduit le 2026-09-01 : une
+    // session cadree sur 2 questions parmi 5, l'animateur corrige une coquille
+    // (le texte etant la cle de rapprochement, la question est vue comme
+    // disparue), et le repondant en recoit 5 — avec une soumission qui en exige
+    // desormais 5. On archive donc au lieu de supprimer, exactement comme pour
+    // une question porteuse de reponses. La session continue de la servir :
+    // `referentielPourSession` lit le referentiel avec `includeArchived: true`
+    // puis filtre sur le perimetre, donc elle garde les questions ET la
+    // formulation avec lesquelles elle a ete lancee.
+    const estCadree = db.prepare('SELECT 1 FROM session_questions WHERE question_id = ? LIMIT 1');
     const archiveQuestion = db.prepare('UPDATE questions SET archive = 1 WHERE id = ?');
     const deleteQuestion = db.prepare('DELETE FROM questions WHERE id = ?');
     let archivees = 0;
     for (const id of idsQuestionsAvant) {
       if (vusQuestions.has(id)) continue;
-      if (aDesReponses.get(id)) {
+      if (aDesReponses.get(id) || estCadree.get(id)) {
         archiveQuestion.run(id);
         archivees += 1;
       } else {

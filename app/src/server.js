@@ -15,6 +15,14 @@ const { estModeDemo } = require('./mode');
 const { barriereAuth } = require('./auth');
 
 const app = express();
+// Routage sensible a la casse (defaut Express : desactive). Deuxieme ligne de
+// defense du correctif de casse d'auth.js : la barriere normalise desormais le
+// chemin avant de decider, et ici le routeur cesse de faire correspondre
+// `/API/sessions/...` a `/api/sessions/...`. Les deux ensemble suppriment
+// l'ecart entre « ce que le garde lit » et « ce que le routeur sert », qui
+// etait la cause du contournement. Aucun lien de l'application n'utilise une
+// autre casse que celle declaree (verifie sur src/public/).
+app.set('case sensitive routing', true);
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 // Barriere d'acces INTERIMAIRE sur la surface animateur / PII (arbitrage
@@ -86,16 +94,23 @@ function referentielPourSession(sessionId) {
 
 // --- Référentiel (Epic 1) ---
 
-app.post('/api/referentiel/import', upload.single('fichier'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'Fichier manquant (champ "fichier").' });
-  // Champ texte du multipart (req.body via multer). 'remplacer' = purge totale,
-  // sinon ré-import non destructif par défaut.
-  const mode = req.body && req.body.mode === 'remplacer' ? 'remplacer' : 'conserver';
+// Second handler `async` du fichier : meme protection que /invites ci-dessous —
+// corps entier sous `try`, `next(err)` pour ce qui n'est pas un probleme de
+// format, sinon une rejection non geree arrete le processus.
+app.post('/api/referentiel/import', upload.single('fichier'), async (req, res, next) => {
   try {
-    const resume = await importFromBuffer(req.file.buffer, mode);
-    res.json({ ok: true, ...resume });
+    if (!req.file) return res.status(400).json({ error: 'Fichier manquant (champ "fichier").' });
+    // Champ texte du multipart (req.body via multer). 'remplacer' = purge totale,
+    // sinon ré-import non destructif par défaut.
+    const mode = req.body && req.body.mode === 'remplacer' ? 'remplacer' : 'conserver';
+    try {
+      const resume = await importFromBuffer(req.file.buffer, mode);
+      res.json({ ok: true, ...resume });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -267,16 +282,30 @@ app.get('/api/sessions/:id/referentiel', (req, res) => {
 
 // --- Invitation par email (Epic 2) ---
 
-app.post('/api/sessions/:id/invites', upload.single('fichier'), async (req, res) => {
-  const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
-  if (!session) return res.status(404).json({ error: 'Session inconnue.' });
-  if (!req.file) return res.status(400).json({ error: 'Fichier manquant (champ "fichier").' });
+// Handler `async` : le corps ENTIER est sous `try`, et tout ce qui n'est pas une
+// erreur de format part en `next(err)`. Express 4 n'intercepte pas les promesses
+// rejetees d'un handler (aucun `.catch` dans son router/layer.js) : l'acces base
+// qui etait ici HORS du `try` produisait une rejection non geree, donc l'ARRET du
+// processus serveur — tous les repondants en cours perdaient leur session
+// (mesure le 2026-09-01 : handler sync qui jette -> 500 propre ; handler async
+// qui jette -> aucune reponse et code de sortie 1). Le `try` interne conserve le
+// 400 pour ce qui est vraiment un fichier illisible : sans lui, une panne de base
+// serait annoncee a l'animateur comme un mauvais format, et il referait son
+// fichier au lieu d'appeler l'exploitant.
+app.post('/api/sessions/:id/invites', upload.single('fichier'), async (req, res, next) => {
   try {
-    const invites = await importInvitesFromBuffer(req.file.buffer, req.file.originalname);
-    replaceInvites(session.id, invites);
-    res.json({ ok: true, invites: invites.length });
+    const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
+    if (!session) return res.status(404).json({ error: 'Session inconnue.' });
+    if (!req.file) return res.status(400).json({ error: 'Fichier manquant (champ "fichier").' });
+    try {
+      const invites = await importInvitesFromBuffer(req.file.buffer, req.file.originalname);
+      replaceInvites(session.id, invites);
+      res.json({ ok: true, invites: invites.length });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    next(err);
   }
 });
 
@@ -899,6 +928,29 @@ app.get('/api/sessions/:id/export-ppt', (req, res) => {
       return res.status(500).json({ error: 'Echec de la generation du PPT.', detail: String(stderr || err.message).slice(0, 500) });
     }
     res.download(outPath, nomFichier, nettoyer);
+  });
+});
+
+// --- Filet d'erreur terminal ---
+
+// Doit rester APRES toutes les routes : Express reconnait un middleware d'erreur
+// a son arite de 4, et ne l'appelle que pour ce qui a ete passe a `next(err)` ou
+// jete par un handler synchrone. Sans lui, deux comportements observes :
+//   - une erreur multer (typiquement le depassement de `fileSize`, 10 Mo) tombait
+//     sur le gestionnaire par defaut d'Express, qui rend une PAGE HTML 500 avec
+//     pile d'appels — la ou toute l'UI attend `{ error }` en JSON ;
+//   - un `next(err)` n'avait nulle part ou aller.
+// `_next` est present mais inutilise : le retirer ramenerait l'arite a 3 et
+// Express traiterait ce middleware comme une route ordinaire, jamais appelee sur
+// erreur. Ne pas le supprimer en croyant nettoyer.
+app.use((err, req, res, _next) => {
+  console.error('[erreur non geree]', req.method, req.originalUrl, err && err.stack ? err.stack : err);
+  if (res.headersSent) return;
+  const trop_gros = err && err.code === 'LIMIT_FILE_SIZE';
+  res.status(trop_gros ? 413 : 500).json({
+    error: trop_gros
+      ? 'Fichier trop volumineux (10 Mo maximum).'
+      : 'Erreur interne du serveur. Si elle persiste, prevenez l\'exploitant.',
   });
 });
 

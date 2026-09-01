@@ -21,9 +21,14 @@ if (!fs.existsSync(src)) {
 }
 
 // Filet de securite : on garde l'etat courant avant de l'ecraser.
+// Le nom se TERMINE par `.db` : le motif `data/**/*.db` de .gitignore est un
+// glob sur l'extension, il ne couvrait pas `app.db.before-restore-<stamp>`.
+// Verifie le 2026-09-01 : `git check-ignore` sortait 1 (non ignore) sur cette
+// copie et 0 sur les sauvegardes normales — un `git add -A` apres restauration
+// versionnait donc une base nominative complete, de facon irrevocable.
 if (fs.existsSync(dbPath)) {
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const safety = `${dbPath}.before-restore-${stamp}`;
+  const safety = `${dbPath}.before-restore-${stamp}.db`;
   fs.copyFileSync(dbPath, safety);
   console.log('Etat courant sauvegarde :', safety);
 }
