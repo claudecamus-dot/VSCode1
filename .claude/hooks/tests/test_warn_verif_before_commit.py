@@ -68,6 +68,33 @@ def test_verif_trace_from_bash_npm_test():
         os.unlink(tp)
 
 
+def test_verif_trace_from_powershell_npm_test():
+    """PowerShell est le shell PRIMAIRE de cet environnement. Ne reconnaître que
+    Bash rendait le garde-fou aveugle à la majorité des vérifications réellement
+    lancées : il avertissait « vérif non détectée » juste après une vérif faite,
+    et un garde-fou qui crie au loup finit ignoré le jour où il a raison.
+    Mesuré sur ce dépôt avant le correctif : Bash `npm test` → True, PowerShell
+    `npm test` → False. Les deux outils exposent la commande sous `input.command`."""
+    tp = _transcript({"type": "assistant", "message": {"content": [
+        {"type": "tool_use", "name": "PowerShell", "input": {"command": "cd app; npm test"}}]}})
+    try:
+        assert H._verif_ran(tp) is True
+    finally:
+        os.unlink(tp)
+
+
+def test_outil_non_shell_ne_vaut_pas_verif():
+    """Garde l'élargissement Bash→PowerShell de déborder : seuls les outils qui
+    EXÉCUTENT comptent. Un outil de lecture portant le même mot dans un champ
+    `command` ne prouve aucune exécution."""
+    tp = _transcript({"type": "assistant", "message": {"content": [
+        {"type": "tool_use", "name": "Read", "input": {"command": "npm test"}}]}})
+    try:
+        assert H._verif_ran(tp) is False
+    finally:
+        os.unlink(tp)
+
+
 def test_prose_mention_is_not_a_trace():
     # Anti-faux-positif : parler de « npm test »/« revue-increment » sans les lancer.
     tp = _transcript(
@@ -116,6 +143,21 @@ def test_dod_assumee_dans_le_message():
 def test_journal_de_run_detecte():
     tp = _transcript({"type": "assistant", "message": {"content": [
         {"type": "tool_use", "name": "Bash",
+         "input": {"command": "py .claude/orchestration/log_run.py '{}'"}}]}})
+    try:
+        sig = H._session_signals(tp)
+        assert sig["journal"] is True and sig["dod"] is False
+    finally:
+        os.unlink(tp)
+
+
+def test_journal_de_run_detecte_depuis_powershell():
+    """Second angle mort du même `if` : la trace de definition-of-done passe par
+    `_JOURNAL_BASH` dans la MÊME branche que la vérif. Élargir la condition à
+    PowerShell referme les deux d'un coup — ce test verrouille le second, que le
+    test de vérif ci-dessus ne toucherait pas."""
+    tp = _transcript({"type": "assistant", "message": {"content": [
+        {"type": "tool_use", "name": "PowerShell",
          "input": {"command": "py .claude/orchestration/log_run.py '{}'"}}]}})
     try:
         sig = H._session_signals(tp)
