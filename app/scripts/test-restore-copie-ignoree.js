@@ -15,8 +15,29 @@ const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync, execFileSync } = require('node:child_process');
+const { DatabaseSync } = require('node:sqlite');
 
 const RACINE_APP = path.join(__dirname, '..');
+
+// `restore-db.js` verifie desormais (audit du 2026-09-02, corrige le 2026-09-03)
+// que la SOURCE est une vraie base SQLite (entete + PRAGMA integrity_check) avant
+// d'ecraser la production — les fixtures de ce test doivent donc etre de vraies
+// bases, pas du texte brut portant un nom de fichier .db.
+function creerBaseMarquee(chemin, marqueur) {
+  const base = new DatabaseSync(chemin);
+  base.exec('CREATE TABLE marqueur (valeur TEXT)');
+  base.prepare('INSERT INTO marqueur (valeur) VALUES (?)').run(marqueur);
+  base.close();
+}
+
+function lireMarqueur(chemin) {
+  const base = new DatabaseSync(chemin, { readOnly: true });
+  try {
+    return base.prepare('SELECT valeur FROM marqueur').get().valeur;
+  } finally {
+    base.close();
+  }
+}
 
 let echecs = 0;
 function check(condition, message) {
@@ -34,9 +55,10 @@ const sauvegarde = path.join(dossierTmp, 'sauvegarde-2026.db');
 
 try {
   // Etat courant (celui qui sera ecrase, donc copie) et sauvegarde a restaurer.
-  // Contenus differents : ils servent aussi a verifier que la copie est fidele.
-  fs.writeFileSync(dbPath, 'BASE-COURANTE-NOMINATIVE');
-  fs.writeFileSync(sauvegarde, 'SAUVEGARDE-A-RESTAURER');
+  // Contenus differents (vraies bases SQLite) : ils servent aussi a verifier
+  // que la copie est fidele.
+  creerBaseMarquee(dbPath, 'BASE-COURANTE-NOMINATIVE');
+  creerBaseMarquee(sauvegarde, 'SAUVEGARDE-A-RESTAURER');
 
   console.log('Execution reelle de scripts/restore-db.js sur une base temporaire :');
   const resultat = spawnSync(process.execPath, [path.join(__dirname, 'restore-db.js'), sauvegarde], {
@@ -56,12 +78,12 @@ try {
   );
   if (copie) {
     check(
-      fs.readFileSync(path.join(dossierTmp, copie), 'utf8') === 'BASE-COURANTE-NOMINATIVE',
+      lireMarqueur(path.join(dossierTmp, copie)) === 'BASE-COURANTE-NOMINATIVE',
       'la copie contient bien l\'etat courant d\'avant restauration',
     );
   }
   check(
-    fs.readFileSync(dbPath, 'utf8') === 'SAUVEGARDE-A-RESTAURER',
+    lireMarqueur(dbPath) === 'SAUVEGARDE-A-RESTAURER',
     'la base cible a bien ete restauree depuis la sauvegarde',
   );
 
@@ -97,6 +119,55 @@ try {
   }
 } finally {
   try { fs.rmSync(dossierTmp, { recursive: true, force: true }); } catch { /* nettoyage best-effort */ }
+}
+
+// Audit du 2026-09-02 (robustesse + securite), corrige le 2026-09-03 : une
+// source invalide (fichier arbitraire, base corrompue) ecrasait la production
+// sans aucun controle ; la copie de securite restait lisible par quiconque.
+const dossier2 = fs.mkdtempSync(path.join(os.tmpdir(), 'restore-validation-'));
+try {
+  const dbPath2 = path.join(dossier2, 'app.db');
+  creerBaseMarquee(dbPath2, 'PRODUCTION-A-PROTEGER');
+
+  console.log("Une source qui n'est PAS une base SQLite est refusee AVANT d'ecraser la production :");
+  const fauxFichier = path.join(dossier2, 'pas-une-base.db');
+  fs.writeFileSync(fauxFichier, 'ceci est du texte, pas du SQLite');
+  const r1 = spawnSync(process.execPath, [path.join(__dirname, 'restore-db.js'), fauxFichier], {
+    env: { ...process.env, DB_PATH: dbPath2 }, encoding: 'utf8',
+  });
+  check(r1.status !== 0, `le script refuse (recu code ${r1.status})`);
+  check(lireMarqueur(dbPath2) === 'PRODUCTION-A-PROTEGER', 'la production n\'a PAS ete ecrasee par un fichier non-SQLite');
+
+  console.log('Une base SQLite CORROMPUE (entete valide, contenu casse) est refusee de meme :');
+  const corrompue = path.join(dossier2, 'corrompue.db');
+  creerBaseMarquee(corrompue, 'sera-corrompue');
+  const octets = fs.readFileSync(corrompue);
+  // On abime des octets APRES l'entete (16 premiers) pour passer le premier
+  // controle et n'echouer qu'au PRAGMA integrity_check, la seconde ligne de
+  // defense — pas un octet au hasard qui casserait aussi la signature.
+  for (let i = 100; i < Math.min(200, octets.length); i += 1) octets[i] = 0xff;
+  fs.writeFileSync(corrompue, octets);
+  const r2 = spawnSync(process.execPath, [path.join(__dirname, 'restore-db.js'), corrompue], {
+    env: { ...process.env, DB_PATH: dbPath2 }, encoding: 'utf8',
+  });
+  check(r2.status !== 0, `le script refuse une base corrompue (recu code ${r2.status})`);
+  check(lireMarqueur(dbPath2) === 'PRODUCTION-A-PROTEGER', 'la production n\'a PAS ete ecrasee par une base corrompue');
+
+  console.log('La copie de securite est creee avec des permissions restreintes (best effort hors POSIX) :');
+  creerBaseMarquee(path.join(dossier2, 'bonne-sauvegarde.db'), 'RESTAURATION-VALIDE');
+  const r3 = spawnSync(process.execPath, [path.join(__dirname, 'restore-db.js'), path.join(dossier2, 'bonne-sauvegarde.db')], {
+    env: { ...process.env, DB_PATH: dbPath2 }, encoding: 'utf8',
+  });
+  check(r3.status === 0, `restauration valide -> sort en 0 (recu ${r3.status})`);
+  const copieSecu = fs.readdirSync(dossier2).find((f) => f.includes('before-restore'));
+  if (process.platform === 'win32') {
+    console.log('  info Windows : fs.chmodSync ne restreint pas via ACL NTFS, mode POSIX non verifiable ici');
+  } else if (copieSecu) {
+    const mode = fs.statSync(path.join(dossier2, copieSecu)).mode & 0o777;
+    check(mode === 0o600, `permissions 0600 sur la copie de securite (recu ${mode.toString(8)})`);
+  }
+} finally {
+  try { fs.rmSync(dossier2, { recursive: true, force: true }); } catch { /* nettoyage best-effort */ }
 }
 
 console.log(echecs === 0 ? '\nTOUS LES TESTS PASSENT' : `\n${echecs} TEST(S) EN ECHEC`);
