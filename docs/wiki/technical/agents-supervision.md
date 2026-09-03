@@ -8,13 +8,13 @@ generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, ét
 > ⚠️ **Page générée automatiquement** (hook SessionStart → `.claude/supervision/scan_transcripts.py`).
 > **Ne pas éditer à la main** — toute modification serait écrasée au prochain scan.
 
-Dernier scan : 2026-09-03T09:20:13+02:00 · **24 sessions** (transcripts) · **43** invocations de skills · **27** lancements de sous-agents.
+Dernier scan : 2026-09-03T09:52:33+02:00 · **24 sessions** (transcripts) · **44** invocations de skills · **27** lancements de sous-agents.
 
 ## Skills — usage réel
 
 | Skill | Famille | Invocations | Première | Dernière |
 | --- | --- | --- | --- | --- |
-| `agent-orchestrator` | projet | 15 | 2026-07-21 | 2026-09-03 |
+| `agent-orchestrator` | projet | 16 | 2026-07-21 | 2026-09-03 |
 | `agent-supervisor` | projet | 7 | 2026-07-21 | 2026-07-28 |
 | `revue-increment` | projet | 6 | 2026-07-21 | 2026-07-28 |
 | `run` | (builtin/session) | 6 | 2026-07-01 | 2026-09-01 |
@@ -95,7 +95,7 @@ _Constats clos par décision humaine (`.claude/supervision/arbitrages.json`) —
 
 ## Diagnostic qualitatif (étage 2 — `agent-supervisor`)
 
-_Diagnostic à jour — rien à signaler, tous les constats précédents ont été arbitrés._
+_Diagnostic ⚠️ à relancer (> 14 j) — rien à signaler, tous les constats précédents ont été arbitrés._
 
 _5 constat(s) de ce diagnostic écarté(s) par un arbitrage — pour en rouvrir un, demander au superviseur un `re_challenge` avec des données nouvelles :_
 
