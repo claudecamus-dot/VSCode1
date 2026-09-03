@@ -1,0 +1,7 @@
+{
+  "_comment": "Configuration du hook .claude/hooks/warn_verif_before_commit.py, propre a CE depot (VSCode1, questionnaire de maturite agile/produit, export PPT dans app/). Le hook lui-meme est generique et publie tel quel dans le kit agentic du hub de supervision (export_agentic.GENERIQUE) : ce fichier, lui, ne l'est pas et ne doit pas etre recopie ailleurs sans adaptation. Pose le 2026-09-03 (fusion des trois branches divergentes du hook : config JSON du hub + 2e signal definition-of-done propre a ce depot, preserve tel quel) pour restituer exactement le perimetre qui etait fige en dur avant la fusion.",
+  "watched_prefixes": ["app/"],
+  "verif_bash": ["npm test", "npm run test", "node --test", "scripts/test-", "npm run lint"],
+  "verif_skill": ["pptx-verify", "revue-increment"],
+  "dod_enabled": true
+}

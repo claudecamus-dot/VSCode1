@@ -1,10 +1,25 @@
 # VSCode1
 
-<une phrase : ce que fait ce projet et son livrable principal.>
+Questionnaire de maturité agile/produit (app web) — un animateur fait passer un
+questionnaire à une équipe, consulte les résultats agrégés, et exporte un support
+de restitution PowerPoint. Livrable principal : l'export `.pptx` produit depuis
+`app/` avec le template `template ppt/`.
 
 ## Commandes
 
-<setup/run/test copiables — inclure la commande d'un test unique.>
+```bash
+cd app
+npm install
+npm run start:dev        # http://localhost:3000
+npm test                 # suite complète : scripts Node sans framework, ~enchaînés par package.json
+node scripts/test-scores.js   # un test unique (chaque script est aussi lançable seul)
+npm run lint              # ESLint (flat config)
+```
+
+`scripts/test-export-ppt.py` (indépendant de `npm test`) vérifie la génération PPT
+côté Python (géométrie des slides). Jamais un deck « vérifié » sans rendu réel
+inspecté (skill `pptx-verify`, agent `ppt-designer`) — pratique déjà en place
+(voir `docs/wiki/todo.md`), à respecter dès qu'une modif touche l'export PPT.
 
 ## Claude Code — configuration du projet
 
