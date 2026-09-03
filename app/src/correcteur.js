@@ -11,6 +11,15 @@ const TERMES_AUTORISES = new Set([
   'releases', 'as', 'a', 'service', 'story', 'stories', 'challengeable',
 ]);
 
+// Audit du 2026-09-02 (robustesse) : les evenements 'error' et 'exit' couvrent le
+// CRASH du worker, pas son BLOCAGE -- un worker qui ne repond jamais (dictionnaire
+// bloque, boucle infinie sur une entree pathologique) laissait POST
+// /api/referentiel/import pendu indefiniment. 60 s : tres au-dessus des ~4,6 s de
+// chargement mesurees, large marge pour une grille avec beaucoup de mots inconnus.
+// Surchargeable (tests) : forcer un delai tres court verifie le mecanisme sans
+// attendre 60 s ni fabriquer un blocage artificiel dans le worker de production.
+const DELAI_MAX_MS = Number(process.env.CORRECTEUR_DELAI_MAX_MS) || 60000;
+
 let spellPromise = null;
 
 function chargerCorrecteur() {
@@ -117,11 +126,15 @@ function corrigerReferentiel(piliers) {
     const terminer = (action, valeur) => {
       if (fini) return;
       fini = true;
+      clearTimeout(horsDelai);
       // `.catch` AVANT `.finally` : un `terminate()` qui rejette laissait sinon
       // une rejection non geree (arret du processus sous le mode par defaut de
       // Node) et la promesse d'import pendante a jamais.
       worker.terminate().catch(() => {}).finally(() => action(valeur));
     };
+    const horsDelai = setTimeout(() => {
+      terminer(reject, new Error(`Correcteur orthographique sans reponse apres ${DELAI_MAX_MS}ms — worker arrete.`));
+    }, DELAI_MAX_MS);
     worker.on('message', ({ piliers: corriges, erreur }) => {
       if (erreur) terminer(reject, new Error(erreur));
       else terminer(resolve, corriges);
@@ -132,6 +145,7 @@ function corrigerReferentiel(piliers) {
     worker.on('exit', (code) => {
       if (!fini) {
         fini = true;
+        clearTimeout(horsDelai);
         reject(new Error(`Correcteur orthographique arrete avant de repondre (code ${code}).`));
       }
     });
