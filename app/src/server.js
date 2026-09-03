@@ -568,10 +568,30 @@ app.post('/api/repondants/:id/soumission', (req, res) => {
 
 // --- Résultats agrégés par équipe (Epic 5, Increment 2) ---
 
+// Un parametre de query STRING repete (?equipe=A&equipe=B) devient un TABLEAU chez
+// Express, jamais une chaine — audit du 2026-09-02 : `manager === 'sans'` sur un
+// tableau ne matche jamais (le filtre echoue vers l'OUVERT, silencieusement), et un
+// tableau lie en parametre SQL prepare fait sortir node:sqlite en 500 (« Unknown
+// named parameter '0' ») la ou une 400 s'imposait. Normalise en gardant la DERNIERE
+// valeur (convention la plus commune pour un parametre repete par erreur/proxy),
+// jamais un tableau brut — appliquee a chaque lecture de req.query ci-dessous.
+function unParam(valeur) {
+  return Array.isArray(valeur) ? valeur[valeur.length - 1] : valeur;
+}
+
 // Filtre manager='sans' partage (finding risque_technique audit 2026-07-24 : motif
 // repete ~6 fois) : liste centralisee des criteres compatibles avec est_manager (0/1).
 function estManagerExclu(manager) {
-  return manager === 'sans';
+  // `manager` reste NON normalise par `unParam` ici a dessein : c'est un filtre
+  // d'EXCLUSION vie privee (masquer les managers), pas un simple selecteur -- sur
+  // un parametre repete (?manager=sans&manager=x), "garder la derniere valeur"
+  // (la normalisation appliquee partout ailleurs dans ce fichier) redonnait le
+  // MEME defaut que celui corrige, sous une forme deterministe plutot
+  // qu'accidentelle : un `x` ajoute apres `sans` aurait desactive l'exclusion.
+  // Un filtre de confidentialite doit echouer vers le PLUS restrictif : si UNE
+  // SEULE valeur demande l'exclusion, elle s'applique (chasse aux cas limites,
+  // audit du 2026-09-02, corrige le 2026-09-03).
+  return Array.isArray(manager) ? manager.includes('sans') : manager === 'sans';
 }
 
 // Effectifs groupes par equipe/departement (finding risque_technique audit 2026-07-24 :
@@ -624,7 +644,7 @@ app.get('/api/sessions/:id/participation', (req, res) => {
 app.get('/api/sessions/:id/commentaire', (req, res) => {
   const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session inconnue.' });
-  const { equipe } = req.query;
+  const equipe = unParam(req.query.equipe);
   if (!equipe) return res.status(400).json({ error: "Le parametre 'equipe' est requis." });
   const ligne = db.prepare('SELECT texte FROM commentaires WHERE session_id = ? AND equipe = ?').get(session.id, equipe);
   res.json({ equipe, texte: ligne ? ligne.texte : '' });
@@ -737,7 +757,8 @@ function agregerResultats(sessionId, filtre, manager, options = {}) {
 app.get('/api/sessions/:id/resultats', (req, res) => {
   const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session inconnue.' });
-  const { equipe, manager } = req.query;
+  const equipe = unParam(req.query.equipe);
+  const manager = req.query.manager;
   if (!equipe) return res.status(400).json({ error: "Le parametre 'equipe' est requis." });
 
   const { effectif, piliers } = agregerResultats(session.id, { equipe }, manager);
@@ -765,7 +786,8 @@ app.get('/api/sessions/:id/resultats', (req, res) => {
 app.get('/api/sessions/:id/consolidation', (req, res) => {
   const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session inconnue.' });
-  const { departement, manager } = req.query;
+  const departement = unParam(req.query.departement);
+  const manager = req.query.manager;
   if (!departement) return res.status(400).json({ error: "Le parametre 'departement' est requis." });
 
   const { effectif, piliers } = agregerResultats(session.id, { departement }, manager, { nominatif: false });
@@ -861,7 +883,8 @@ function calculerComparaison(session, equipe, manager) {
 app.get('/api/sessions/:id/comparaison', (req, res) => {
   const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session inconnue.' });
-  const { equipe, manager } = req.query;
+  const equipe = unParam(req.query.equipe);
+  const manager = req.query.manager;
   if (!equipe) return res.status(400).json({ error: "Le parametre 'equipe' est requis." });
   res.json(calculerComparaison(session, equipe, manager));
 });
@@ -980,7 +1003,10 @@ function nomFichierSur(nom) {
 app.get('/api/sessions/:id/export-ppt', (req, res) => {
   const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session inconnue.' });
-  const { scope, equipe, departement, manager } = req.query;
+  const scope = unParam(req.query.scope);
+  const equipe = unParam(req.query.equipe);
+  const departement = unParam(req.query.departement);
+  const manager = req.query.manager;
 
   let blocs; // affecte dans chaque branche de scope (sinon reponse 400 avant usage)
   let nomFichier = 'Restitution.pptx';

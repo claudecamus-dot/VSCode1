@@ -186,7 +186,7 @@ depuis .roadmap/roadmap.json:86-205
 Constats automatiques du superviseur d'agents (usage mesuré dans les transcripts de session) :
 
 - **Skills projet sans usage** : `audit-technique`, `veille-agentic` — vérifier pertinence et déclencheurs.
-- **Skills en sommeil (>30 j sans usage)** : `agent-supervisor`, `pptx-verify`, `revue-increment`, `roadmap-keeper`, `skill-creator`.
+- **Skills en sommeil (>30 j sans usage)** : `agent-supervisor`, `documentarian`, `onboarder`, `ppt-designer`, `pptx-verify`, `revue-increment`, `roadmap-keeper`, `skill-creator`, `ui-designer`.
 
 Tableau de bord complet : [technical/agents-supervision.md](technical/agents-supervision.md) — régénéré à chaque session.
 <!-- TODO-AGENTS:END -->
