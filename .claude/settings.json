@@ -88,6 +88,8 @@
     "disableBypassPermissionsMode": "disable",
     "allow": [
       "Bash(py -m pytest *)",
+      "Bash(py -m py_compile *)",
+      "Bash(node -c *)",
       "Bash(npm test*)",
       "Bash(npm run lint*)"
     ],
