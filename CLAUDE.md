@@ -42,4 +42,4 @@ l'export**, jamais localement — les copies locales divergent (leçon P1).
 
 - Propose → arbitre → applique : aucun correctif auto-appliqué sans arbitrage humain.
 - Jamais `succes` au journal sur un livrable que l'utilisateur doit encore valider.
-- Tout chiffre écrit s'appuie sur la commande qui l'a produit.
+- Tout chiffre écrit s'appuie sur la commande qui l'a produit — sinon marqué non mesuré.
