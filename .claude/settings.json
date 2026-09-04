@@ -17,6 +17,17 @@
             "statusMessage": "Verif de fin d'increment avant commit (app/)..."
           }
         ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard_salle_skills.py\"",
+            "timeout": 10,
+            "statusMessage": "Convocation de salle : skills BMAD nommees ?"
+          }
+        ]
       }
     ],
     "SessionStart": [
@@ -75,6 +86,11 @@
   },
   "permissions": {
     "disableBypassPermissionsMode": "disable",
+    "allow": [
+      "Bash(py -m pytest *)",
+      "Bash(npm test*)",
+      "Bash(npm run lint*)"
+    ],
     "deny": [
       "Read(./.env)",
       "Read(./secrets/**)",
