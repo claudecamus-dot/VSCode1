@@ -1,5 +1,5 @@
 ---
-updated: 2026-09-03
+updated: 2026-09-04
 generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, étage 1)
 ---
 
@@ -8,21 +8,25 @@ generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, ét
 > ⚠️ **Page générée automatiquement** (hook SessionStart → `.claude/supervision/scan_transcripts.py`).
 > **Ne pas éditer à la main** — toute modification serait écrasée au prochain scan.
 
-Dernier scan : 2026-09-03T09:52:33+02:00 · **24 sessions** (transcripts) · **44** invocations de skills · **27** lancements de sous-agents.
+Dernier scan : 2026-09-04T18:24:37+02:00 · **26 sessions** (transcripts) · **54** invocations de skills · **30** lancements de sous-agents.
 
 ## Skills — usage réel
 
 | Skill | Famille | Invocations | Première | Dernière |
 | --- | --- | --- | --- | --- |
-| `agent-orchestrator` | projet | 16 | 2026-07-21 | 2026-09-03 |
+| `agent-orchestrator` | projet | 18 | 2026-07-21 | 2026-09-04 |
 | `agent-supervisor` | projet | 7 | 2026-07-21 | 2026-07-28 |
+| `run` | (builtin/session) | 7 | 2026-07-01 | 2026-09-04 |
 | `revue-increment` | projet | 6 | 2026-07-21 | 2026-07-28 |
-| `run` | (builtin/session) | 6 | 2026-07-01 | 2026-09-01 |
 | `artifact-design` | (builtin/session) | 3 | 2026-07-07 | 2026-09-01 |
-| `pptx-verify` | global | 3 | 2026-07-01 | 2026-07-21 |
+| `bmad-review-edge-case-hunter` | BMAD | 3 | 2026-09-01 | 2026-09-01 |
+| `pptx-verify` | projet | 3 | 2026-07-01 | 2026-07-21 |
+| `bmad-code-review` | BMAD | 2 | 2026-09-01 | 2026-09-01 |
+| `bmad-review-adversarial-general` | BMAD | 1 | 2026-09-01 | 2026-09-01 |
 | `dataviz` | (builtin/session) | 1 | 2026-09-01 | 2026-09-01 |
 | `roadmap-keeper` | global | 1 | 2026-07-01 | 2026-07-01 |
 | `skill-creator` | global | 1 | 2026-07-07 | 2026-07-07 |
+| `veille-agentic` | projet | 1 | 2026-09-04 | 2026-09-04 |
 
 ## Sous-agents
 
@@ -31,8 +35,9 @@ Dernier scan : 2026-09-03T09:52:33+02:00 · **24 sessions** (transcripts) · **4
 | `general-purpose` | 5 | 2026-09-01 | 2026-09-01 |
 | `Explore` | 3 | 2026-07-08 | 2026-09-01 |
 | `bmad-revue` | 3 | 2026-09-01 | 2026-09-01 |
-| `ppt-designer` | 3 | 2026-07-08 | 2026-07-21 |
+| `ppt-designer` | 3 | 2026-07-08 | 2026-07-22 |
 | `ux-designer` | 3 | 2026-07-01 | 2026-09-01 |
+| `auditor-subagent` | 2 | 2026-09-01 | 2026-09-01 |
 | `qa-engineer` | 2 | 2026-09-01 | 2026-09-01 |
 | `reviewer` | 2 | 2026-07-21 | 2026-09-01 |
 | `ui-designer` | 2 | 2026-07-01 | 2026-07-01 |
@@ -40,18 +45,19 @@ Dernier scan : 2026-09-03T09:52:33+02:00 · **24 sessions** (transcripts) · **4
 | `documentarian` | 1 | 2026-07-01 | 2026-07-01 |
 | `onboarder` | 1 | 2026-07-07 | 2026-07-07 |
 | `security-auditor` | 1 | 2026-09-01 | 2026-09-01 |
+| `veille-agentic` | 1 | 2026-09-04 | 2026-09-04 |
 
 ## Jamais utilisés
 
-**projet** — 2/11 jamais invoqués :
+**projet** — 1/14 jamais invoqués :
 
-`audit-technique`, `veille-agentic`
+`audit-technique`
 
-**BMAD** — 46/46 jamais invoqués :
+**BMAD** — 43/46 jamais invoqués :
 
 <details><summary>Voir la liste</summary>
 
-`bmad-advanced-elicitation`, `bmad-agent-analyst`, `bmad-agent-architect`, `bmad-agent-dev`, `bmad-agent-pm`, `bmad-agent-tech-writer`, `bmad-agent-ux-designer`, `bmad-architecture`, `bmad-brainstorming`, `bmad-check-implementation-readiness`, `bmad-checkpoint-preview`, `bmad-code-review`, `bmad-correct-course`, `bmad-create-architecture`, `bmad-create-epics-and-stories`, `bmad-create-prd`, `bmad-create-story`, `bmad-customize`, `bmad-dev-auto`, `bmad-dev-story`, `bmad-document-project`, `bmad-domain-research`, `bmad-edit-prd`, `bmad-editorial-review-prose`, `bmad-editorial-review-structure`, `bmad-forge-idea`, `bmad-generate-project-context`, `bmad-help`, `bmad-index-docs`, `bmad-market-research`, `bmad-party-mode`, `bmad-prd`, `bmad-prfaq`, `bmad-product-brief`, `bmad-qa-generate-e2e-tests`, `bmad-quick-dev`, `bmad-retrospective`, `bmad-review-adversarial-general`, `bmad-review-edge-case-hunter`, `bmad-shard-doc`, `bmad-spec`, `bmad-sprint-planning`, `bmad-sprint-status`, `bmad-technical-research`, `bmad-ux`, `bmad-validate-prd`
+`bmad-advanced-elicitation`, `bmad-agent-analyst`, `bmad-agent-architect`, `bmad-agent-dev`, `bmad-agent-pm`, `bmad-agent-tech-writer`, `bmad-agent-ux-designer`, `bmad-architecture`, `bmad-brainstorming`, `bmad-check-implementation-readiness`, `bmad-checkpoint-preview`, `bmad-correct-course`, `bmad-create-architecture`, `bmad-create-epics-and-stories`, `bmad-create-prd`, `bmad-create-story`, `bmad-customize`, `bmad-dev-auto`, `bmad-dev-story`, `bmad-document-project`, `bmad-domain-research`, `bmad-edit-prd`, `bmad-editorial-review-prose`, `bmad-editorial-review-structure`, `bmad-forge-idea`, `bmad-generate-project-context`, `bmad-help`, `bmad-index-docs`, `bmad-market-research`, `bmad-party-mode`, `bmad-prd`, `bmad-prfaq`, `bmad-product-brief`, `bmad-qa-generate-e2e-tests`, `bmad-quick-dev`, `bmad-retrospective`, `bmad-shard-doc`, `bmad-spec`, `bmad-sprint-planning`, `bmad-sprint-status`, `bmad-technical-research`, `bmad-ux`, `bmad-validate-prd`
 
 </details>
 
@@ -63,7 +69,7 @@ _Consommés en lisant/exécutant leurs `scripts/`, ou via un sous-agent qui les 
 
 ## TODO agents (constats automatiques)
 
-1. **Skills projet sans usage** : `audit-technique`, `veille-agentic` — vérifier pertinence et déclencheurs.
+1. **Skills projet sans usage** : `audit-technique` — vérifier pertinence et déclencheurs.
 2. **Skills en sommeil (>30 j sans usage)** : `agent-supervisor`, `documentarian`, `onboarder`, `ppt-designer`, `pptx-verify`, `revue-increment`, `roadmap-keeper`, `skill-creator`, `ui-designer`.
 
 ## Arbitrages enregistrés
@@ -104,6 +110,11 @@ _5 constat(s) de ce diagnostic écarté(s) par un arbitrage — pour en rouvrir 
 - ~~La resynchro canon du 2026-09-01 a propage a l'envers : elle a ressuscite un playbook qu'un arbitrage avait supprime, et laisse le superviseur local incapable d'ecrire le moindre constat de pratique~~ (`propagation-canon:2026-09-01`)
 - ~~La revue multi-agents du 2026-09-01 a trouve des defauts bloquants et remis 3 arbitrages a l'utilisateur - aucun n'a de canal : arbitrages.json s'arrete au 2026-07-29 et le diagnostic n'avait pas bouge depuis le 2026-07-28~~ (`arbitrages:revue-mvp-2026-09-01`)
 - ~~Les deux decisions datees au 2026-08-16 (mise en sommeil groupee des agents jamais appeles, tri des 46 skills BMAD) n'ont pas ete prises : 16 jours de retard, et la remediation par « declencheur de routage » du 2026-07-28 n'a rien change au routage reel~~ (`echeance:2026-08-16-tri-agents-bmad`)
+
+## Seuil de qualification — la mesure
+
+Depuis le 2026-09-04 : **2** demande(s) vue(s) hors commande slash (+ 2 slash), **0** run(s) orchestré(s) journalisé(s) sur la même fenêtre — soit **0 %** des demandes orchestrées.
+_Ce chiffre ne dit pas ce qui AURAIT dû être orchestré : le hook compte, il ne juge pas. Il donne le dénominateur qui manquait pour arbitrer le seuil sur données plutôt que sur habitude._
 
 ---
 

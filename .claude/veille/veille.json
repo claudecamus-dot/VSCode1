@@ -1,0 +1,32 @@
+{
+  "derniere_veille": "2026-09-04T18:00:00",
+  "entrees": [
+    {
+      "titre": "Section « Discipline de gestion des tokens » disparue du CLAUDE.md de VSCode1 lors de l'élagage sous 150 lignes — la règle hub /clear (adoptée 2026-09-02) n'y est donc pas applicable, faute de section",
+      "url": "https://code.claude.com/docs/en/costs",
+      "type": "pratique",
+      "source_referentiel": "Anthropic — Claude Code docs (reduce token usage, context window) ; davidsilvera.com guide « Coder avec Claude » ch.7 « Savoir s'arrêter » (règle des deux corrections -> /clear, déjà instruite et adoptée au hub VScode5 le 2026-09-02, action_corrective alors explicitement limitée au CLAUDE.md du hub : « Flotte (5 autres projets) non vérifiée ce tour, hors périmètre »).",
+      "projets_concernes": [
+        "VSCode1"
+      ],
+      "pertinence": "Vérifié par git log -p sur CLAUDE.md : une section « Discipline de gestion des tokens » a été ajoutée le 2026-07-16 (recoupement OCTO Playbook Agentique) puis retirée par le commit local 042bc75 (« Elague CLAUDE.md sous le seuil des 150 lignes — chantier 2, veille pratiques »). Le CLAUDE.md actuel (45 lignes) ne mentionne plus le mot « token » nulle part. Le contenu détaillé SURVIT dans export/optimisation-tokens.md (8 sections, mesures rtk historiques, prototype render_diff.py) — donc rien n'est perdu en connaissance — mais CLAUDE.md n'y renvoie même plus, et la note du hub du 2026-07-30 affirmant « 5/6 projets ont déjà la section » (dont VSCode1) est donc devenue FAUSSE pour ce projet après coup : personne ne l'a re-vérifiée depuis l'élagage. Sans section, le critère de scan `discipline_tokens` (grep du titre de section, déjà outillé au hub) mesurerait 0 sur VSCode1 s'il y était appliqué, et le critère plus récent (2026-09-02, bascule /clear après deux corrections ratées consécutives plutôt qu'une 3e rustine) n'a jamais eu l'occasion d'y être ajouté puisque la section hôte n'existe plus.",
+      "regle_proposee": "Aucune règle nouvelle à créer — celle du hub existe déjà (discipline_tokens : présence de la section + critère /clear, criteres-pratiques.md § 7). Le manque est une VÉRIFICATION, pas une règle : re-mesurer réellement (pas supposer) la présence de la section sur les 6 projets de la flotte, VSCode1 inclus, au prochain scan_projets.py exécuté depuis le hub.",
+      "action_corrective": "Restaurer dans CLAUDE.md de VSCode1 une section courte « Discipline de gestion des tokens » (renvoi à export/optimisation-tokens.md pour le détail, pas une recopie) incluant le critère /clear du 2026-09-02 (deux corrections ratées consécutives sur le même problème -> /clear + reformuler, pas une 3e rustine) — en restant sous le budget de 150 lignes déjà écrit en règle du fichier (remplacer une ligne de config existante plutôt qu'ajouter net).",
+      "date": "2026-09-04",
+      "statut": "nouveau"
+    },
+    {
+      "titre": "educlopez/ui-craft — design engineering system Claude Code (heuristiques Nielsen + 6 lois de design + WCAG, agent a11y-auditor en lecture seule, MCP quality gates)",
+      "url": "https://github.com/educlopez/ui-craft",
+      "type": "skill",
+      "projets_concernes": [
+        "VSCode1"
+      ],
+      "pertinence": "Vérifié à la source (API GitHub) : 311 étoiles, licence MIT, pushed_at 2026-09-03T07:23:30Z — poussé la veille de cette veille, vivant. Skill + plugin Claude Code packageant 25 commandes, deux agents de revue en LECTURE SEULE (design-reviewer, a11y-auditor) et un serveur MCP de quality gates déterministes. Constat local motivant l'entrée : les 6 pages HTML de app/src/public (index/repondre/resultats/pilotage/admin/maquette-question.html) n'ont AUCUN outil de critique UX/accessibilité outillé — grep confirme `.claude/agents/ux-designer.md` référence déjà « heuristiques Nielsen » mais uniquement comme INSTRUCTION DE PROMPT pour un audit manuel, sans vérification déterministe rejouable ; `.claude/agents/ui-designer.md` liste WCAG/contraste/responsive comme guideline, jamais comme check outillé. Le résidu `@media` (0 occurrence sur les 6 pages, `grep -rc @media app/src/public/*.html` confirmé ce jour) reste explicitement DIFFÉRÉ depuis l'arbitrage `arbitrages:revue-mvp-2026-09-01` (2026-09-03) faute de mécanisme pour le qualifier systématiquement à chaque évolution — exactement le rôle que jouent déjà `pptx-verify`/`deck-design-review` côté deck PPT (rendu réel + checklist rejouable), absent côté surfaces HTML de l'app.",
+      "regle_proposee": "aucune — pas mesurable à froid par le scan tant que l'outil n'est pas évalué ni adopté ; à envisager seulement après adoption, sur le modèle du critère hook pré-commit déjà en place (présence d'un dispositif de vérification, pas seulement d'une skill invocable).",
+      "action_corrective": "Évaluer (sans installer d'office — décision utilisateur) le seul agent a11y-auditor de ui-craft, ou son principe réécrit pour le canal réel de VSCode1 (comme security-auditor.md l'a été le 2026-07-29 : greffe minimale, pas un copier-coller), sur les 6 pages HTML — en priorité sur le résidu @media différé du 2026-09-02/03.",
+      "date": "2026-09-04",
+      "statut": "nouveau"
+    }
+  ]
+}
