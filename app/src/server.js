@@ -14,6 +14,7 @@ const { importInvitesFromBuffer, replaceInvites, getInvites, getNonRepondants, l
 const { valeurCanonique } = require('./normalisation');
 const { estModeDemo } = require('./mode');
 const { barriereAuth } = require('./auth');
+const { verifierOrigine } = require('./csrf');
 
 const app = express();
 // Routage sensible a la casse (defaut Express : desactive). Deuxieme ligne de
@@ -33,6 +34,10 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 // repondant ouvert (US10.5). Mesure provisoire — l'Epic 10 reste le chantier
 // de fond. Voir app/src/auth.js.
 app.use(barriereAuth());
+// Anti-CSRF (voir csrf.js) : Basic Auth ne protege pas des requetes rejouees
+// par le navigateur d'une victime depuis une page tierce. Place apres la
+// barriere d'authentification, avant tout handler mutant.
+app.use(verifierOrigine);
 
 app.use(express.json());
 // index.html est la page d'accueil : elle oriente vers le mode "demo" (donnees
