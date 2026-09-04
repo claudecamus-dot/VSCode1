@@ -8,7 +8,7 @@ const multer = require('multer');
 
 const db = require('./db');
 const { enTransaction } = require('./tx');
-const { importFromBuffer, getReferentiel } = require('./referentiel');
+const { importFromBuffer, getReferentiel, estImportRemplacerEnCours } = require('./referentiel');
 const { moyenneDe, statsNiveaux, deltaHistorique } = require('./scores');
 const { importInvitesFromBuffer, replaceInvites, getInvites, getNonRepondants, looksLikeEmail } = require('./invites');
 const { valeurCanonique } = require('./normalisation');
@@ -358,6 +358,7 @@ app.get('/api/sessions/:id/invites/non-repondants', (req, res) => {
 // --- Identification du répondant (Epic 3) ---
 
 app.post('/api/sessions/:id/repondants', (req, res) => {
+  if (refuserSiImportEnCours(res)) return;
   const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session inconnue.' });
   if (sessionStatus(session) !== 'ouverte') {
@@ -463,7 +464,18 @@ app.get('/api/repondants/:id', (req, res) => {
   res.json({ ...repondant, reponses });
 });
 
+// Fail-closed sur la fenetre destructive de l'import « remplacer » (decision de
+// conception arbitree, docs/wiki/todo.md) : plutot que d'accepter une ecriture
+// qu'un remplacerTout concurrent va effacer sans trace, on la refuse pendant la
+// fenetre et on demande de reessayer.
+function refuserSiImportEnCours(res) {
+  if (!estImportRemplacerEnCours()) return false;
+  res.status(503).json({ error: 'Import du referentiel en cours (mode remplacer), reessayez dans quelques instants.' });
+  return true;
+}
+
 app.put('/api/repondants/:id/piliers/:pilierId/reponses', (req, res) => {
+  if (refuserSiImportEnCours(res)) return;
   const repondant = getRepondantOr404(req, res);
   if (!repondant) return;
   if (repondant.soumis_at) {
@@ -546,6 +558,7 @@ app.put('/api/repondants/:id/piliers/:pilierId/reponses', (req, res) => {
 });
 
 app.post('/api/repondants/:id/soumission', (req, res) => {
+  if (refuserSiImportEnCours(res)) return;
   const repondant = getRepondantOr404(req, res);
   if (!repondant) return;
   if (repondant.soumis_at) {

@@ -269,24 +269,45 @@ function remplacerTout(piliers) {
   }
 }
 
+// Verrou pose pendant la fenetre destructive d'un import mode=remplacer : entre
+// le lancement de la correction orthographique (worker asynchrone, ~7s pendant
+// lesquelles le serveur reste disponible) et le remplacerTout qui purge tout.
+// Une soumission repondant acceptee dans cette fenetre etait effacee sans trace
+// (decision de conception arbitree, docs/wiki/todo.md). COMPTEUR (pas un simple
+// booleen) : un import mode=conserver qui se termine PENDANT qu'un remplacer est
+// encore en cours ne doit pas rouvrir la fenetre en remettant le verrou a false a
+// sa place -- seul un import remplacer incremente/decremente ce compteur, donc
+// seule sa propre fin peut le ramener a 0. Couvre aussi, sans cout
+// supplementaire, deux imports remplacer concurrents (le verrou tient jusqu'au
+// dernier des deux a se terminer).
+let importsRemplacerEnCours = 0;
+function estImportRemplacerEnCours() {
+  return importsRemplacerEnCours > 0;
+}
+
 // mode : 'conserver' (defaut, non destructif) ou 'remplacer' (purge totale).
 async function importFromBuffer(buffer, mode = 'conserver') {
   const piliers = await parseWorkbook(buffer);
   if (piliers.length === 0) {
     throw new Error("Aucun pilier/objectif/question detecte dans le fichier. Verifiez le format attendu (lignes d'entete 'PILIER - OBJECTIF').");
   }
-  // Le correcteur tourne dans un worker depuis le 2026-09-01 : il rend une COPIE
-  // corrigee, il ne modifie plus `piliers` en place. Reaffecter, sinon la suite
-  // travaille sur le texte non corrige.
-  const corriges = await corrigerReferentiel(piliers);
-  const archivees = mode === 'remplacer' ? remplacerTout(corriges) : reconcileReferentiel(corriges);
-  return {
-    mode: mode === 'remplacer' ? 'remplacer' : 'conserver',
-    piliers: corriges.length,
-    sousCategories: corriges.reduce((sum, p) => sum + p.sousCategories.length, 0),
-    questions: corriges.reduce((sum, p) => sum + p.sousCategories.reduce((s, sc) => s + sc.questions.length, 0), 0),
-    archivees,
-  };
+  if (mode === 'remplacer') importsRemplacerEnCours += 1;
+  try {
+    // Le correcteur tourne dans un worker depuis le 2026-09-01 : il rend une COPIE
+    // corrigee, il ne modifie plus `piliers` en place. Reaffecter, sinon la suite
+    // travaille sur le texte non corrige.
+    const corriges = await corrigerReferentiel(piliers);
+    const archivees = mode === 'remplacer' ? remplacerTout(corriges) : reconcileReferentiel(corriges);
+    return {
+      mode: mode === 'remplacer' ? 'remplacer' : 'conserver',
+      piliers: corriges.length,
+      sousCategories: corriges.reduce((sum, p) => sum + p.sousCategories.length, 0),
+      questions: corriges.reduce((sum, p) => sum + p.sousCategories.reduce((s, sc) => s + sc.questions.length, 0), 0),
+      archivees,
+    };
+  } finally {
+    if (mode === 'remplacer') importsRemplacerEnCours -= 1;
+  }
 }
 
 // includeArchived=true sert au rendu d'une session existante, dont le perimetre
@@ -319,4 +340,4 @@ function getReferentiel({ includeArchived = false } = {}) {
   });
 }
 
-module.exports = { importFromBuffer, getReferentiel, reconcileReferentiel, remplacerTout };
+module.exports = { importFromBuffer, getReferentiel, reconcileReferentiel, remplacerTout, estImportRemplacerEnCours };

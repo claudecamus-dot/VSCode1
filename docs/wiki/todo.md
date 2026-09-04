@@ -173,37 +173,61 @@ non-LLM, coût réel des sous-agents inline vs délégué.
 train de faire avancer ces points : recroiser avec
 `export/points-amelioration-ppt.md` avant de le tenir pour définitif.*
 
-## Durcissement de l'app — reste ouvert apres l'increment du 2026-09-01
+## Durcissement de l'app — les 2 decisions du 2026-09-01 sont tranchees et livrees (2026-09-04)
 
 L'increment « robustesse » (transactions, fenetre de saisie, unicite d'email,
 confidentialite de la consolidation, correcteur en worker) est livre et couvert
-par 6 nouvelles suites de tests. Deux sujets en sont sortis **non traites**, parce
-qu'ils sont des decisions de conception et non des correctifs :
+par 6 nouvelles suites de tests. Deux sujets en etaient sortis non traites (decisions
+de conception instruites par une table ronde le 2026-09-01) ; **l'utilisateur a
+arbitre le 2026-09-04** et les deux sont implementes :
 
-1. **L'impasse du 409 sur l'email.** Un email ne peut s'identifier qu'une fois par
+1. **L'impasse du 409 sur l'email** — Un email ne peut s'identifier qu'une fois par
    session — necessaire (sinon la personne comptait double dans les moyennes),
    mais sans porte de sortie : le front garde l'identifiant du repondant dans le
-   `localStorage` du navigateur (`app/src/public/repondre.html:113`, efface en
-   `:165` des qu'une relecture echoue) et **aucune route ne permet de liberer ou
-   de retrouver un repondant** — le seul `app.delete` du serveur est
-   `/api/roles/:nom`. Consequence verifiee : telephone puis ordinateur,
-   navigation privee, cache vide, poste partage → la personne ne peut plus
-   repondre, et le message lui dit pourtant « contactez l'animateur », qui n'a
-   aucun levier. Contrainte a tenir : le lien de session est diffuse a toute
-   l'equipe, donc rendre l'acces sur simple connaissance d'un email laisserait
-   lire et reecrire le questionnaire d'un collegue.
+   `localStorage` du navigateur et **aucune route ne permettait de liberer ou de
+   retrouver un repondant**. Contrainte tenue : le lien de session est diffuse a
+   toute l'equipe, donc rendre l'acces sur simple connaissance d'un email
+   laisserait lire et reecrire le questionnaire d'un collegue — confirme en code
+   (`GET /api/repondants/:id` est en liste blanche non authentifiee, `auth.js:49` :
+   l'identifiant EST DEJA le jeton porteur complet, en lecture et ecriture).
+   **Arbitrage : mitigation minimale, lien bookmarkable** plutot que le renvoi par
+   email (qui aurait exige une dependance mail/SMTP absente du projet). L'id
+   repondant est desormais aussi porte dans l'URL (`?rid=`, pose par
+   `history.replaceState` des l'identification) avec un bandeau « Ce lien est
+   personnel » + bouton « Copier mon lien » (`app/src/public/repondre.html`).
+   Durci en revue (`bmad-code-review`, 2026-09-04) : `chargerRepondant()` verifie
+   desormais que le repondant charge appartient bien a la session de l'URL avant
+   de l'afficher — un lien perime ou un `rid` etranger colle sur une autre session
+   retombe sur le formulaire au lieu de charger silencieusement les reponses d'un
+   tiers sous le mauvais referentiel. **Residu assume** : ne couvre pas le cas
+   « nouvel appareil sans le lien note » — seulement le cas « appareil different
+   mais lien conserve/partage a soi-meme ». Verifie au rendu reel, script
+   reproductible et versionne : `app/scripts/verify-lien-repondant.js` (bandeau,
+   `?rid=` pose, recuperation SANS localStorage prealable, rid etranger rejete —
+   captures dans `cadrage/captures/lien-repondant/`).
 
-2. **La fenetre destructive de l'import « remplacer ».** Depuis le passage du
-   correcteur orthographique dans un worker, le serveur repond pendant les ~7 s
-   de correction ; puis `remplacerTout` (`app/src/referentiel.js:245-261`) purge
+2. **La fenetre destructive de l'import « remplacer »** — Depuis le passage du
+   correcteur orthographique dans un worker, le serveur repond pendant les ~qq s
+   de correction ; puis `remplacerTout` (`app/src/referentiel.js`) purge
    `commentaires`, `reponses`, `session_questions`, `invites`, `repondants`,
-   `sessions` et le referentiel. Une soumission arrivee dans cette fenetre est
-   acceptee (200, ecran de confirmation) **puis effacee sans aucune trace**.
-   Avant le worker, la boucle bloquee rendait le cas impossible : c'est le gain
-   de reactivite qui a ouvert la fenetre.
-
-Une table ronde a instruit les deux sujets le 2026-09-01 ; **l'arbitrage
-utilisateur reste a poser** avant tout developpement.
+   `sessions` et le referentiel. Une soumission arrivee dans cette fenetre etait
+   acceptee (200) **puis effacee sans aucune trace**.
+   **Arbitrage : verrou fail-closed** pendant la fenetre — `estImportRemplacerEnCours()`
+   (`app/src/referentiel.js`) fait repondre 503 « reessayez » aux trois routes
+   mutantes du repondant (identification, `PUT .../reponses`, `POST .../soumission`)
+   tant qu'un import `mode=remplacer` est en cours. Durci en revue
+   (`bmad-code-review`, 2026-09-04) : c'est un **compteur**, pas un booleen — un
+   import `mode=conserver` qui se termine PENDANT que le `remplacer` tourne encore
+   ne releve plus le verrou a sa place (bug trouve par la 2e vague de revue avant
+   commit, jamais expose en prod) ; ca couvre aussi, sans cout supplementaire,
+   plusieurs imports `remplacer` concurrents — le verrou tient jusqu'au dernier a
+   se terminer. **Residu assume, hors mandat** : pas de garde architecturale
+   generique (middleware type CSRF) pour les futures routes d'ecriture repondant —
+   les 3 routes actuelles de `ROUTES_REPONDANT` (`auth.js`) sont couvertes
+   explicitement, une nouvelle route mutante devra penser a s'y ajouter. Verifie
+   par un test dedie qui reproduit la fenetre reelle ET la course conserver/remplacer
+   (`app/scripts/test-fenetre-import.js` : 503 pendant, 200 et verrou releve apres,
+   verrou tenu par le remplacer malgre un conserver concurrent termine avant lui).
 
 **Mineurs differes de la meme revue** (aucun n'est atteignable par l'IHM
 aujourd'hui) : `scripts/backup-db.js` ouvre toujours la base sans `timeout`

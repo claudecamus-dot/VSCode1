@@ -35,6 +35,8 @@
   .actions button:disabled { opacity: 0.55; cursor: not-allowed; }
   .fin-soumission { font-size: 1.2rem; font-weight: 700; margin-top: 1.2rem; color: #1e6b34; }
   .hidden { display: none; }
+  #boutonCopierLien { margin-top: 0.5rem; }
+  #statutCopieLien { margin-left: 0.5rem; }
 </style>
 <script src="/env-banner.js" defer></script>
 </head>
@@ -67,6 +69,13 @@
   </form>
 
   <div id="zoneQuestionnaire" class="hidden">
+    <div class="notice" id="noticeLienPersonnel">
+      Ce lien est personnel : conservez-le (favori, copier-coller) pour reprendre le
+      questionnaire depuis un autre appareil ou après avoir vidé votre navigateur —
+      sans lui, personne ne peut vous redonner l'accès.
+      <button type="button" id="boutonCopierLien">Copier mon lien</button>
+      <span id="statutCopieLien"></span>
+    </div>
     <div class="progress" id="progression"></div>
     <div class="pilier-nav" id="navigationPiliers"></div>
     <div id="zonePilierCourant"></div>
@@ -75,8 +84,39 @@
 
   <script>
     const $ = (id) => document.getElementById(id);
-    const sessionId = new URLSearchParams(window.location.search).get('session');
+    const parametresUrl = new URLSearchParams(window.location.search);
+    const sessionId = parametresUrl.get('session');
     const storageKey = `repondant:${sessionId}`;
+    // Identifiant repondant porte AUSSI dans l'URL (?rid=), pas seulement dans
+    // localStorage : localStorage se vide (nouvel appareil, cache efface,
+    // navigation privee) sans aucune route de recuperation possible (le lien de
+    // session est diffuse a toute l'equipe, donc pas question d'autoriser l'acces
+    // sur la seule connaissance d'un email). L'URL, elle, survit si la personne
+    // l'a mise en favori ou se l'est envoyee — c'est ce que rappelle le bandeau
+    // "Copier mon lien" une fois identifie.
+    const ridUrl = parametresUrl.get('rid');
+
+    // Pose ?rid=<id> dans la barre d'adresse SANS recharger la page, pour que
+    // l'URL affichee soit elle-meme le lien a mettre en favori.
+    function fixerRidDansUrl(repondantId) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('rid', repondantId);
+      window.history.replaceState(null, '', url);
+    }
+
+    $('boutonCopierLien').addEventListener('click', async () => {
+      const statut = $('statutCopieLien');
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        statut.textContent = 'Copié !';
+      } catch {
+        // navigator.clipboard indisponible (hors HTTPS/localhost, permission
+        // refusee) : on ne peut pas copier a sa place, mais le lien reste
+        // affiche dans la barre d'adresse pour une copie manuelle.
+        statut.textContent = "Copie automatique indisponible : copiez le lien dans la barre d'adresse.";
+      }
+      setTimeout(() => { statut.textContent = ''; }, 5000);
+    });
 
     // Echappement HTML : le referentiel importe (noms de pilier/objectif, texte
     // de question/niveau) et les suggestions departement/equipe deja saisies par
@@ -110,7 +150,9 @@
         return;
       }
 
-      const repondantId = localStorage.getItem(storageKey);
+      // ?rid= prioritaire sur localStorage : c'est le canal qui survit a un
+      // changement d'appareil ou un cache vide.
+      const repondantId = ridUrl || localStorage.getItem(storageKey);
       if (repondantId) {
         const ok = await chargerRepondant(repondantId);
         if (ok) return;
@@ -154,7 +196,6 @@
         $('erreurIdentification').textContent = data.error;
         return;
       }
-      localStorage.setItem(storageKey, data.id);
       $('formIdentification').classList.add('hidden');
       await chargerRepondant(data.id);
     });
@@ -166,6 +207,17 @@
         return false;
       }
       repondant = await res.json();
+      // Le lien ?rid= est copiable/partageable (c'est son but) : verifier qu'il
+      // designe bien un repondant DE CETTE session avant de l'afficher. Sans ce
+      // controle, un lien perime (ancienne campagne) ou des onglets/session_id
+      // melanges chargerait de vraies reponses sous le referentiel d'une AUTRE
+      // session, jamais verifie jusqu'ici.
+      if (repondant.session_id !== sessionId) {
+        localStorage.removeItem(storageKey);
+        return false;
+      }
+      localStorage.setItem(storageKey, repondantId);
+      fixerRidDansUrl(repondantId);
       reponsesEnCours = {};
       for (const r of repondant.reponses) reponsesEnCours[r.question_id] = r.niveau;
 
