@@ -168,3 +168,43 @@ class TestCorrectifsRevueAdversariale20260907:
     def test_restore_help_reste_autorise(self, tmp_path):
         assert not _bloque("git restore --help", cwd=tmp_path)
         assert not _bloque("git restore -h", cwd=tmp_path)
+
+
+class TestCorrectifsMineursRevue20260907:
+    """M2/M3 de la revue bmad-code-review du 2026-09-07 -- couverture
+    etendue au-dela des bugs bloquants B1/B2 et des correctifs A1/A3."""
+
+    def test_stash_message_contenant_drop_reste_autorise(self, tmp_path):
+        assert not _bloque('git stash push -m "drop le cache"', cwd=tmp_path), (
+            "M2 : chercher drop/clear n'importe ou dans les tokens bloquait "
+            "a tort un message de stash qui contient ce mot")
+
+    def test_stash_message_contenant_clear_reste_autorise(self, tmp_path):
+        assert not _bloque('git stash push -m "clear le cache"', cwd=tmp_path)
+
+    def test_stash_drop_reel_reste_bloque(self, tmp_path):
+        assert _bloque("git stash drop", cwd=tmp_path)
+        assert _bloque("git stash clear", cwd=tmp_path)
+
+    def test_rm_force_bloque(self, tmp_path):
+        assert _bloque("git rm -f f.txt", cwd=tmp_path), (
+            "M3 : git rm -f supprime le fichier du disque ET de l'index, "
+            "jamais couvert")
+        assert _bloque("git rm --force f.txt", cwd=tmp_path)
+
+    def test_rm_sans_force_reste_autorise(self, tmp_path):
+        assert not _bloque("git rm f.txt", cwd=tmp_path)
+
+    def test_rm_cached_reste_autorise(self, tmp_path):
+        assert not _bloque("git rm --cached f.txt", cwd=tmp_path)
+
+    def test_worktree_remove_force_bloque(self, tmp_path):
+        assert _bloque("git worktree remove --force wt", cwd=tmp_path), (
+            "M3 : worktree remove --force supprime tout un arbre, jamais couvert")
+        assert _bloque("git worktree remove -f wt", cwd=tmp_path)
+
+    def test_worktree_remove_sans_force_reste_autorise(self, tmp_path):
+        assert not _bloque("git worktree remove wt", cwd=tmp_path)
+
+    def test_worktree_list_reste_autorise(self, tmp_path):
+        assert not _bloque("git worktree list", cwd=tmp_path)

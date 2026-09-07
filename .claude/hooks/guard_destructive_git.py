@@ -393,11 +393,45 @@ def _blocked_worktree(tokens_apres_git: list, rest: list):
         return None
 
     if sous_commande == "stash":
-        if "drop" in bas or "clear" in bas:
+        # Seul le PREMIER token qui n'est pas un drapeau, juste apres
+        # `stash`, est la vraie sous-sous-commande -- chercher "drop"/
+        # "clear" n'importe ou dans `bas` bloquait a tort un message qui
+        # contient ce mot (`git stash push -m "clear le cache"`, un seul
+        # token vu shlex). Reproduit (revue 2026-09-07, M2).
+        stash_sous_commande = next((t for t in bas if not t.startswith("-")), None)
+        if stash_sous_commande in ("drop", "clear"):
             return (
                 "git stash drop/clear est bloqué par un hook projet : la remise ainsi "
                 "supprimée n'est plus récupérable par aucune commande ordinaire. "
                 "Confirmez avec l'utilisateur."
+            )
+        return None
+
+    if sous_commande == "rm":
+        # `git rm -f <chemin>` supprime le fichier du disque ET de l'index,
+        # y compris ses modifications non commitees, sans copie de secours
+        # -- meme classe que `clean -f`, jamais couverte (revue 2026-09-07,
+        # M3). Sans -f, git refuse deja de lui-meme un fichier modifie.
+        if "--force" in bas or "f" in _flags_courts_groupes(args):
+            return (
+                "git rm -f est bloqué par un hook projet : il SUPPRIME le fichier du "
+                "disque ET de l'index, y compris ses modifications non commitées. "
+                "Confirmez avec l'utilisateur, ou `git rm --cached` pour ne toucher que "
+                "l'index."
+            )
+        return None
+
+    if sous_commande == "worktree":
+        # `git worktree remove --force` supprime un arbre de travail entier
+        # -- pas un fichier, un arbre -- y compris tout travail non commite
+        # qu'il contient. Classe differente, jamais couverte (revue
+        # 2026-09-07, M3).
+        sous_sous = next((t for t in bas if not t.startswith("-")), None)
+        if sous_sous == "remove" and ("--force" in bas or "f" in _flags_courts_groupes(args)):
+            return (
+                "git worktree remove --force est bloqué par un hook projet : il SUPPRIME "
+                "tout un arbre de travail, y compris son travail non commité. Confirmez "
+                "avec l'utilisateur."
             )
         return None
 
