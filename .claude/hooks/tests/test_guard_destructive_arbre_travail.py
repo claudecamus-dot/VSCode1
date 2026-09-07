@@ -30,6 +30,12 @@ def _bloque(commande, cwd=None):
         input=json.dumps({"tool_input": {"command": commande}}),
         capture_output=True, text=True, encoding="utf-8",
         cwd=str(cwd) if cwd is not None else None, env=env)
+    # Sans ce controle, un hook casse a l'import (returncode != 0) rendait
+    # "deny" absent de stdout comme un hook sain qui laisse passer -- les
+    # assertions `not _bloque(...)` passaient TOUTES au vert sur un
+    # garde-fou entierement mort (revue adversariale du 2026-09-07).
+    assert r.returncode == 0 and not r.stderr, (
+        f"le hook a plante au lieu de repondre : code={r.returncode} stderr={r.stderr!r}")
     return "deny" in r.stdout
 
 
@@ -111,3 +117,54 @@ class TestCommandesInoffensivesToujoursAutorisees:
 
     def test_show_reste_le_chemin_recommande(self, tmp_path):
         assert not _bloque("git show HEAD:f.txt", cwd=tmp_path)
+
+
+class TestCorrectifsRevueAdversariale20260907:
+    """Bugs trouves par la revue bmad-code-review du 2026-09-07 sur le volet
+    arbre fraichement fusionne, chacun reproduit ici pour verrouiller le
+    correctif (le hub/VSCode1/VSCode3 partagent le meme code corrige)."""
+
+    def test_option_globale_C_ne_desarme_plus_checkout(self, tmp_path):
+        (tmp_path / "f.txt").write_text("v1\n", encoding="utf-8")
+        assert _bloque("git -C . checkout -- f.txt", cwd=tmp_path), (
+            "B1 : `-C <valeur>` etait pris pour la sous-commande, desarmant "
+            "tout le volet arbre -- forme employee pour agir sur un depot tiers")
+
+    def test_option_globale_c_ne_desarme_plus_clean(self, tmp_path):
+        assert _bloque("git -c core.pager=cat clean -fd", cwd=tmp_path)
+
+    def test_option_globale_C_ne_desarme_plus_stash(self, tmp_path):
+        assert _bloque("git -C . stash drop", cwd=tmp_path)
+
+    def test_checkout_force_bloque_meme_sans_chemin(self, tmp_path):
+        assert _bloque("git checkout -f master", cwd=tmp_path), (
+            "B2 : checkout -f ecrase tout l'arbre suivi, pas seulement un chemin")
+        assert _bloque("git checkout --force master", cwd=tmp_path)
+
+    def test_switch_discard_changes_bloque(self, tmp_path):
+        assert _bloque("git switch --discard-changes master", cwd=tmp_path)
+
+    def test_switch_ordinaire_reste_autorise(self, tmp_path):
+        assert not _bloque("git switch main", cwd=tmp_path)
+
+    def test_restore_S_majuscule_bloque_correctement(self, tmp_path):
+        (tmp_path / "f.txt").write_text("v1\n", encoding="utf-8")
+        assert not _bloque("git restore -S f.txt", cwd=tmp_path), (
+            "A1 : -S (majuscule, --staged) etait compare a une liste "
+            "minusculisee, jamais reconnu -- bloquait a tort un restore "
+            "qui ne touche que l'index")
+
+    def test_restore_staged_et_W_majuscule_bloque(self, tmp_path):
+        (tmp_path / "f.txt").write_text("v1\n", encoding="utf-8")
+        assert _bloque("git restore --staged -W f.txt", cwd=tmp_path), (
+            "A1 : -W (majuscule, --worktree) invisible faisait passer un "
+            "restore destructeur")
+
+    def test_clean_dry_run_et_force_ensemble_reste_autorise(self, tmp_path):
+        assert not _bloque("git clean -nfd", cwd=tmp_path), (
+            "A3 : -n/--dry-run ne supprime rien, meme cumule avec -f")
+        assert not _bloque("git clean --dry-run --force", cwd=tmp_path)
+
+    def test_restore_help_reste_autorise(self, tmp_path):
+        assert not _bloque("git restore --help", cwd=tmp_path)
+        assert not _bloque("git restore -h", cwd=tmp_path)

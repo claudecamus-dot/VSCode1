@@ -267,22 +267,68 @@ def _flags_courts_groupes(rest: list) -> str:
     return "".join(lettres)
 
 
+# Options GLOBALES de `git` (avant la sous-commande) qui prennent leur valeur
+# dans un TOKEN SEPARE : `git -C . checkout ...`, `git -c core.pager=cat push
+# ...`. Sans les reconnaitre, chercher « le premier token qui ne commence pas
+# par - » prenait la VALEUR pour la sous-commande, ce qui desarmait tout le
+# volet arbre -- reproduit par revue adversariale le 2026-09-07 :
+# `git -C . checkout -- f.txt` passait, alors que `-C` est precisement la
+# forme employee pour agir sur un depot tiers, le metier de ce hub (R2/R3).
+# Deja en minuscules ici : `rest` est lowercased avant d'atteindre cette
+# fonction, donc `-C` (chemin) et `-c` (config) y sont indiscernables --
+# les deux prennent un token separe, le traitement est donc identique.
+_GLOBALES_AVEC_VALEUR = frozenset({
+    "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path",
+    "--super-prefix", "--config-env",
+})
+
+
+def _sous_commande_index(rest: list):
+    """Index de la vraie sous-commande dans `rest` (tokens apres `git`, deja
+    en minuscules), en sautant les options globales et leur valeur quand
+    elle est un token separe. None si aucune sous-commande trouvee."""
+    i = 0
+    n = len(rest)
+    while i < n:
+        t = rest[i]
+        if not t.startswith("-"):
+            return i
+        if "=" not in t and t in _GLOBALES_AVEC_VALEUR and i + 1 < n:
+            i += 2  # saute le drapeau ET sa valeur (token separe)
+            continue
+        i += 1
+    return None
+
+
 def _blocked_worktree(tokens_apres_git: list, rest: list):
-    sous_commande = next((t for t in rest if not t.startswith("-")), None)
+    idx = _sous_commande_index(rest)
+    if idx is None:
+        return None
+    sous_commande = rest[idx]
+    args = tokens_apres_git[idx + 1 :]  # tokens ORIGINAUX (casse preservee), apres la sous-commande
+    bas = rest[idx + 1 :]               # memes tokens, en minuscules
 
     if sous_commande == "checkout":
-        args = tokens_apres_git[1:]
+        # `-f`/`--force` ecrase TOUT l'arbre suivi, la forme la plus
+        # destructive de la commande -- ne depend d'aucun chemin cite.
+        # Reproduit (revue 2026-09-07) : `git checkout -f master` passait.
+        if any(t in ("-f", "--force") for t in bas):
+            return (
+                "git checkout -f/--force est bloqué par un hook projet : il ÉCRASE les "
+                "modifications non commitées de TOUS les fichiers suivis, pas seulement "
+                "d'un chemin. " + _ALTERNATIVE
+            )
         # `git checkout … -- <chemin>` : tout ce qui suit `--` est un chemin, la
         # forme la plus explicite et la plus destructive.
-        if "--" in [t.lower() for t in args]:
-            i = [t.lower() for t in args].index("--")
+        if "--" in bas:
+            i = bas.index("--")
             if args[i + 1 :]:
                 return (
                     "git checkout -- <chemin> est bloqué par un hook projet : il ÉCRASE "
                     "les modifications non commitées du fichier, sans copie de secours. "
                     + _ALTERNATIVE
                 )
-        if any(t.lower() in _CREATION_DE_BRANCHE for t in args):
+        if any(t in _CREATION_DE_BRANCHE for t in bas):
             return None  # création/bascule de branche : rien de l'arbre n'est perdu
         for t in args:
             if not t.startswith("-") and _est_un_chemin_du_depot(t):
@@ -294,15 +340,33 @@ def _blocked_worktree(tokens_apres_git: list, rest: list):
                 )
         return None
 
+    if sous_commande == "switch":
+        # Forme moderne de `checkout <branche>` : `--discard-changes` (et
+        # `-f`/`--force`, alias) ecrase l'arbre exactement comme
+        # `checkout -f`. Reproduit (revue 2026-09-07) : passait sans ce bloc.
+        if any(t in ("--discard-changes", "-f", "--force") for t in bas):
+            return (
+                "git switch --discard-changes est bloqué par un hook projet : il ÉCRASE "
+                "les modifications non commitées, comme git checkout -f. " + _ALTERNATIVE
+            )
+        return None
+
     if sous_commande == "restore":
-        bas = [t.lower() for t in rest]
+        # `-h`/`--help` n'ecrase rien : uniquement de la lecture.
+        if "-h" in bas or "--help" in bas:
+            return None
         # `git restore --staged <chemin>` ne touche QUE l'index : il désindexe,
         # il ne détruit rien. Il reste donc autorisé — sauf s'il est cumulé avec
-        # `--worktree`, qui lui écrase bien le fichier.
-        que_l_index = ("--staged" in bas or "-S" in rest) and not (
-            "--worktree" in bas or "-W" in rest
-        )
-        if que_l_index:
+        # `--worktree`, qui lui écrase bien le fichier. `-S`/`-W` sont les
+        # formes courtes de git, EN MAJUSCULES (`-s` minuscule est un drapeau
+        # different, --source) : les comparer a `bas` (deja en minuscules)
+        # les rendait invisibles par construction -- reproduit (revue
+        # 2026-09-07) : `git restore -S f.txt` bloquait a tort, `git restore
+        # --staged -W f.txt` passait a tort. Compares ici aux tokens
+        # ORIGINAUX (`args`), casse preservee.
+        a_staged = "--staged" in bas or "-S" in args
+        a_worktree = "--worktree" in bas or "-W" in args
+        if a_staged and not a_worktree:
             return None
         return (
             "git restore <chemin> est bloqué par un hook projet : il ÉCRASE les "
@@ -311,8 +375,15 @@ def _blocked_worktree(tokens_apres_git: list, rest: list):
         )
 
     if sous_commande == "clean":
-        bas = [t.lower() for t in rest]
-        if "--force" in bas or "f" in _flags_courts_groupes(rest):
+        # `-n`/`--dry-run` ne supprime rien -- y compris cumule avec `-f`
+        # dans un SEUL token groupe (`git clean -nfd`, precisement la forme
+        # que le message de refus recommande pour lister avant de
+        # confirmer) : verifie via _flags_courts_groupes, pas une egalite
+        # de token entiere -- `"-n" in bas` ne matchait jamais "-nfd".
+        # Reproduit (revue 2026-09-07) : `git clean -nfd` bloquait a tort.
+        if "--dry-run" in bas or "n" in _flags_courts_groupes(args):
+            return None
+        if "--force" in bas or "f" in _flags_courts_groupes(args):
             return (
                 "git clean -f est bloqué par un hook projet : il SUPPRIME les fichiers "
                 "non suivis, donc tout fichier neuf pas encore ajouté (un test qu'on "
@@ -322,7 +393,6 @@ def _blocked_worktree(tokens_apres_git: list, rest: list):
         return None
 
     if sous_commande == "stash":
-        bas = [t.lower() for t in rest]
         if "drop" in bas or "clear" in bas:
             return (
                 "git stash drop/clear est bloqué par un hook projet : la remise ainsi "
