@@ -1,32 +1,96 @@
 {
-  "derniere_veille": "2026-09-04T18:00:00",
+  "_genere": {
+    "source": "hub de supervision VScode5, .claude/veille/veille.json",
+    "projection": "entrees dont projets_concernes nomme VSCode1",
+    "ne_pas_editer": "Fichier GENERE, en lecture seule : une correction faite ici sera ecrasee a la prochaine propagation. La veille s'ecrit AU HUB, ou elle est lue (section 3 du wiki) et arbitree. Une veille lancee depuis ce depot doit y etre remontee.",
+    "date": "2026-09-08"
+  },
+  "derniere_veille": "2026-09-07T00:00:00",
   "entrees": [
     {
-      "titre": "Section « Discipline de gestion des tokens » disparue du CLAUDE.md de VSCode1 lors de l'élagage sous 150 lignes — la règle hub /clear (adoptée 2026-09-02) n'y est donc pas applicable, faute de section",
-      "url": "https://code.claude.com/docs/en/costs",
-      "type": "pratique",
-      "source_referentiel": "Anthropic — Claude Code docs (reduce token usage, context window) ; davidsilvera.com guide « Coder avec Claude » ch.7 « Savoir s'arrêter » (règle des deux corrections -> /clear, déjà instruite et adoptée au hub VScode5 le 2026-09-02, action_corrective alors explicitement limitée au CLAUDE.md du hub : « Flotte (5 autres projets) non vérifiée ce tour, hors périmètre »).",
+      "titre": "VoltAgent/awesome-claude-code-subagents — 154+ sous-agents en 10 catégories",
+      "url": "https://github.com/VoltAgent/awesome-claude-code-subagents",
+      "type": "sous-agent",
       "projets_concernes": [
-        "VSCode1"
+        "VSCode1",
+        "VScode5"
       ],
-      "pertinence": "Vérifié par git log -p sur CLAUDE.md : une section « Discipline de gestion des tokens » a été ajoutée le 2026-07-16 (recoupement OCTO Playbook Agentique) puis retirée par le commit local 042bc75 (« Elague CLAUDE.md sous le seuil des 150 lignes — chantier 2, veille pratiques »). Le CLAUDE.md actuel (45 lignes) ne mentionne plus le mot « token » nulle part. Le contenu détaillé SURVIT dans export/optimisation-tokens.md (8 sections, mesures rtk historiques, prototype render_diff.py) — donc rien n'est perdu en connaissance — mais CLAUDE.md n'y renvoie même plus, et la note du hub du 2026-07-30 affirmant « 5/6 projets ont déjà la section » (dont VSCode1) est donc devenue FAUSSE pour ce projet après coup : personne ne l'a re-vérifiée depuis l'élagage. Sans section, le critère de scan `discipline_tokens` (grep du titre de section, déjà outillé au hub) mesurerait 0 sur VSCode1 s'il y était appliqué, et le critère plus récent (2026-09-02, bascule /clear après deux corrections ratées consécutives plutôt qu'une 3e rustine) n'a jamais eu l'occasion d'y être ajouté puisque la section hôte n'existe plus.",
-      "regle_proposee": "Aucune règle nouvelle à créer — celle du hub existe déjà (discipline_tokens : présence de la section + critère /clear, criteres-pratiques.md § 7). Le manque est une VÉRIFICATION, pas une règle : re-mesurer réellement (pas supposer) la présence de la section sur les 6 projets de la flotte, VSCode1 inclus, au prochain scan_projets.py exécuté depuis le hub.",
-      "action_corrective": "Restaurer dans CLAUDE.md de VSCode1 une section courte « Discipline de gestion des tokens » (renvoi à export/optimisation-tokens.md pour le détail, pas une recopie) incluant le critère /clear du 2026-09-02 (deux corrections ratées consécutives sur le même problème -> /clear + reformuler, pas une 3e rustine) — en restant sous le budget de 150 lignes déjà écrit en règle du fichier (remplacer une ligne de config existante plutôt qu'ajouter net).",
-      "date": "2026-09-04",
-      "statut": "nouveau"
+      "pertinence": "Référentiel pour comparer/enrichir la flotte de 17 sous-agents de VSCode1 avant de la mutualiser via C4 — vérifier si des rôles manquants (security, data) y sont mieux définis. [adopte 2026-07-29 : utilisé comme grille de comparaison, PAS comme source à copier. Un seul agent greffé sur VSCode1 (security-auditor, cas d'usage daté Epic 10 / 2026-08-08) — greffe volontairement minimale, 11 des 17 agents locaux étant déjà jamais invoqués. Manques accessibilité/données documentés, non greffés : ils alimentent le tri du 2026-08-16.]",
+      "date": "2026-07-23",
+      "statut": "adopte"
     },
     {
-      "titre": "educlopez/ui-craft — design engineering system Claude Code (heuristiques Nielsen + 6 lois de design + WCAG, agent a11y-auditor en lecture seule, MCP quality gates)",
-      "url": "https://github.com/educlopez/ui-craft",
-      "type": "skill",
+      "titre": "BMAD-METHOD — v7 ANNONCEE (uv standard) — PAS sortie : derniere release v6.10.0",
+      "url": "https://github.com/bmad-code-org/BMAD-METHOD/releases",
+      "type": "framework",
       "projets_concernes": [
-        "VSCode1"
+        "VSCode",
+        "VSCode1",
+        "VSCode2",
+        "VSCode3",
+        "VSCode4",
+        "VScode5"
       ],
-      "pertinence": "Vérifié à la source (API GitHub) : 311 étoiles, licence MIT, pushed_at 2026-09-03T07:23:30Z — poussé la veille de cette veille, vivant. Skill + plugin Claude Code packageant 25 commandes, deux agents de revue en LECTURE SEULE (design-reviewer, a11y-auditor) et un serveur MCP de quality gates déterministes. Constat local motivant l'entrée : les 6 pages HTML de app/src/public (index/repondre/resultats/pilotage/admin/maquette-question.html) n'ont AUCUN outil de critique UX/accessibilité outillé — grep confirme `.claude/agents/ux-designer.md` référence déjà « heuristiques Nielsen » mais uniquement comme INSTRUCTION DE PROMPT pour un audit manuel, sans vérification déterministe rejouable ; `.claude/agents/ui-designer.md` liste WCAG/contraste/responsive comme guideline, jamais comme check outillé. Le résidu `@media` (0 occurrence sur les 6 pages, `grep -rc @media app/src/public/*.html` confirmé ce jour) reste explicitement DIFFÉRÉ depuis l'arbitrage `arbitrages:revue-mvp-2026-09-01` (2026-09-03) faute de mécanisme pour le qualifier systématiquement à chaque évolution — exactement le rôle que jouent déjà `pptx-verify`/`deck-design-review` côté deck PPT (rendu réel + checklist rejouable), absent côté surfaces HTML de l'app.",
-      "regle_proposee": "aucune — pas mesurable à froid par le scan tant que l'outil n'est pas évalué ni adopté ; à envisager seulement après adoption, sur le modèle du critère hook pré-commit déjà en place (présence d'un dispositif de vérification, pas seulement d'une skill invocable).",
-      "action_corrective": "Évaluer (sans installer d'office — décision utilisateur) le seul agent a11y-auditor de ui-craft, ou son principe réécrit pour le canal réel de VSCode1 (comme security-auditor.md l'a été le 2026-07-29 : greffe minimale, pas un copier-coller), sur les 6 pages HTML — en priorité sur le résidu @media différé du 2026-09-02/03.",
-      "date": "2026-09-04",
-      "statut": "nouveau"
+      "pertinence": "Suivi 2026-07-29 : la v7 est sortie — uv remplace python3 pour tous les scripts (l'installateur le vérifie), bmad-forge-idea nouvelle skill cœur, bmad-architecture réécrite en routage par intention (les shims DEPRECATED de la flotte — create-architecture, create-prd, edit-prd, validate-prd — sont RETIRÉS en v7). Les 6 projets sont en v6.10.0 avec statu quo « aucune customisation jusqu'à la v7 » (arbitrage skills-jamais-utilisees 2026-07-27) : la migration est désormais ARBITRABLE — décider quand migrer et si le tri des 46 skills se fait à cette occasion. [2026-07-30 : ENTREE CORRIGEE apres verification a la source (API GitHub releases/latest = v6.10.0 du 2026-07-03, aucun tag v7*, dist-tag npm latest = 6.10.0). La v7 N EST PAS SORTIE. Deux des trois arguments de cette entree etaient des faits de v6.9.0 DEJA installes (bmad-forge-idea, reecriture de bmad-architecture - le routage par intention est deja en production sur les 6 depots). Le troisieme (uv standard) est une annonce prospective publiee dans les notes de v6.9.0, sans date. Statut repasse de nouveau a etudie : il n y a rien a arbitrer tant que la version n existe pas. CE QUI EST REEL AUJOURD HUI : uv est absent du PATH de la machine alors que 22 fichiers du v6.10.0 installe invoquent deja uv run en forme primaire (repli python3 documente mais non garanti) - c est un manque actuel, pas un prerequis de migration future. Le volet uv est SOLDE le 2026-07-30 : uv 0.11.32 installe (winget), uv run verifie de bout en bout sur un vrai script du dispositif. Reste en veille uniquement la sortie eventuelle de la v7.] [2026-08-31 : SUIVI 32 jours apres. La v7 n'est toujours pas sortie, mais v6.11.0 EST sortie le 2026-08-09/10 (verifie double source : GitHub API releases/latest published_at=2026-08-10T17:49:41Z, et CHANGELOG.md brut du depot). Changements reels, avec breaking changes : bmad-quick-dev renomme bmad-build (ancien id conserve via shim de compatibilite), catalogue de skills core reduit de 14 a 8 (revue+editorial fusionnes dans bmad-review, trio recherche fusionne dans bmad-deep-recon, doc+contexte fusionnes dans bmad-project-context), config bascule en TOML en couches, et surtout : uv + Python 3.11+ devient une EXIGENCE DURE pour les skills rendus (plus un repli documente comme en v6.10.0) — les renderers s'arretent desormais sur config manquante. Ecart de mesure : seul le hub (VScode5) a confirme la presence d'uv (0.11.32, installe le 2026-07-30) ; le statut d'uv sur VSCode/VSCode1/VSCode2/VSCode3/VSCode4 n'est mesure nulle part (grep sur criteres-pratiques.md : aucune occurrence d'uv). Migrer vers v6.11.0 sans verifier uv sur les 5 autres depots casserait les skills rendues. Reste etudie : pas encore arbitre, mais l'arbitrage ne devrait plus attendre la v7 — v6.11.0 est deja un palier avec un prerequis dur non verifie sur 5/6 projets.] [ecarte le 2026-09-01 : Ecartee : le titre dit lui-meme ANNONCEE, PAS sortie, et la verification a la source du 2026-07-30 l'a confirme (API GitHub releases/latest = v6.10.0 du 2026-07-03, aucun tag v7*, dist-tag npm latest = 6.10.0). Deux des trois arguments de l'entree etaient des faits de v6.9.0 DEJA installes. Surtout : la seule decision qu'elle bloquait — le gel « aucune customisation jusqu'a la v7 » — a ete LEVEE le 2026-07-31 sans attendre la v7, au motif qu'un gel conditionne a un evenement qui ne vient pas est un gel definitif qui ne dit pas son nom. Il ne reste donc rien a arbitrer ici. La migration redeviendra une decision a part entiere quand la v7 sortira vraiment ; la cadence de veille la re-signalera.]",
+      "date": "2026-07-29",
+      "statut": "ecarte"
+    },
+    {
+      "titre": "CLAUDE.md concis, entretenu comme du code (pruning régulier)",
+      "url": "https://code.claude.com/docs/en/best-practices",
+      "type": "pratique",
+      "source_referentiel": "Anthropic — Claude Code docs / best practices (« Write an effective CLAUDE.md », « The over-specified CLAUDE.md »)",
+      "projets_concernes": [
+        "VSCode",
+        "VSCode1",
+        "VSCode2",
+        "VSCode3",
+        "VSCode4",
+        "VScode5"
+      ],
+      "pertinence": "Un CLAUDE.md trop long fait ignorer les règles importantes (« bloated CLAUDE.md files cause Claude to ignore your actual instructions ») ; la flotte mesure la PRÉSENCE des CLAUDE.md, jamais leur taille ni leur entretien. [adopte — chantier 2 (2026-07-24) : seuil 150 l au scan (testé), VSCode1 149 l / VSCode3 107 l]",
+      "regle_proposee": "Critère scan (dimension pratiques + rules) : taille du CLAUDE.md bornée (alerte au-delà d'un seuil, ex. 150 lignes) — mesurable à froid, 0 token.",
+      "action_corrective": "Passe de pruning des CLAUDE.md de la flotte : chaque ligne justifiée par « sa suppression causerait-elle une erreur ? », convertir en hook ce qui doit être garanti.",
+      "date": "2026-07-24",
+      "statut": "adopte"
+    },
+    {
+      "titre": "Permission d'incertitude et relecture avant écriture — absentes d'audit-technique, qui force un niveau ok/moyen/critique par dimension sans option « non évalué », et n'a pas de passe de retrait des constats sans citation",
+      "url": "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/reduce-hallucinations",
+      "type": "pratique",
+      "source_referentiel": "Anthropic — Claude Platform docs / Reduce hallucinations : « Allow Claude to say I don't know... This simple technique can drastically reduce false information » ; « Verify with citations... If it can't find a quote, it must retract the claim. »",
+      "projets_concernes": [
+        "VScode5"
+      ],
+      "pertinence": "DÉJÀ EN PLACE, à ne pas re-proposer : la pratique de grounding par citation est déjà câblée — `audit-technique/SKILL.md` l.20 : « Pas de constat sans localisation : chaque point porte fichier:ligne ou une fonction nommée. Un ressenti n'est pas un finding. » C'est le sens « hallucination de contenu » demandé par ce cycle, distinct du sens « non-convergence » traité par les deux entrées précédentes (le run bloqué de cette session est de la seconde sorte : il n'a produit AUCUN contenu, inventé ou non). Ce qui manque réellement, par contraste avec la doc : (1) les 3 niveaux imposés par dimension (ok/moyen/critique, l.26) n'ont pas d'option « non évalué » — un audit pressé par le temps (ou sur un dépôt en contention, cf. entrée précédente) est structurellement poussé à choisir un niveau plutôt qu'admettre l'incertitude, contrairement à « allow Claude to say I don't know » ; (2) aucune étape de relecture qui retire, avant l'écriture du JSON, un constat resté sans `fichier:ligne` — la règle existe au moment de rédiger, pas en vérification a posteriori (« if it can't find a quote, it must retract the claim »). [ADOPTE 2026-09-03 : regle_proposee et action_corrective appliquees (voir arbitrages.json)] [ÉLARGI 2026-09-04, ordre direct utilisateur (« déploie en urgence le mécanisme anti-hallucination sur tous les projets ») : la « permission d'incertitude » ne vivait que dans audit-technique/SKILL.md (hub-only). R1 a trouvé le même principe sous forme dégradée dans les CLAUDE.md flotte — la règle de preuve « tout chiffre s'appuie sur la commande qui l'a produit » y existe partout mais SANS l'échappatoire « sinon marqué non mesuré » que porte déjà VSCode et le hub (R6), sur 4 des 5 projets (VSCode1/2/3/4). Ajoutée, mot pour mot, aux 4 — voir arbitrages.json cible veille:permission-incertitude-relecture.]",
+      "projets_concernes_regle_preuve": [
+        "VSCode",
+        "VSCode1",
+        "VSCode2",
+        "VSCode3",
+        "VSCode4",
+        "VScode5"
+      ],
+      "regle_proposee": "Étendre le format `.claude/audits/<projet>.json` avec un niveau `non_evalue` par dimension (distinct de `ok`, réservé à une dimension non couverte faute de temps/accès) — mesurable à froid par grep sur les audits existants une fois adopté.",
+      "action_corrective": "Proposer dans audit-technique/SKILL.md : ajouter `non_evalue` à la liste des niveaux (§ Règles) et une étape 3bis « relecture : tout finding sans fichier:ligne est retiré avant l'étape 4 » entre Qualifier et Écrire.",
+      "date": "2026-09-03",
+      "statut": "adopte"
+    },
+    {
+      "titre": "BMAD-METHOD v6.11.0 (2026-08-10) et v6.12.0 (2026-09-04) réellement sorties — hub toujours en v6.10.0, deux versions et plusieurs breaking changes non évalués",
+      "url": "https://github.com/bmad-code-org/BMAD-METHOD/releases",
+      "type": "framework",
+      "projets_concernes": [
+        "VSCode",
+        "VSCode1",
+        "VSCode2",
+        "VSCode3",
+        "VSCode4",
+        "VScode5"
+      ],
+      "pertinence": "Distinct de l'entrée déjà écartée le 2026-09-01 (qui portait sur une v7 ANNONCÉE mais jamais sortie, et sur un gel de customisation déjà levé le 2026-07-31) : ceci porte sur deux versions RÉELLEMENT publiées, vérifiées à la source (API GitHub releases : v6.11.0 tag présent, v6.12.0 = releases/latest, published_at=2026-09-04T02:31:25Z ; aucun tag v7* n'existe toujours). État réel du hub vérifié : _bmad/_config/manifest.yaml indique version 6.10.0, installDate ET lastUpdated au 2026-07-23T15:19:59Z — inchangé depuis 46 jours, donc deux versions en retard. Breaking changes cumulés non évalués sur la flotte : v6.11.0 (déjà instruite le 2026-08-31 — uv+Python 3.11 devient une exigence DURE pour les skills rendues, catalogue réduit de 14 à 8 skills core, config bascule en TOML) PLUS, nouveau ce cycle, v6.12.0 : persistent_facts ships empty (project-context.md à ré-ajouter à l'override si l'auto-chargement était utilisé — risque de régression silencieuse), {diff_output} renommé {diff_file} dans les overrides de revue custom, les shims dépréciés deviennent opt-in sur une install neuve (--shims pour les garder), bmad-checkpoint-preview renommé bmad-walkthrough (CK→WT, ancien id encore redirigé), Build ne se déclenche plus automatiquement sur simples édits interactifs/bookkeeping git/formatage. Non vérifié ce cycle : le statut d'installation des 5 autres projets de la flotte (hors périmètre du check ciblé, comme pour l'entrée v6.11.0 du 2026-08-31 qui avait le même trou de mesure). [adopte 2026-09-07, ordre direct utilisateur (« lance la migration vers BMAD v6.12 ») : pilote exécuté sur le HUB uniquement (cadrage réel préalable : pas une commande, un chantier — 11+ refs à la table de routage BMAD-ROUTAGE, tests, party-mode TOML). Commande réelle : `npx bmad-method install --action update --yes`. 6.10.0 -> 6.12.0, 46 -> 50 skills (29 canoniques + 21 shims conservés par défaut sur un `update`, contrairement à l'hypothèse « shims opt-in » qui ne vaut que pour une install neuve). Renommages/fusions réels, plus larges que prévu par la veille : bmad-review-*/bmad-editorial-review-* -> bmad-review ; trio recherche -> bmad-deep-recon ; bmad-document-project + bmad-generate-project-context -> bmad-project-context ; bmad-quick-dev/bmad-dev-story/bmad-create-story -> bmad-build ; bmad-dev-auto -> bmad-build-auto ; bmad-checkpoint-preview -> bmad-walkthrough ; bmad-sprint-status -> bmad-sprint-planning (ces 3 derniers non annoncés par la veille initiale). Table de routage, mandats bmad-revue/bmad-recherche, agent-supervisor, audit-technique, catalogue, générateur de playbook et les 12 salles (TOML skills_bmad) réconciliés. Deux forks maison (resolve_party.py, resolve_personas.py) écrasés par l'installateur puis réappliqués à la main (documentés dans .claude/patches/) — un `git checkout` les aurait perdus en silence. 4 fichiers _bmad/custom/*.toml préservés sans perte. Vérifié indépendamment par la session parente (pas seulement le rapport du sous-agent) : suite complète rejouée, 1155 passed/2 failed/2 xfailed — les 2 échecs sont le socle flotte pas encore migré (attendu, hors mandat de ce pilote), pas une régression. Fusionné sur `main` (commits cb345d6/5edeef7/e2f16e9) après validation utilisateur explicite (le merge --ff-only avait été bloqué par le classificateur auto-mode). PROPAGATION FLOTTE non faite ce tour : VSCode a fait sa propre migration indépendante et réussie (3 commits db80c5b/0ef6d7c/d673268, même commande, mêmes shims retenus) ; VSCode1/VSCode2/VSCode3 ont une session live notifiée par SendMessage (pas de propagation forcée) ; VSCode4 (au repos) a reçu une tentative de propagation du seul canon (table de routage) qui a été ANNULÉE en cours de route — VSCode4 est resté en BMAD 6.10.0, propager la table de routage seule y aurait créé des références à des skills inexistantes sur le disque local (incohérence détectée avant tout commit, rien n'a été perdu). VSCode4 doit d'abord recevoir sa propre migration BMAD (même commande) avant de recevoir le nouveau canon — pas fait ce tour, à arbitrer.]",
+      "date": "2026-09-07",
+      "statut": "adopte"
     }
   ]
 }

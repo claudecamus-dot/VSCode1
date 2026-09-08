@@ -4,6 +4,17 @@ Utilisé par la skill `agent-supervisor` : elle compose les constats (LLM), ce s
 garantit le schéma que `scan_transcripts.py` consomme (fusion wiki + routing-hints).
 
 Usage : py .claude/supervision/write_diagnostic.py '<json>'   (ou JSON sur stdin)
+        py .claude/supervision/write_diagnostic.py --fusionner '<json>'
+  --fusionner : ne remplace PAS le diagnostic précédent en entier — conserve tous
+    ses findings sauf ceux dont (cible, titre) est repris dans ce json (mis à jour
+    sur place), et ajoute les findings vraiment nouveaux. Pour écrire dans le
+    diagnostic.json d'un AUTRE dépôt de la flotte (AGENT_SUPERVISION_DIAGNOSTIC
+    pointé dessus) sans détruire ses findings ouverts propres — c'est le mode par
+    défaut (écrasement intégral) qui a un sens seulement pour SON PROPRE
+    diagnostic (agent-supervisor du hub réécrit l'ensemble qu'il vient de qualifier
+    en entier, cf. docstring plus bas) ; écraser le diagnostic d'un dépôt qu'on ne
+    vient pas de qualifier en entier détruit du travail qu'on n'a pas relu (finding
+    `flotte:23-items-cadres-sans-canal-arbitrable`, 2026-09-04).
 Schéma attendu : {"findings": [{"categorie", "titre", "preuve", ...}]}
   - categorie : ko-repete | inefficacite | agent-mort | interaction |
     verification-manquante | autre. `ko-repete` et `inefficacite` avec une `cible`
@@ -54,7 +65,9 @@ def main(argv) -> int:
     for stream in (sys.stdin, sys.stdout):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
-    raw = argv[0] if argv else sys.stdin.read()
+    fusionner = "--fusionner" in argv
+    positionnels = [a for a in argv if a != "--fusionner"]
+    raw = positionnels[0] if positionnels else sys.stdin.read()
     try:
         diag = json.loads(raw)
     except ValueError as exc:
@@ -115,12 +128,32 @@ def main(argv) -> int:
               "(structure inattendue, pas de liste 'findings') — meme consequence : "
               "les findings ouverts qui disparaissent ne peuvent pas etre listes.")
     nouvelles_cles = {(f.get("cible"), f.get("titre")) for f in findings}
-    disparus = [f for f in anciens if (f.get("cible"), f.get("titre")) not in nouvelles_cles]
-    if disparus:
-        print(f"write_diagnostic AVERTISSEMENT : {len(disparus)} finding(s) du diagnostic "
-              "precedent disparaissent de cette reecriture :")
-        for f in disparus:
-            print(f"  - {f.get('cible', '?')} : {f.get('titre', '?')}")
+    if fusionner:
+        # Fusion : rien ne "disparait" au sens de l'avertissement ci-dessous — les
+        # findings precedents non repris sont CONSERVES, seuls ceux dont (cible,
+        # titre) correspond exactement a un finding de cette passe sont remplaces
+        # (mise a jour intentionnelle, pas une perte).
+        conserves = [f for f in anciens
+                     if (f.get("cible"), f.get("titre")) not in nouvelles_cles]
+        remplaces = [f for f in anciens
+                     if (f.get("cible"), f.get("titre")) in nouvelles_cles]
+        if remplaces:
+            print(f"write_diagnostic (fusion) : {len(remplaces)} finding(s) existant(s) "
+                  "mis a jour (cible+titre identiques) :")
+            for f in remplaces:
+                print(f"  - {f.get('cible', '?')} : {f.get('titre', '?')}")
+        findings = conserves + findings
+        print(f"write_diagnostic (fusion) : {len(conserves)} finding(s) precedent(s) "
+              f"conserve(s) tel(s) quel(s), {len(findings) - len(conserves)} ecrit(s) "
+              "cette passe.")
+    else:
+        disparus = [f for f in anciens
+                    if (f.get("cible"), f.get("titre")) not in nouvelles_cles]
+        if disparus:
+            print(f"write_diagnostic AVERTISSEMENT : {len(disparus)} finding(s) du diagnostic "
+                  "precedent disparaissent de cette reecriture :")
+            for f in disparus:
+                print(f"  - {f.get('cible', '?')} : {f.get('titre', '?')}")
     out = {
         "generated": datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
         "findings": findings,

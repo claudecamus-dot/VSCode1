@@ -1,3 +1,14 @@
+# +-- GÉNÉRÉ — NE PAS ÉDITER LOCALEMENT ---------------------------------------
+# | Source de vérité : hub de supervision VScode5, .claude/dispositif/canon/scan_transcripts.py
+# | Une correction faite ICI sera ÉCRASÉE à la prochaine propagation. Pour la
+# | garder : la signaler au hub, qui corrige le canon et re-synchronise.
+# | (Depuis le hub : « py .claude/dispositif/sync_dispositif.py » — ce script
+# |  n'est pas déployé, il n'existe pas dans ce dépôt.)
+# | Provenance canon : 187ce52 du 2026-09-08 — permet, au prochain sync, de dire si
+# | une différence vient d'une édition locale ou d'une avance du canon (voir
+# | `determiner_cause` dans sync_dispositif.py au hub).
+# +---------------------------------------------------------------------------
+
 """Superviseur d'agents — étage 1 (incrément A) : collecte déterministe, 0 token LLM.
 
 Scanne incrémentalement les transcripts JSONL du projet (~/.claude/projects/<slug>/*.jsonl),
@@ -91,6 +102,14 @@ PROVEN_MIN = 3  # invocations à partir desquelles un agent/skill est "éprouvé
 DIAGNOSTIC_CADENCE_DAYS = 14  # au-delà : le diagnostic étage 2 est signalé "à relancer"
 DIAGNOSTIC_STALE_RUNS = 3  # runs d'orchestration non couverts qui périment aussi le diagnostic
 ECHEC_PRUDENCE_MIN = 2  # échecs en orchestration à partir desquels un agent passe en prudence
+# `echec` est un mot du vocabulaire de log_run.py quasiment jamais utilisé en pratique
+# (0 sur 131 runs mesurés le 2026-09-04, malgré 85 reprises journalisées ailleurs) : la
+# branche echecs ci-dessus ne peut donc jamais se déclencher (finding
+# `VScode5:prudence-routage-inerte`). Les reprises, elles, SONT journalisées à chaque
+# run — seuil structurellement atteignable, ne remplace pas la branche echecs (gardée
+# pour le jour où `echec` sera vraiment utilisé), s'y ajoute.
+REPRISE_PRUDENCE_SEUIL = 2  # reprises sur un même run à partir desquelles il compte comme "fort"
+REPRISES_PRUDENCE_MIN_RUNS = 2  # runs à forte reprise avant qu'un agent/skill passe en prudence
 MARK_START = "<!-- TODO-AGENTS:START"
 MARK_END = "<!-- TODO-AGENTS:END -->"
 HTML_MARK_START = "<!-- TODO-AGENTS-HTML:START"
@@ -579,6 +598,48 @@ def skills_reference_declares() -> set:
     return {s for s in data if isinstance(s, str)}
 
 
+# Un frontmatter de skill qui commence sa `description` par DEPRECATED — la seule
+# declaration d obsolescence qui vienne de l EDITEUR et non de notre compteur.
+_RE_DESCRIPTION = re.compile(r"^description:\s*(.+)$", re.MULTILINE)
+_RE_DEPRECATED = re.compile(r"\bDEPRECATED\b", re.IGNORECASE)
+_RE_REMPLACANT = re.compile(r"in favor of `([A-Za-z0-9_.-]+)`", re.IGNORECASE)
+
+
+def skills_depreciees(fam: dict) -> dict:
+    """`{nom: remplacant}` pour les skills que LEUR PROPRE frontmatter declare
+    depreciees (`remplacant` vaut "" quand la description n en nomme aucun).
+
+    Pourquoi cette lecture existe (finding `bmad-catalogue-elagage`, 2026-09-04). Le
+    TODO « Elaguer les skills BMAD : N/M jamais invoques » melange deux choses qui
+    n ont rien a voir : ce que BMAD DECLARE obsolete, et ce que notre compteur n a pas
+    vu passer. Le second a failli faire desinstaller sur VSCode, le 2026-09-01,
+    `bmad-forge-idea` et `bmad-party-mode` — les deux skills qui ont porte toute la
+    refonte du produit COMOP trois jours plus tard. Le premier, lui, est une donnee
+    sure, lisible dans le depot, independante de la fiabilite de notre mesure.
+
+    Deterministe et sans liste codee en dur (meme exigence que `non_invocation_skills`)
+    : on LIT la `description` du frontmatter. A ce jour BMAD v6.10.0 en declare quatre
+    — bmad-create-architecture, bmad-create-prd, bmad-edit-prd, bmad-validate-prd —
+    mais la liste n est ecrite nulle part ici : elle suivra l editeur.
+
+    Fail-open : SKILL.md absent, illisible ou sans frontmatter -> le nom n est
+    simplement pas declare deprecie. On ne suppose jamais l obsolescence."""
+    out = {}
+    for nom in (fam or {}):
+        chemin = os.path.join(REPO, ".claude", "skills", nom, "SKILL.md")
+        try:
+            with open(chemin, encoding="utf-8", errors="ignore") as fh:
+                tete = fh.read(4096)
+        except OSError:
+            continue
+        m = _RE_DESCRIPTION.search(tete)
+        if not m or not _RE_DEPRECATED.search(m.group(1)):
+            continue
+        r = _RE_REMPLACANT.search(m.group(1))
+        out[nom] = r.group(1) if r else ""
+    return out
+
+
 def non_invocation_skills(fam: dict) -> set:
     """Skills dont la valeur se consomme en LISANT/EXÉCUTANT leurs ressources, jamais
     via l'outil Skill — le compteur d'invocations ne peut donc structurellement pas les
@@ -996,7 +1057,13 @@ def build_runs_stats(runs: list):
         e = agg.setdefault(cle, {
             "n": 0, "succes": 0, "echecs": 0, "reprises": 0,
             "en_cours": 0, "en_attente_validation": 0, "partiels": 0,
+            "runs_fortes_reprises": 0,
         })
+        # Compté AVANT le early-return non-terminal : une reprise pèse sur la
+        # prudence qu'elle finisse en succès, partiel ou en attente (cf. commentaire
+        # ECHEC_PRUDENCE_MIN plus haut — echec, lui, ne se déclenche jamais).
+        if reprises >= REPRISE_PRUDENCE_SEUIL:
+            e["runs_fortes_reprises"] += 1
         cle_non_terminale = NON_TERMINAUX.get(resultat)
         if cle_non_terminale:
             e[cle_non_terminale] += 1
@@ -1021,6 +1088,120 @@ def build_runs_stats(runs: list):
     return par_playbook, par_agent
 
 
+# Skills dont la portee est le HUB de supervision, jamais le depot ou elles sont
+# installees : `audit-technique/SKILL.md` le declare noir sur blanc (« Portee :
+# artefact HUB uniquement, aucun miroir local », « s invoque depuis le hub, en ciblant
+# un projet de la flotte — jamais depuis le projet cible lui-meme »). Leur `n=0` sur
+# une CIBLE n est donc pas un defaut d usage : c est le fonctionnement nominal, et
+# aucun usage local ne le corrigera jamais. Les melanger aux skills locales sans usage
+# produit un TODO definitivement incorrigible (finding `skills-projet-sans-usage`,
+# volet hub-only, diagnostic VSCode du 2026-09-04 — le commit 6de0e92 avait clarifie
+# la portee dans le SKILL.md sans que le scan, lui, l apprenne).
+#
+# Liste STATIQUE et non detection textuelle, contrairement a `non_invocation_skills` :
+# la declaration de portee vit en PROSE dans le SKILL.md, pas dans un champ lisible a
+# coup sur — un grep sur « hub » y attraperait n importe quelle skill qui parle du hub.
+# Une liste courte, nommee et commentee dit mieux la verite qu une heuristique qui
+# devine. Elle vaut pour TOUS les projets cibles, le canon etant propage a tous.
+HUB_ONLY_SKILLS = ("audit-technique",)
+
+
+def skills_hub_only(fam: dict) -> list:
+    """Les skills hub-only INSTALLEES ici (triees) — vide sur un depot qui n en a pas."""
+    return sorted(k for k in (fam or {}) if k in HUB_ONLY_SKILLS)
+
+
+def _cadence_propre() -> set:
+    """Noms dont la fraicheur est DEJA suivie, et affichee, ailleurs sur cette meme
+    page — les compter une seconde fois en « sommeil » est un double-compte.
+
+    Deterministe pour la part qui peut l etre : tout hook `.claude/hooks/remind_*.py`
+    EST un mecanisme de cadence, et son nom de fichier designe ce qu il rappelle
+    (`remind_veille_agentic.py` -> `veille-agentic`). S y ajoute `agent-supervisor`,
+    dont la cadence de 14 jours n est pas portee par un hook mais par CE script
+    (`DIAGNOSTIC_CADENCE_DAYS`, rendu en toutes lettres section « Diagnostic
+    qualitatif » de la meme page) — le seul nom code en dur, et pour cette raison-la.
+    """
+    noms = {"agent-supervisor"}
+    for chemin in glob.glob(os.path.join(REPO, ".claude", "hooks", "remind_*.py")):
+        base = os.path.splitext(os.path.basename(chemin))[0]
+        noms.add(base[len("remind_"):].replace("_", "-"))
+    return noms
+
+
+def hors_perimetre_sommeil(noms) -> set:
+    """Parmi `noms`, ceux qu un TODO « en sommeil » ne peut pas rendre actionnables.
+
+    Finding `en-sommeil-indicateur` (diagnostic VSCode du 2026-09-04). La liste
+    publiee ce jour-la tenait en deux entrees, et aucune des deux n etait elaguable :
+
+    - `Explore` — un type de sous-agent NATIF du harnais. Aucun `.claude/agents/
+      Explore.md` n existe, il n y a donc rien a reveiller ni a desinstaller. Idem
+      `Plan`, `general-purpose`, `(defaut)` ;
+    - `agent-supervisor` — dont la cadence de 14 jours est deja suivie, et affichee,
+      plus haut sur la MEME page. Il en est d ailleurs sorti tout seul entre deux
+      scans, sans aucune decision humaine : un signal qui se corrige en silence n en
+      etait pas un.
+
+    Un TODO dont aucune entree n appelle de geste n est pas une liste imprecise,
+    c est une liste inactionnable — et elle use l attention qu on devra a la
+    prochaine, vraie. On mesure toujours le sommeil pareil (`dormants` reste la
+    definition unique) ; on ne PROPOSE que ce sur quoi un geste existe.
+
+    Est « natif » un nom qui n est ni une skill installee (`installed_skills`) ni un
+    sous-agent declare par un `.claude/agents/<nom>.md` du depot.
+    """
+    fam = installed_skills()
+    cadences = _cadence_propre()
+    exclus = set()
+    for nom in noms:
+        if nom in cadences:
+            exclus.add(nom)
+            continue
+        if nom in fam:
+            continue
+        if os.path.isfile(os.path.join(REPO, ".claude", "agents", f"{nom}.md")):
+            continue
+        exclus.add(nom)     # sous-agent natif : rien a reveiller, rien a desinstaller
+    return exclus
+
+
+def mesure_non_fiable(state: dict) -> bool:
+    """La mesure d usage couvre-t-elle encore ce qu elle pretend couvrir ?
+
+    Une seule definition, lue par routing-hints.json ET par l avertissement du bloc
+    TODO : deux reponses a la meme question, sur la meme page, ne peuvent pas etre
+    toutes les deux la mesure (meme raison que `dormants`)."""
+    mesure = (state or {}).get("mesure_incomplete") or {}
+    return bool(mesure.get("transcripts_absents") or mesure.get("journal_usage_muet"))
+
+
+def avertissement_mesure(state: dict) -> str:
+    """L avertissement a afficher EN TETE du bloc TODO quand la mesure n est pas
+    fiable, ou "" quand elle l est.
+
+    Le drapeau existait depuis le 2026-09-02 — mais seulement dans routing-hints.json
+    et dans une note d arbitrage. Il manquait la ou l humain arbitre : sur le bloc
+    qu il lit pour decider de desinstaller. Un `n=0` sur une base fondue ne veut plus
+    dire « jamais invoquee », il veut dire « on ne regarde plus » ; rien ne
+    distinguait les deux a l endroit ou ca compte."""
+    mesure = (state or {}).get("mesure_incomplete") or {}
+    absents = mesure.get("transcripts_absents") or 0
+    total = mesure.get("total_fichiers") or 0
+    causes = []
+    if absents:
+        causes.append(f"{absents} transcript(s) sur {total} absent(s) du disque")
+    if mesure.get("journal_usage_muet"):
+        causes.append("journal d usage muet (offset jamais pose)")
+    if not causes:
+        return ""
+    return (
+        "⚠️ **Mesure incomplète** — " + " ; ".join(causes) + ". Un `n=0` ne veut "
+        "plus dire « jamais invoquée » mais « on ne le voit plus » : les listes "
+        "ci-dessous sous-estiment l'usage réel. Ne rien désinstaller sur cette base."
+    )
+
+
 def dormants(state):
     """Les noms dont l usage LE PLUS RECENT, tous canaux confondus, depasse le seuil.
 
@@ -1040,10 +1221,15 @@ def dormants(state):
     une entite qui a servi dans un canal quelconque n est pas endormie.
     """
     derniers = derniers_usages(state)
-    return sorted(
+    endormis = sorted(
         nom for nom, last in derniers.items()
         if (lambda d: d is not None and d > DORMANT_DAYS)(days_since(last))
     )
+    # Le filtre vit ICI, dans la definition unique, et pas chez l un des deux
+    # consommateurs : routing-hints.json et le TODO du wiki doivent continuer de lire
+    # exactement la meme liste (c est le finding scan_transcripts.py:807 ci-dessus).
+    hors = hors_perimetre_sommeil(endormis)
+    return [nom for nom in endormis if nom not in hors]
 
 
 def build_routing_hints(state: dict, fam: dict, par_playbook: dict, par_agent: dict, diagnostic,
@@ -1063,7 +1249,9 @@ def build_routing_hints(state: dict, fam: dict, par_playbook: dict, par_agent: d
     # seul canal transcripts : 126 transcripts sur 137 avaient disparu le 2026-09-02
     # et 5 skills invoquees le jour meme etaient publiees « jamais utilisees ».
     vus = set(skills) | set(derniers_usages(state))
-    jamais = sorted(k for k, v in fam.items() if k not in vus and k not in libref)
+    hub_only = skills_hub_only(fam)
+    jamais = sorted(k for k, v in fam.items()
+                    if k not in vus and k not in libref and k not in hub_only)
     bibliotheque = sorted(k for k in libref if k not in vus)
     en_sommeil = dormants(state)
     verifs_oubliees = []
@@ -1087,10 +1275,21 @@ def build_routing_hints(state: dict, fam: dict, par_playbook: dict, par_agent: d
     # sans attendre le diagnostic LLM (dédupliqué sur les cibles déjà signalées).
     deja = {p["cible"] for p in prudence}
     for agent, e in sorted(par_agent.items()):
-        if agent not in deja and e["echecs"] >= ECHEC_PRUDENCE_MIN and e["echecs"] > e["succes"]:
+        if agent in deja:
+            continue
+        if e["echecs"] >= ECHEC_PRUDENCE_MIN and e["echecs"] > e["succes"]:
             prudence.append({
                 "cible": agent,
                 "raison": f"échecs répétés en orchestration ({e['echecs']}/{e['n']} runs)",
+            })
+        elif e.get("runs_fortes_reprises", 0) >= REPRISES_PRUDENCE_MIN_RUNS:
+            prudence.append({
+                "cible": agent,
+                "raison": (
+                    f"reprises répétées en orchestration "
+                    f"({e['runs_fortes_reprises']} run(s) à >= {REPRISE_PRUDENCE_SEUIL} "
+                    f"reprise(s) sur {e['n']})"
+                ),
             })
     gaps = catalogue_gaps(runs or [])
     # Fiabilité de la mesure elle-même (finding state-transcripts-absents,
@@ -1110,6 +1309,10 @@ def build_routing_hints(state: dict, fam: dict, par_playbook: dict, par_agent: d
         # d'invocations (constat #2) — sortis de jamais_utilises pour que
         # l'orchestrateur ne les traite pas comme morts.
         "bibliotheque_reference": bibliotheque,
+        # Skills hub-only (cf. HUB_ONLY_SKILLS) : leur `n=0` sur une cible est le
+        # fonctionnement nominal, pas un defaut d usage — sorties de jamais_utilises
+        # pour que l orchestrateur ne les propose ni a l elagage ni au routage local.
+        "hub_only": hub_only,
         "en_sommeil": en_sommeil,
         "verifications_oubliees": verifs_oubliees,
         "playbooks": par_playbook,
@@ -1128,7 +1331,7 @@ def build_routing_hints(state: dict, fam: dict, par_playbook: dict, par_agent: d
         # mais ce drapeau dit qu'ils ne couvrent plus tout l'historique attendu —
         # à l'orchestrateur/au lecteur de ne pas les lire comme une mesure fraîche.
         "mesure_incomplete": mesure,
-        "mesure_non_fiable": bool(mesure.get("transcripts_absents") or mesure.get("journal_usage_muet")),
+        "mesure_non_fiable": mesure_non_fiable(state),
     }
 
 
@@ -1158,27 +1361,56 @@ def build_todos(skills: dict, fam: dict, gaps: dict = None,
     # (cf. scan_journal_usage — le TODO « 43/46 » du 2026-09-02 comptait comme mortes
     # 5 skills invoquees le jour meme).
     vus = set(skills) | (set(derniers_usages(state)) if state is not None else set())
+    non_fiable = mesure_non_fiable(state)
     bmad = [k for k, v in fam.items() if v == "BMAD"]
     bmad_unused = [k for k in bmad if k not in vus]
     if "famille:BMAD" in arbitres:
         bmad_unused = []  # tri déjà arbitré par l'humain — ne pas re-nagguer
-    if bmad and bmad_unused:
-        if len(bmad_unused) == len(bmad):
+    # (a) Le SEUL élagage qui ne dépende pas de notre mesure d'usage : les shims que
+    # BMAD lui-même déclare dépréciés, chacun avec son remplaçant nommé. Ceux-là se
+    # proposent toujours, mesure fiable ou non — la déprécation est une déclaration
+    # de l'éditeur, pas une déduction de notre compteur.
+    deprecies = {k: v for k, v in skills_depreciees(fam).items()
+                 if k in bmad and k not in arbitres}
+    if deprecies:
+        listing = ", ".join(f"`{k}`" + (f" → `{v}`" if v else "")
+                            for k, v in sorted(deprecies.items()))
+        todos.append(
+            f"**Désinstaller les shims BMAD dépréciés** ({len(deprecies)}) : {listing} — "
+            "dépréciés par BMAD dans leur propre `description`, chacun avec son "
+            "remplaçant ; le seul élagage qui ne repose pas sur notre mesure d'usage."
+        )
+    # (b) Tout le reste : un `n=0` sur une base de mesure fondue ne prouve aucune
+    # inutilité. Le TODO « N/M jamais invoqués » a failli faire désinstaller, le
+    # 2026-09-01 sur VSCode, `bmad-forge-idea` et `bmad-party-mode` — les deux skills
+    # qui ont porté toute la refonte du produit COMOP jusqu'à un `forged-idea.md`
+    # HARDENED trois jours plus tard. Tant que `mesure_non_fiable` est vrai, on ne
+    # propose donc RIEN sur ce lot : une skill inutilisée aujourd'hui n'a peut-être
+    # pas encore eu son moment, et l'avertissement en tête du bloc dit pourquoi la
+    # liste ne s'y trouve pas (finding `bmad-catalogue-elagage`, 2026-09-04).
+    reste_unused = [k for k in bmad_unused if k not in deprecies]
+    if bmad and reste_unused and not non_fiable:
+        if len(reste_unused) == len(bmad):
             todos.append(
                 f"**Trier les skills BMAD** : {len(bmad)} installés, 0 invocation à ce jour — "
                 "décider lesquels garder, customiser ou désinstaller."
             )
         else:
             todos.append(
-                f"**Élaguer les skills BMAD** : {len(bmad_unused)}/{len(bmad)} jamais invoqués — "
+                f"**Élaguer les skills BMAD** : {len(reste_unused)}/{len(bmad)} jamais invoqués — "
                 "confirmer l'utilité des non-utilisés."
             )
     # Les skills-bibliothèque/référence (constat #2) ne sont pas des « sans usage » :
     # leur valeur passe par scripts/sous-agent, invisible au compteur d'invocations.
     libref = non_invocation_skills(fam)
+    # Les skills hub-only ne sont pas des « sans usage » locales : cf. HUB_ONLY_SKILLS.
+    # Elles s'affichent a part, section « Skills hub-only » de la page — pas en TODO,
+    # puisqu'il n'existe aucun geste local a proposer.
+    hub_only = skills_hub_only(fam)
     proj_unused = sorted(
         k for k, v in fam.items()
         if v == "projet" and k not in vus and k not in arbitres and k not in libref
+        and k not in hub_only
     )
     if "revue-increment" in proj_unused:
         proj_unused.remove("revue-increment")
@@ -1301,10 +1533,13 @@ def build_page(state: dict, fam: dict, todos: list, diag_todos: list = None, dia
     L += ["", "## Jamais utilisés", ""]
     unused_by_family = {}
     libref_unused = []
+    hub_only_unused = []
     for name, family in fam.items():
         if name in vus:
             continue
-        if name in libref:
+        if name in HUB_ONLY_SKILLS:
+            hub_only_unused.append(name)
+        elif name in libref:
             libref_unused.append(name)
         else:
             unused_by_family.setdefault(family, []).append(name)
@@ -1330,6 +1565,15 @@ def build_page(state: dict, fam: dict, todos: list, diag_todos: list = None, dia
         else:
             L.append(", ".join(f"`{n}`" for n in names))
         L.append("")
+    if hub_only_unused:
+        L += [
+            "## Skills hub-only", "",
+            "_S'invoquent DEPUIS le hub de supervision, en ciblant ce projet — jamais "
+            "depuis ce dépôt (leur `SKILL.md` le déclare). Leur `n=0` ici est le "
+            "fonctionnement nominal, pas un défaut d'usage : aucun usage local ne le "
+            "corrigera, il n'y a donc rien à en conclure ni rien à désinstaller._", "",
+            ", ".join(f"`{n}`" for n in sorted(hub_only_unused)), "",
+        ]
     if libref_unused:
         L += [
             "## Skills bibliothèque / référence", "",
@@ -1349,6 +1593,9 @@ def build_page(state: dict, fam: dict, todos: list, diag_todos: list = None, dia
         L.append(", ".join(f"`{k}` ×{v}" for k, v in sorted(openhub["par_agent"].items())))
         L.append("")
     L += ["## TODO agents (constats automatiques)", ""]
+    avert = avertissement_mesure(state)
+    if avert:
+        L += [avert, ""]
     if todos:
         L += [f"{i}. {t}" for i, t in enumerate(todos, 1)]
     else:
@@ -1484,10 +1731,13 @@ def build_html_section(state: dict, fam: dict, todos: list, diag_todos: list = N
     vus = set(skills) | set(derniers_usages(state))
     unused_by_family = {}
     libref_unused = []
+    hub_only_unused = []
     for name, family in fam.items():
         if name in vus:
             continue
-        if name in libref:
+        if name in HUB_ONLY_SKILLS:
+            hub_only_unused.append(name)
+        elif name in libref:
             libref_unused.append(name)
         else:
             unused_by_family.setdefault(family, []).append(name)
@@ -1503,6 +1753,13 @@ def build_html_section(state: dict, fam: dict, todos: list, diag_todos: list = N
         unused_html.append(
             f"      <p><strong>{family}</strong> — {len(names)}/{total_family} jamais invoqués : {listing}</p>"
         )
+    if hub_only_unused:
+        listing = ", ".join(f"<code>{_esc(n)}</code>" for n in sorted(hub_only_unused))
+        unused_html.append(
+            "      <p><strong>hub-only</strong> — s'invoquent depuis le hub de "
+            "supervision en ciblant ce projet, jamais depuis ce dépôt : n=0 est ici "
+            f"le fonctionnement nominal, pas un défaut d'usage : {listing}</p>"
+        )
     if libref_unused:
         listing = ", ".join(f"<code>{_esc(n)}</code>" for n in sorted(libref_unused))
         unused_html.append(
@@ -1510,6 +1767,9 @@ def build_html_section(state: dict, fam: dict, todos: list, diag_todos: list = N
             f"non capté par le compteur (n=0 ≠ mort, constat #2) : {listing}</p>"
         )
     todo_html = []
+    avert = avertissement_mesure(state)
+    if avert:
+        todo_html.append(f'      <p class="avertissement"><em>{_md_inline(avert)}</em></p>')
     for t in todos:
         todo_html.append(
             '      <div class="critical">\n'
@@ -1654,8 +1914,13 @@ def update_wiki_html(state: dict, fam: dict, todos: list, diag_todos: list = Non
     return True
 
 
-def update_index(todos: list) -> None:
+def update_index(todos: list, avertissement: str = "") -> None:
+    """`avertissement` : la ligne « mesure incomplète » d'`avertissement_mesure()`,
+    reprise ICI aussi — l'index est la première page lue, et un extrait de trois
+    constats y est plus exposé encore que la page complète."""
     bullets = "\n".join(f"- {t}" for t in todos[:3]) or "- _(aucun constat automatique)_"
+    if avertissement:
+        bullets = f"{avertissement}\n\n{bullets}"
     block = (
         f"{MARK_START} — section générée par .claude/supervision/scan_transcripts.py, ne pas éditer à la main -->\n"
         "## TODO agents 🤖\n"
@@ -1821,6 +2086,56 @@ def commits_non_journalises():
     return commits
 
 
+def commits_non_pousses():
+    """Commits locaux jamais poussés sur la branche amont — signale un correctif
+    réel (ex. un CSRF ou un DoS corrigé et vérifié) resté invisible hors du poste
+    qui l'a produit, tant qu'il n'est pas poussé (finding
+    `flotte:commits-jamais-pousses`, 2026-09-04 : 36 commits non poussés mesurés
+    sur les 6 dépôts de la flotte, dont deux correctifs de sécurité du jour même).
+
+    Dénominateur : `git log <amont>..HEAD` si un amont est configuré (`@{u}`),
+    sinon liste vide (fail-open — poste sans remote suivi, ou premier commit
+    d'une branche encore non poussée : pas une faute à signaler).
+
+    Volontairement un simple compteur informatif, jamais un déclencheur qui
+    pousserait à la place de l'utilisateur : `git push` reste hors de
+    l'allowlist du dispositif par choix délibéré (arbitrage
+    `VScode5:allowlist-permissions-inoperante`, 2026-09-04) — la friction sur ce
+    geste est le prix de la revue humaine avant publication, pas un défaut à
+    corriger en l'automatisant."""
+    try:
+        amont = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+            cwd=REPO, capture_output=True, text=True, encoding="utf-8",
+            errors="replace", timeout=10)
+    except Exception:
+        return []
+    if amont.returncode != 0:
+        return []
+    ref_amont = amont.stdout.strip()
+    if not ref_amont:
+        return []
+    try:
+        res = subprocess.run(
+            ["git", "log", f"{ref_amont}..HEAD", "--format=%h|%s"],
+            cwd=REPO, capture_output=True, text=True, encoding="utf-8",
+            errors="replace", timeout=10)
+    except Exception:
+        return []
+    if res.returncode != 0:
+        return []
+    commits = []
+    for ligne in res.stdout.splitlines():
+        parts = ligne.split("|", 1)
+        if len(parts) == 2:
+            hash_, sujet = parts
+            commits.append({
+                "hash": hash_,
+                "sujet": sujet.encode("ascii", "replace").decode("ascii"),
+            })
+    return commits
+
+
 def main(argv) -> int:
     state = {} if "--full" in argv else load_state()
     new_events = scan(state)
@@ -1866,7 +2181,7 @@ def main(argv) -> int:
                               diagnostic_ran, masques)
     with open(WIKI_PAGE, "w", encoding="utf-8") as fh:
         fh.write(contenu_page)
-    update_index(todos)
+    update_index(todos, avertissement_mesure(state))
     html_ok = update_wiki_html(state, fam, todos, diag_todos, diag_a_jour, openhub, arbitrages,
                                diagnostic_ran, masques)
     missing = state.get("transcript_dir_missing")
@@ -1944,6 +2259,13 @@ def main(argv) -> int:
         print(f"  {len(commits_non_journalises_)} commit(s) depuis le dernier run "
               f"journalise ({apercu}{suite}) - verifier qu'aucune demande ne s'y "
               "est perdue sans run ni arbitrage.")
+    commits_non_pousses_ = commits_non_pousses()
+    if commits_non_pousses_:
+        apercu = ", ".join(f"{c['hash']} {c['sujet']}" for c in commits_non_pousses_[:3])
+        suite = "..." if len(commits_non_pousses_) > 3 else ""
+        print(f"  {len(commits_non_pousses_)} commit(s) local(-aux) jamais pousse(s) "
+              f"({apercu}{suite}) - git push reste hors allowlist (choix delibere), "
+              "a valider par vous.")
     return 0
 
 
