@@ -65,21 +65,20 @@ references, pas duplique en substance.
   existant, et n'ont ni checklist anti-slop ni notion de score. Complementaires,
   pas redondants : `revue-ui-web` audite ce qui EST livre, `ui-designer`/
   `ux-designer` cadrent ce qui va etre construit.
-- **Constat mesure, pas suppose** : `resultats.html` a trois elements de
-  divulgation ("repli") — `<h2 id="comparaisonTitre" class="repli-toggle">`
-  (ligne 154), `<h2 id="participantsTitre" class="repli-toggle">` (ligne 177),
-  et les `<h2 class="repli-toggle">` generes dynamiquement pour "Points
-  d'attention"/"Points forts" (lignes 494, 524) — plus les `.pilier-entete`
-  (ligne 764, `<div class="pilier-entete" data-pilier="...">`). Aucun de ces
-  elements n'a `role="button"`, `tabindex`, ni `aria-expanded` (grep cible sur
-  `aria-|role=|tabindex` : zero occurrence sur ces lignes). Ce sont des `<h2>`
-  et des `<div>` rendus cliquables par CSS (`cursor: pointer`) et un
-  gestionnaire JS (`attacherRepli`), donc probablement inatteignables au
-  clavier — regle `accessibilite.md` "tout ce qui est cliquable doit etre
-  `<button>` natif ou porter `role=button`+`tabindex=0`+gestion clavier". A
-  CONFIRMER au rendu reel (le comportement clavier depend de `attacherRepli`,
-  fonction JS non lue integralement) — pas affirme comme bug ferme ici, cite
-  comme le premier candidat que la revue doit trancher.
+- **Constat PROUVE par execution le 2026-09-08** (premier passage de cette skill) :
+  les accordeons de `resultats.html` sont inatteignables au clavier. Trois
+  implementations distinctes partagent le defaut — `attacherRepli` (lignes 284-291,
+  un seul `addEventListener('click')`, aucun `keydown`), le handler de
+  `.pilier-entete` (lignes 822-826) et celui de `.lien-detail` (lignes 831-833).
+  Mesure : un balayage de 40 `Tab` depuis `<body>` ne s'arrete jamais sur ces
+  elements (il ne visite que 6 controles reels), `focus()` programmatique est
+  refuse faute de `tabindex`, et `Enter` ne change pas l'etat du repli. Mitigation
+  partielle reelle : le bouton « Tout deplier » (ligne 141) EST accessible, donc
+  le contenu reste atteignable — mais sans controle section par section.
+  Correction a faire en une passe commune (les 3 handlers se factorisent) :
+  `<button>` natif ou `role=button` + `tabindex=0` + `keydown` Enter/Espace, plus
+  `aria-expanded`/`aria-controls`. Non applique : R4, la correction est un run
+  distinct a arbitrer.
 - `.points-attention h3` (`resultats.html` ligne 43) et `.points-forts h3`
   (ligne 53) sont en `text-transform: uppercase` a `font-size: 0.9rem` (~14.4px)
   — AU-DESSUS du seuil de 13px que la regle 5 (`uppercase-heading`) tolere
@@ -94,15 +93,29 @@ references, pas duplique en substance.
 1. **Cadrer le perimetre** — une page, ou l'app entiere (6 pages seulement,
    une revue complete reste bon marche ici contrairement a VSCode2).
 2. **Voir le rendu reel** — `npm run start:dev` (http://localhost:3000,
-   commande deja documentee dans `CLAUDE.md`) et ouvrir la page concernee. Si
-   aucune capture visuelle n'est possible dans la session, le dire
-   explicitement dans le rapport plutot que juger sur le code seul.
+   commande deja documentee dans `CLAUDE.md`). **Une capture EST possible dans ce
+   depot** : `puppeteer-core` est dans les devDependencies de `app/` et Chrome est
+   installe sur le poste (`C:/Program Files/Google/Chrome/Application/chrome.exe`) —
+   voir `scripts/capture-screenshots.js`. Capturer la page en pleine hauteur plutot
+   que juger sur le code : c'est ce qui a confirme, au premier passage du
+   2026-09-08, les majuscules a 14,4px que la lecture CSS seule laissait en doute.
+   Une page vide ne prouve rien : la base de dev (`app/data/dev/app.db`) doit etre
+   peuplee — `scripts/seed-demo.js` si besoin, ou reutiliser une session existante.
+   A defaut de capture, le dire explicitement dans le rapport.
+   Arreter le serveur a la fin par l'ARBRE de processus
+   (`taskkill //PID <pid> //F //T`) : un `kill` simple laisse le vrai serveur
+   orphelin derriere le shim npm.
 3. **Anti-slop** — passer `references/anti-slop-43.md` sur la page ET son
    bloc `<style>` local (pas de CSS partage a auditer une seule fois : chaque
    page se revoit integralement).
-4. **Accessibilite** — passer `references/accessibilite.md`, avec un point
-   d'entree systematique sur les elements `repli-toggle`/`pilier-entete`
-   (clavier) tant que le constat ci-dessus n'est pas tranche.
+4. **Accessibilite** — passer `references/accessibilite.md`. Le clavier se
+   **teste par execution, jamais par lecture** : piloter la page (Puppeteer,
+   cf. etape 2) pour balayer une trentaine de `Tab` depuis `<body>` et relever
+   les elements reellement atteints, puis tenter `focus()` et `Enter` sur les
+   zones cliquables suspectes. Un `grep` sur `tabindex|role=` dit ce qui est
+   ecrit ; seul le balayage dit ce que le navigateur fait — c'est ce qui a
+   tranche le cas `attacherRepli` en quelques lignes la ou la lecture de
+   fonction laissait un doute.
 5. **Heuristiques** — noter avec `references/heuristiques-nielsen.md`,
    produire le `UsabilityScore (judged)`.
 6. **Rapport** — format Craft Report (Verifie / Passe / Recommande / Verdict).
