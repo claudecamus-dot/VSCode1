@@ -14,8 +14,23 @@
 
   // (1) Mode demo : rappelle qu'on manipule des donnees fictives, avec un lien pour
   // changer de mode (retour a la page d'accueil). Texte fonce sur cyan (contraste AA).
+  // Meme garde que src/mode.js cote serveur, pour la meme raison : un cookie
+  // `mode` malforme (`mode=%`) fait lever decodeURIComponent. Ici la levee est
+  // dans une IIFE qui s'execute sur TOUTES les pages : elle emportait aussi le
+  // bandeau d'environnement (2) plus bas, jamais atteint. Trouve en passe
+  // adversariale du correctif serveur (audit-technique 2026-09-09) : la garde
+  // posee dans mode.js ne valait rien tant que le meme decodage restait nu sur
+  // l'autre chemin de lecture du meme cookie.
   const m = /(?:^|;\s*)mode=([^;]+)/.exec(document.cookie || '');
-  if (m && decodeURIComponent(m[1]) === 'demo') {
+  let modeCourant = null;
+  if (m) {
+    try {
+      modeCourant = decodeURIComponent(m[1]);
+    } catch {
+      modeCourant = null; // cookie illisible = mode par defaut (reel), pas de bandeau
+    }
+  }
+  if (modeCourant === 'demo') {
     bandeau(
       'MODE DÉMO — données fictives · <a href="/" style="color:inherit;text-decoration:underline">changer de mode</a>',
       '#00a3e0', '#14233b', true

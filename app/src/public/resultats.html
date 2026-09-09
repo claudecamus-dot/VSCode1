@@ -463,7 +463,16 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ equipe, texte: $('commentaire').value }),
         });
-        $('etatCommentaire').textContent = res.ok ? 'Enregistré ✓' : "Échec de l'enregistrement";
+        // Le serveur borne desormais la longueur du commentaire (400 au-dela,
+        // audit-technique 2026-09-09) : sans reprendre son message, l'animateur
+        // ne verrait qu'un « Échec de l'enregistrement » muet et retenterait
+        // indefiniment le meme texte trop long.
+        if (res.ok) {
+          $('etatCommentaire').textContent = 'Enregistré ✓';
+        } else {
+          const { error } = await res.json().catch(() => ({}));
+          $('etatCommentaire').textContent = error ? `Échec de l'enregistrement : ${error}` : "Échec de l'enregistrement";
+        }
       } catch (err) {
         // Sans ce catch, un fetch() qui rejette (reseau coupe) laissait le
         // libelle bloque sur "Enregistrement…" indefiniment — silencieux, et
@@ -756,6 +765,24 @@
     // --- Accordéon pilier > sous-catégorie > question ---
 
     function rendrePiliers(piliers) {
+      // COUT RESIDUEL CONNU, MESURE le 2026-09-09 (constat performance
+      // « ameliore mais pas resolu » : le correctif du 09/09 a preserve l'etat
+      // des accordeons, pas supprime le rebuild). Sur un referentiel de
+      // 6 piliers x 3 objectifs x 4 questions (72 questions) et un effectif de
+      // 8, un seul rebuild serialise 212 802 caracteres / 2 898 elements, fait
+      // 4 parcours de document complet et 78 rattachements d'ecouteurs.
+      // Le meme rendu SANS le detail nominatif : 49 866 caracteres /
+      // 666 elements — le detail nominatif pese donc 77 % du cout.
+      // Autrement dit, la vraie sortie de ce constat n'est pas un rendu
+      // incrementiel (registre de noeuds par pIndex-scIndex-qIndex, chemin de
+      // construction ET chemin de mise a jour, regle d'invalidation : bien
+      // au-dela d'un correctif court, et sans couverture automatisee possible
+      // avec l'outillage de test actuel) mais le chargement A LA DEMANDE du
+      // detail nominatif — exactement le correctif de fond qui attend un
+      // arbitrage utilisateur (cf. commentaire ligne 297 et suivantes).
+      // Ne pas « optimiser » ce rebuild avant cet arbitrage : les deux
+      // chantiers touchent le meme bloc.
+      //
       // Preserve les accordeons ouverts (pilier + detail nominatif) a travers le
       // rebuild complet du innerHTML ci-dessous (constat audit-technique
       // 2026-09-04) : sans ca, changer le filtre "avec/sans manager" ou

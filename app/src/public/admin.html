@@ -86,9 +86,9 @@
     </ul>
     <p>Entrez l'identifiant d'une session pour activer les écrans liés à cette session et ouvrir directement :</p>
     <div class="session-links">
-      <a id="infoLienRepondre" class="session-link disabled" href="#" target="_blank">Ouvrir le questionnaire</a>
-      <a id="infoLienResultats" class="session-link disabled" href="#" target="_blank">Ouvrir les résultats</a>
-      <a id="infoLienPilotage" class="session-link disabled" href="#" target="_blank">Ouvrir le pilotage</a>
+      <a id="infoLienRepondre" class="session-link disabled" href="#" target="_blank" rel="noopener noreferrer">Ouvrir le questionnaire</a>
+      <a id="infoLienResultats" class="session-link disabled" href="#" target="_blank" rel="noopener noreferrer">Ouvrir les résultats</a>
+      <a id="infoLienPilotage" class="session-link disabled" href="#" target="_blank" rel="noopener noreferrer">Ouvrir le pilotage</a>
     </div>
     <label for="infoSessionId">Sélectionner une session</label>
     <select id="infoSessionId" class="session-select"></select>
@@ -378,8 +378,25 @@
         },
       };
 
-      const invitation = JSON.parse(localStorage.getItem('templateInvitation') || 'null');
-      const rappel = JSON.parse(localStorage.getItem('templateRappel') || 'null');
+      // localStorage illisible -- JSON tronque par un quota atteint, ecriture
+      // concurrente d'un autre onglet, valeur posee a la main, stockage
+      // desactive (navigation privee : getItem lui-meme leve) : ces deux
+      // JSON.parse etaient NUS et chargerTemplates() est la premiere
+      // instruction executee du script inline. La levee arretait donc TOUT le
+      // script -- import du referentiel, sessions, roles, invites, onglets --
+      // pas seulement les modeles d'email (audit-technique 2026-09-09).
+      // Un modele illisible retombe sur le modele par defaut, exactement ce que
+      // `|| 'null'` fait deja pour une cle absente.
+      const lireModele = (cle) => {
+        try {
+          return JSON.parse(localStorage.getItem(cle) || 'null');
+        } catch (err) {
+          console.warn(`Modele « ${cle} » illisible dans localStorage : modele par defaut applique.`, err);
+          return null;
+        }
+      };
+      const invitation = lireModele('templateInvitation');
+      const rappel = lireModele('templateRappel');
       $('sujetInvitation').value = invitation?.sujet || defaults.invitation.sujet;
       $('contenuInvitation').value = invitation?.corps || defaults.invitation.corps;
       $('sujetRappel').value = rappel?.sujet || defaults.rappel.sujet;
@@ -387,8 +404,19 @@
     }
 
     function sauvegarderTemplates() {
-      localStorage.setItem('templateInvitation', JSON.stringify({ sujet: $('sujetInvitation').value, corps: $('contenuInvitation').value }));
-      localStorage.setItem('templateRappel', JSON.stringify({ sujet: $('sujetRappel').value, corps: $('contenuRappel').value }));
+      // setItem leve aussi bien que getItem (quota atteint, stockage desactive) :
+      // la levee sautait par-dessus le message de confirmation, l'animateur
+      // voyait donc... rien du tout, et croyait avoir sauvegarde. Symetrique de
+      // la garde de lecture ci-dessus (audit-technique 2026-09-09, passe
+      // adversariale).
+      try {
+        localStorage.setItem('templateInvitation', JSON.stringify({ sujet: $('sujetInvitation').value, corps: $('contenuInvitation').value }));
+        localStorage.setItem('templateRappel', JSON.stringify({ sujet: $('sujetRappel').value, corps: $('contenuRappel').value }));
+      } catch (err) {
+        console.warn('Sauvegarde des modeles impossible (stockage du navigateur indisponible).', err);
+        $('resultatTemplates').innerHTML = '<div class="result err">Modèles non sauvegardés : le stockage du navigateur est indisponible (navigation privée ou quota atteint).</div>';
+        return;
+      }
       $('resultatTemplates').innerHTML = '<div class="result ok">Modèles sauvegardés.</div>';
     }
 
@@ -504,7 +532,14 @@
       if (!sessionId) return;
       const statut = $('statutSessionResultats');
       statut.textContent = `Ouverture de la session ${sessionId.slice(0, 8)}`;
-      window.open(`${window.location.origin}/resultats.html?session=${encodeURIComponent(sessionId)}`, '_blank');
+      // `noopener,noreferrer` : sans lui, window.open rend un onglet qui garde
+      // `window.opener` sur la console animateur (tabnabbing) et emet l'URL de
+      // session en Referer -- exactement ce que rel="noopener noreferrer"
+      // empeche sur les 3 liens de la fiche session. Trouve en passe
+      // adversariale du correctif de ces liens (audit-technique 2026-09-09) :
+      // proteger le HTML et laisser ce window.open nu, c'etait une garde de
+      // facade sur la MEME page et le MEME genre d'URL.
+      window.open(`${window.location.origin}/resultats.html?session=${encodeURIComponent(sessionId)}`, '_blank', 'noopener,noreferrer');
     });
 
     async function chargerSessionsInfo() {

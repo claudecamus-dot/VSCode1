@@ -684,6 +684,15 @@ app.get('/api/sessions/:id/participation', (req, res) => {
 
 // Commentaire libre de restitution par equipe (US6.3) : saisi en preview,
 // restitue a l'ecran (et plus tard dans l'export PPT, US6.4).
+//
+// Borne de longueur cote SERVEUR. Seul le TYPE du champ etait valide
+// (audit-technique 2026-09-09) : un client posait un texte de plusieurs
+// megaoctets, stocke tel quel, puis rendu dans l'ecran de restitution ET repris
+// par la geometrie du .pptx d'export, ou il n'a aucune place. Aucune borne cote
+// navigateur non plus (pas de maxlength sur le <textarea>), donc rien n'arretait
+// le cas. 5000 caracteres : tres au-dela d'un commentaire de restitution reel
+// (quelques lignes par equipe) et tres en deca de ce qui deforme l'export.
+const LONGUEUR_MAX_COMMENTAIRE = 5000;
 app.get('/api/sessions/:id/commentaire', (req, res) => {
   const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session inconnue.' });
@@ -700,6 +709,13 @@ app.put('/api/sessions/:id/commentaire', (req, res) => {
   if (!equipe || typeof equipe !== 'string') return res.status(400).json({ error: "Le champ 'equipe' est requis." });
   if (texte !== undefined && typeof texte !== 'string') {
     return res.status(400).json({ error: 'texte doit etre une chaine de caracteres.' });
+  }
+  // Borne mesuree sur la chaine RECUE, pas sur sa version trimmee : sinon
+  // 2 Mo d'espaces traversent la borne avant d'etre reduits a rien.
+  if (typeof texte === 'string' && texte.length > LONGUEUR_MAX_COMMENTAIRE) {
+    return res.status(400).json({
+      error: `Le commentaire de restitution est limite a ${LONGUEUR_MAX_COMMENTAIRE} caracteres (${texte.length} recus).`,
+    });
   }
   const valeur = (texte || '').trim();
   if (valeur === '') {
@@ -1157,11 +1173,31 @@ app.use((err, req, res, _next) => {
   console.error('[erreur non geree]', req.method, req.originalUrl, err && err.stack ? err.stack : err);
   if (res.headersSent) return;
   const trop_gros = err && err.code === 'LIMIT_FILE_SIZE';
-  res.status(trop_gros ? 413 : 500).json({
-    error: trop_gros
-      ? 'Fichier trop volumineux (10 Mo maximum).'
-      : 'Erreur interne du serveur. Si elle persiste, prevenez l\'exploitant.',
-  });
+  if (trop_gros) {
+    return res.status(413).json({ error: 'Fichier trop volumineux (10 Mo maximum).' });
+  }
+  // Erreur CLIENTE qui porte deja son propre statut. body-parser (express.json)
+  // en pose deux, tous deux `expose: true` : 413 « entity.too.large » au-dela de
+  // sa limite (100 ko par defaut) et 400 sur un JSON malforme. Sans ce relais,
+  // les deux arrivaient au client en 500 « erreur interne du serveur » --
+  // trompeur (c'est la requete qui est fautive, pas le serveur) et, surtout,
+  // CONTOURNANT : la borne de longueur du commentaire de restitution (400
+  // au-dela de 5000 caracteres) n'est jamais atteinte pour un corps de plus de
+  // 100 ko, et le meme envoi abusif ressortait donc en 500 (mesure le
+  // 2026-09-09 par le test test-robustesse-http.js, sur le correctif de borne
+  // lui-meme). On ne relaie QUE des statuts 4xx explicitement exposables : une
+  // erreur interne reste un 500 opaque, sans fuite de detail.
+  const statutClient = err && err.expose === true && Number.isInteger(err.status) && err.status >= 400 && err.status < 500
+    ? err.status
+    : null;
+  if (statutClient !== null) {
+    return res.status(statutClient).json({
+      error: statutClient === 413
+        ? 'Corps de requete trop volumineux.'
+        : 'Corps de requete illisible (JSON attendu).',
+    });
+  }
+  res.status(500).json({ error: 'Erreur interne du serveur. Si elle persiste, prevenez l\'exploitant.' });
 });
 
 const port = process.env.PORT || 3000;

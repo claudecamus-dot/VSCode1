@@ -97,6 +97,29 @@
     // "Copier mon lien" une fois identifie.
     const ridUrl = parametresUrl.get('rid');
 
+    // Acces a localStorage qui ne peut pas emporter la page. Le commentaire
+    // ci-dessus annonce deja que localStorage se vide « nouvel appareil, cache
+    // efface, navigation privee » -- mais dans le cas « stockage refuse »
+    // (navigation privee de certains navigateurs, blocage par politique
+    // d'entreprise), getItem/setItem ne rendent pas null : ils LEVENT. La levee
+    // partait de init(), en amont de tout, et emportait le questionnaire entier
+    // -- y compris quand ?rid= dans l'URL suffisait a repartir. Trouve en passe
+    // adversariale du correctif localStorage d'admin.html (audit-technique
+    // 2026-09-09). Le stockage est ici un CONFORT (l'URL est le canal qui fait
+    // foi) : son indisponibilite doit couter le confort, pas la page.
+    const stockage = {
+      lire(cle) {
+        try { return localStorage.getItem(cle); } catch { return null; }
+      },
+      ecrire(cle, valeur) {
+        try { localStorage.setItem(cle, valeur); } catch { /* confort indisponible */ }
+      },
+      effacer(cle) {
+        try { localStorage.removeItem(cle); } catch { /* confort indisponible */ }
+      },
+    };
+
+
     // Pose ?rid=<id> dans la barre d'adresse SANS recharger la page, pour que
     // l'URL affichee soit elle-meme le lien a mettre en favori.
     function fixerRidDansUrl(repondantId) {
@@ -151,7 +174,7 @@
 
       // ?rid= prioritaire sur localStorage : c'est le canal qui survit a un
       // changement d'appareil ou un cache vide.
-      const repondantId = ridUrl || localStorage.getItem(storageKey);
+      const repondantId = ridUrl || stockage.lire(storageKey);
       if (repondantId) {
         const ok = await chargerRepondant(repondantId);
         if (ok) return;
@@ -160,13 +183,22 @@
     }
 
     async function afficherFormulaireIdentification() {
-      const roles = await (await fetch('/api/roles')).json();
+      // 3 appels INDEPENDANTS (endpoints distincts, aucune donnee de l'un ne
+      // sert a l'autre) : ils partaient strictement en serie, donc le formulaire
+      // d'identification attendait la SOMME des trois allers-retours au lieu du
+      // plus long (constat performance audit-technique 2026-09-09). Meme motif
+      // que resultats.html:256 et 400, applique ici sur le parcours REPONDANT --
+      // celui qu'ouvrent toutes les personnes invitees, pas seulement
+      // l'animateur.
+      const [roles, departements, equipes] = await Promise.all([
+        fetch('/api/roles').then((r) => r.json()),
+        fetch('/api/departements').then((r) => r.json()),
+        fetch('/api/equipes').then((r) => r.json()),
+      ]);
+
       const selectRole = $('role');
       selectRole.innerHTML = roles.map((r) => `<option value="${esc(r)}">${esc(r)}</option>`).join('');
-
-      const departements = await (await fetch('/api/departements')).json();
       $('suggestionsDepartement').innerHTML = departements.map((d) => `<option value="${esc(d)}"></option>`).join('');
-      const equipes = await (await fetch('/api/equipes')).json();
       $('suggestionsEquipe').innerHTML = equipes.map((e) => `<option value="${esc(e)}"></option>`).join('');
 
       $('formIdentification').classList.remove('hidden');
@@ -202,7 +234,7 @@
     async function chargerRepondant(repondantId) {
       const res = await fetch(`/api/repondants/${repondantId}`);
       if (!res.ok) {
-        localStorage.removeItem(storageKey);
+        stockage.effacer(storageKey);
         return false;
       }
       repondant = await res.json();
@@ -212,10 +244,10 @@
       // melanges chargerait de vraies reponses sous le referentiel d'une AUTRE
       // session, jamais verifie jusqu'ici.
       if (repondant.session_id !== sessionId) {
-        localStorage.removeItem(storageKey);
+        stockage.effacer(storageKey);
         return false;
       }
-      localStorage.setItem(storageKey, repondantId);
+      stockage.ecrire(storageKey, repondantId);
       fixerRidDansUrl(repondantId);
       reponsesEnCours = {};
       for (const r of repondant.reponses) reponsesEnCours[r.question_id] = r.niveau;

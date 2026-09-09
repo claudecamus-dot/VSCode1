@@ -1,6 +1,7 @@
 const ExcelJS = require('exceljs');
 const db = require('./db');
 const { corrigerReferentiel } = require('./correcteur');
+const { annulerTransaction } = require('./tx');
 
 function cellText(cell) {
   if (cell === null || cell === undefined) return null;
@@ -231,7 +232,12 @@ function reconcileReferentiel(piliers) {
     db.exec('COMMIT');
     return archivees;
   } catch (err) {
-    db.exec('ROLLBACK');
+    // ROLLBACK protege (motif de tx.js, annulerTransaction) : SQLite annule
+    // lui-meme la transaction sur les erreurs les plus graves (disque plein,
+    // E/S), le ROLLBACK leve alors « cannot rollback - no transaction is
+    // active » et cette erreur-la REMPLACAIT la cause reelle -- sur les deux
+    // gestes les plus destructifs du produit (audit-technique 2026-09-09).
+    annulerTransaction(err);
     throw err;
   }
 }
@@ -264,7 +270,12 @@ function remplacerTout(piliers) {
     db.exec('COMMIT');
     return archivees;
   } catch (err) {
-    db.exec('ROLLBACK');
+    // ROLLBACK protege (motif de tx.js, annulerTransaction) : SQLite annule
+    // lui-meme la transaction sur les erreurs les plus graves (disque plein,
+    // E/S), le ROLLBACK leve alors « cannot rollback - no transaction is
+    // active » et cette erreur-la REMPLACAIT la cause reelle -- sur les deux
+    // gestes les plus destructifs du produit (audit-technique 2026-09-09).
+    annulerTransaction(err);
     throw err;
   }
 }

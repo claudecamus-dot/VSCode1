@@ -8,10 +8,32 @@ const db = require('./db');
 // persistees avant le 400 qui rejette la suivante, liste d'invites detruite
 // avant d'etre reecrite, session creee sans son perimetre).
 //
+// ROLLBACK qui ne peut pas ECRASER la cause reelle.
+//
+// SQLite annule LUI-MEME la transaction sur les erreurs les plus graves (disque
+// plein, erreur d'E/S) : le ROLLBACK leve alors « cannot rollback - no
+// transaction is active » et, non protege, cette erreur-la REMPLACE la cause
+// d'origine. On perd le diagnostic exactement dans le cas ou il compte.
+//
+// Extrait de `enTransaction` le 2026-09-09 (audit-technique) pour que
+// referentiel.js — qui gere ses deux transactions destructives en direct —
+// applique le MEME motif au lieu d'un `db.exec('ROLLBACK')` nu, au lieu d'en
+// recopier une variante qui derivera.
+//
+// N'avale rien et ne relance rien : l'appelant garde la responsabilite du
+// `throw err`, donc la pile d'origine.
+function annulerTransaction(err) {
+  try {
+    db.exec('ROLLBACK');
+  } catch (errRollback) {
+    if (err instanceof Error && err.cause === undefined) err.cause = errRollback;
+  }
+}
+
 // SQLite ne connait pas les transactions imbriquees : un `BEGIN` a l'interieur
 // d'un autre echoue. Ne pas appeler `enTransaction` depuis une fonction deja
 // appelee dans une transaction (referentiel.js gere les siennes en direct, avec
-// la meme forme BEGIN / COMMIT / ROLLBACK).
+// la meme forme BEGIN / COMMIT / annulerTransaction).
 function enTransaction(fn) {
   db.exec('BEGIN');
   try {
@@ -28,17 +50,9 @@ function enTransaction(fn) {
     db.exec('COMMIT');
     return resultat;
   } catch (err) {
-    // SQLite annule LUI-MEME la transaction sur les erreurs les plus graves
-    // (disque plein, erreur d'E/S) : le ROLLBACK leve alors « cannot rollback -
-    // no transaction is active » et, non protege, cette erreur-la REMPLACAIT la
-    // cause reelle. On perdait le diagnostic exactement dans le cas ou il compte.
-    try {
-      db.exec('ROLLBACK');
-    } catch (errRollback) {
-      if (err instanceof Error && err.cause === undefined) err.cause = errRollback;
-    }
+    annulerTransaction(err);
     throw err;
   }
 }
 
-module.exports = { enTransaction };
+module.exports = { enTransaction, annulerTransaction };
