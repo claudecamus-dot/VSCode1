@@ -54,6 +54,29 @@ if _ECHELLE_POLICE != 1.0:
 # CETTE reduction (arbitrage utilisateur) meme apres l'abandon de la reduction globale.
 TITRE_SLIDE_PT = 24.0
 
+# Garde-fou longueur (item 4, audit-technique 2026-09-04) : le titre de slide
+# inclut bloc['nom'] (nom d'equipe/departement, saisi librement a
+# l'identification — app/src/server.js POST /api/sessions/:id/repondants) et le
+# commentaire de restitution est un texte libre saisi par l'animateur
+# (app/src/public/resultats.html), ni l'un ni l'autre borne en longueur en
+# amont. Sans troncature, une saisie anormalement longue deborde le
+# placeholder de titre ou le callout "commentaire" hors de la zone prevue de
+# la slide (PPT visuellement casse) plutot que de planter — verifier_geometrie
+# et verifier_debordements_texte (pptx_deck.py) ne l'attrapent pas : le
+# premier ne mesure que les BORDS des formes (le placeholder de titre garde sa
+# taille XML fixe quel que soit le texte dedans), le second exclut
+# explicitement les placeholders de son controle. D'ou la troncature
+# (ellipse + avertissement stderr) ci-dessous, en dernier recours ; jamais
+# visible sur une saisie de longueur normale.
+MAX_LIGNES_COMMENTAIRE = 14
+# Titre : un cap en CARACTERES (pas en lignes estimees) — la calibration
+# cpi_ref/taille_ref de pptx_deck.estimer_lignes est etablie pour le corps de
+# texte (~10.5pt), pas verifiee pour un titre a 24pt ; l'appliquer telle
+# quelle ici tronquait des titres deja usuels (~45-55 caracteres, jamais en
+# probleme de geometrie) bien avant toute vraie saisie anormale. Ce cap large
+# ne mord donc que sur l'extreme (nom d'equipe/departement demesure).
+MAX_CARACTERES_TITRE = 90
+
 TEMPLATE = os.path.join(os.path.dirname(__file__), "..", "..", "template ppt", "template.pptx")
 # Layouts repérés par NOM (robuste si on fournit un autre template dont l'ordre
 # des layouts diffère), avec repli sur l'indice du template OCTO d'origine.
@@ -159,6 +182,20 @@ def _trouver_layout(layouts, patterns, defaut_idx):
 
 
 def titre_slide(prs, layouts, texte):
+    # Garde-fou longueur (voir MAX_CARACTERES_TITRE ci-dessus) : `texte` inclut
+    # souvent bloc['nom'], sans limite de longueur en amont. Troncature (ellipse
+    # sur le dernier espace, meme mecanique que D.tronquer_a_lignes) plutot que
+    # de laisser un nom demesure deborder du placeholder de titre.
+    if len(texte) > MAX_CARACTERES_TITRE:
+        coupe = texte[:MAX_CARACTERES_TITRE].rstrip()
+        dernier_espace = coupe.rfind(" ")
+        if dernier_espace > MAX_CARACTERES_TITRE * 0.6:
+            coupe = coupe[:dernier_espace]
+        texte_tronque = coupe.rstrip(" ,;:.") + "…"
+        print(f"AVERTISSEMENT export-restitution-ppt : titre de slide tronque "
+              f"({len(texte)} -> {len(texte_tronque)} caracteres) : {texte_tronque!r}",
+              file=sys.stderr)
+        texte = texte_tronque
     slide = prs.slides.add_slide(_trouver_layout(layouts, TITRE_PATTERNS, LAYOUT_TITRE_SEUL))
     for ph in slide.placeholders:
         if ph.placeholder_format.idx == 0:
@@ -633,6 +670,23 @@ def slide_progression(prs, layouts, bloc):
 
     # ---- Commentaire de restitution : callout pleine largeur, en haut ----
     txt_in = W - 0.52
+    # Garde-fou longueur (voir MAX_LIGNES_COMMENTAIRE en tete de fichier) :
+    # 1) borne d'abord le nombre de sauts de ligne bruts — un commentaire truffe
+    #    de "\n" (ex. lignes vides collees) resterait sous-tronque par la seule
+    #    troncature caractere de tronquer_a_lignes ci-dessous, qui ne fusionne
+    #    pas les paragraphes ; 2) tronquer_a_lignes borne ensuite la longueur
+    #    totale (le cas usuel : un seul tres long paragraphe).
+    lignes_brutes = commentaire.split("\n")
+    if len(lignes_brutes) > MAX_LIGNES_COMMENTAIRE:
+        commentaire = "\n".join(lignes_brutes[:MAX_LIGNES_COMMENTAIRE]).rstrip() + " …"
+    commentaire_tronque = D.tronquer_a_lignes(commentaire, txt_in, D.TYPE["small"], MAX_LIGNES_COMMENTAIRE,
+                                              cpi_ref=12.5, taille_ref=D.TYPE["small"])
+    if commentaire_tronque != commentaire or len(lignes_brutes) > MAX_LIGNES_COMMENTAIRE:
+        print(f"AVERTISSEMENT export-restitution-ppt : commentaire de restitution "
+              f"tronque a {MAX_LIGNES_COMMENTAIRE} lignes (equipe {bloc.get('nom')!r}, "
+              f"longueur d'origine {len(bloc.get('commentaire') or '')} caracteres).",
+              file=sys.stderr)
+    commentaire = commentaire_tronque
     h_comm = max(1.05, _hauteur_commentaire(commentaire, txt_in) + 0.22)
     top = CONTENU_TOP
     D.add_rect(slide, x, top, W, h_comm, fill=FOND_PANNEAU, line=D.LINE,

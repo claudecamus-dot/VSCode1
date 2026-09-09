@@ -3,40 +3,13 @@
 // test-reimport.js), puis le sollicite en HTTP reel — verification fonctionnelle
 // du livrable web, pas un mock. Aucun framework, assertions Node natives.
 const assert = require('node:assert/strict');
-const net = require('node:net');
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const { portLibre, attendreServeur, attendreMort, nettoyer } = require('./test-helpers-serveur');
 
 const DELAI_DEMARRAGE_MS = 15000;
-
-function portLibre() {
-  return new Promise((resolve, reject) => {
-    const srv = net.createServer();
-    srv.listen(0, '127.0.0.1', () => {
-      const { port } = srv.address();
-      srv.close(() => resolve(port));
-    });
-    srv.on('error', reject);
-  });
-}
-
-async function attendreServeur(base, delaiMs) {
-  const fin = Date.now() + delaiMs;
-  let derniereErreur = null;
-  while (Date.now() < fin) {
-    try {
-      const res = await fetch(`${base}/api/env`);
-      if (res.ok) return;
-      derniereErreur = new Error(`HTTP ${res.status} sur /api/env`);
-    } catch (err) {
-      derniereErreur = err;
-    }
-    await new Promise((r) => setTimeout(r, 250));
-  }
-  throw new Error(`Serveur injoignable apres ${delaiMs} ms : ${derniereErreur}`);
-}
 
 async function main() {
   const port = await portLibre();
@@ -80,9 +53,8 @@ async function main() {
     throw err;
   } finally {
     serveur.kill();
-    // Laisse le processus liberer la base avant le nettoyage (Windows verrouille).
-    await new Promise((r) => setTimeout(r, 300));
-    try { fs.rmSync(dossierTmp, { recursive: true, force: true }); } catch { /* nettoyage best-effort */ }
+    await attendreMort(serveur);
+    await nettoyer(dossierTmp);
   }
 }
 

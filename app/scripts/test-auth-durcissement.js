@@ -17,19 +17,16 @@
 // Le fail-closed integral a un revers a surveiller : tout asset statique non
 // liste est desormais ferme. Le parcours repondant (US10.5) est donc re-verifie
 // entree par entree, en unitaire ET sur les assets reels servis en HTTP.
-const net = require('node:net');
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const { portLibre, attendreServeur, attendreMort, nettoyer, USER, PASS, basic } = require('./test-helpers-serveur');
 
 const { estRepondant } = require('../src/auth');
 
 const DELAI_DEMARRAGE_MS = 15000;
 const DELAI_SORTIE_MS = 15000;
-const USER = 'animateur';
-const PASS = 'motdepasse-de-test';
-const basic = (u, p) => 'Basic ' + Buffer.from(`${u}:${p}`, 'utf8').toString('base64');
 const CHEMIN_SERVEUR = path.join(__dirname, '..', 'src', 'server.js');
 const UUID = '11111111-2222-3333-4444-555555555555';
 
@@ -41,56 +38,6 @@ function check(condition, message) {
     echecs += 1;
     console.error(`  FAIL ${message}`);
   }
-}
-
-function portLibre() {
-  return new Promise((resolve, reject) => {
-    const srv = net.createServer();
-    srv.listen(0, '127.0.0.1', () => {
-      const { port } = srv.address();
-      srv.close(() => resolve(port));
-    });
-    srv.on('error', reject);
-  });
-}
-
-async function attendreServeur(base, delaiMs) {
-  const fin = Date.now() + delaiMs;
-  let derniereErreur = null;
-  while (Date.now() < fin) {
-    try {
-      const res = await fetch(`${base}/api/env`); // route repondant : ouverte dans les 2 modes
-      if (res.ok) return;
-      derniereErreur = new Error(`HTTP ${res.status} sur /api/env`);
-    } catch (err) {
-      derniereErreur = err;
-    }
-    await new Promise((r) => setTimeout(r, 250));
-  }
-  throw new Error(`Serveur injoignable apres ${delaiMs} ms : ${derniereErreur}`);
-}
-
-// Windows garde le fichier de base verrouille tant que le processus enfant n'est
-// pas VRAIMENT mort : on attend son `exit` (avec repli sur un delai) puis on
-// reessaie la suppression, plutot que de laisser des bases temporaires derriere.
-function attendreMort(serveur, delaiMs = 5000) {
-  if (serveur.exitCode !== null || serveur.signalCode !== null) return Promise.resolve();
-  return new Promise((resolve) => {
-    const minuteur = setTimeout(resolve, delaiMs);
-    serveur.once('exit', () => { clearTimeout(minuteur); setTimeout(resolve, 100); });
-  });
-}
-
-async function nettoyer(dossier) {
-  for (let essai = 0; essai < 5; essai += 1) {
-    try {
-      fs.rmSync(dossier, { recursive: true, force: true });
-      return;
-    } catch {
-      await new Promise((r) => setTimeout(r, 200));
-    }
-  }
-  console.warn(`  info dossier temporaire non supprime : ${dossier}`);
 }
 
 async function avecServeur(envSupp, corps) {
@@ -196,6 +143,7 @@ const OUVERTS = [
   ['GET', '/repondre.html'],
   ['GET', '/maquette-question.html'],
   ['GET', '/env-banner.js'],
+  ['GET', '/esc.js'],
   ['GET', '/favicon.ico'],
   ['GET', '/api/env'],
   ['GET', '/api/roles'],
@@ -250,7 +198,7 @@ async function main() {
 
     // Fail-closed integral : les assets reellement servis au repondant restent
     // ouverts (c'est la branche fourre-tout supprimee qui les couvrait avant).
-    for (const chemin of ['/', '/index.html', '/repondre.html', '/env-banner.js']) {
+    for (const chemin of ['/', '/index.html', '/repondre.html', '/env-banner.js', '/esc.js']) {
       const r = await fetch(`${base}${chemin}`);
       check(r.status === 200, `asset repondant ${chemin} -> 200 sans identifiants (recu ${r.status})`);
     }

@@ -287,12 +287,20 @@ function estImportRemplacerEnCours() {
 
 // mode : 'conserver' (defaut, non destructif) ou 'remplacer' (purge totale).
 async function importFromBuffer(buffer, mode = 'conserver') {
-  const piliers = await parseWorkbook(buffer);
-  if (piliers.length === 0) {
-    throw new Error("Aucun pilier/objectif/question detecte dans le fichier. Verifiez le format attendu (lignes d'entete 'PILIER - OBJECTIF').");
-  }
+  // Verrou arme AVANT parseWorkbook (pas seulement autour de la correction) :
+  // trouve par revue adversariale du correctif initial (2026-09-04). Le test
+  // dedie utilise un classeur de 3 lignes, quasi instantane a parser -- mais un
+  // vrai referentiel volumineux fait reellement attendre `workbook.xlsx.load`
+  // (ExcelJS, I/O+CPU non trivial). Armer le verrou seulement apres laissait
+  // cette phase hors fenetre fermee : une soumission repondant y passait encore
+  // (200) avant d'etre effacee par remplacerTout, exactement le bug que ce
+  // verrou existe pour fermer. Desormais toute la fonction est sous try/finally.
   if (mode === 'remplacer') importsRemplacerEnCours += 1;
   try {
+    const piliers = await parseWorkbook(buffer);
+    if (piliers.length === 0) {
+      throw new Error("Aucun pilier/objectif/question detecte dans le fichier. Verifiez le format attendu (lignes d'entete 'PILIER - OBJECTIF').");
+    }
     // Le correcteur tourne dans un worker depuis le 2026-09-01 : il rend une COPIE
     // corrigee, il ne modifie plus `piliers` en place. Reaffecter, sinon la suite
     // travaille sur le texte non corrige.
@@ -313,31 +321,52 @@ async function importFromBuffer(buffer, mode = 'conserver') {
 // includeArchived=true sert au rendu d'une session existante, dont le perimetre
 // peut referencer des questions archivees lors d'un re-import ulterieur. Par
 // defaut, les entrees archivees sont masquees (creation de nouvelles sessions).
+// Fix N+1 (finding perf audit-technique 2026-09-04) : la version precedente
+// faisait 1 requete par pilier PUIS 1 par sous-categorie PUIS 1 par question
+// (1 + P + P*SC + P*SC*Q requetes) — appelee jusqu'a 5 fois par requete HTTP
+// via agregerResultats (server.js), une grille de taille normale (~5 piliers x
+// 3 sous-categories x 5 questions) generait plusieurs centaines de requetes
+// SQLite synchrones par page consultee. 4 requetes FIXES (une par table),
+// assemblage de l'arbre en memoire via des Map groupees par id parent — le
+// resultat rendu est identique (memes champs, meme ordre : chaque requete
+// trie par parent_id, ordre, donc les lignes d'un meme groupe restent
+// consecutives et dans l'ordre voulu apres regroupement).
 function getReferentiel({ includeArchived = false } = {}) {
   const filtre = includeArchived ? '' : 'AND archive = 0';
   const piliers = db.prepare(`SELECT id, nom, ordre FROM piliers WHERE 1=1 ${filtre} ORDER BY ordre`).all();
-  return piliers.map((pilier) => {
-    const sousCategories = db
-      .prepare(`SELECT id, nom, ordre FROM sous_categories WHERE pilier_id = ? ${filtre} ORDER BY ordre`)
-      .all(pilier.id);
-    return {
-      ...pilier,
-      sousCategories: sousCategories.map((sousCategorie) => {
-        const questions = db
-          .prepare(`SELECT id, ordre, texte FROM questions WHERE sous_categorie_id = ? ${filtre} ORDER BY ordre`)
-          .all(sousCategorie.id);
-        return {
-          ...sousCategorie,
-          questions: questions.map((question) => {
-            const niveaux = db
-              .prepare('SELECT niveau, texte, valeur_numerique FROM niveaux WHERE question_id = ? ORDER BY niveau')
-              .all(question.id);
-            return { ...question, niveaux };
-          }),
-        };
-      }),
-    };
-  });
+  const sousCategories = db
+    .prepare(`SELECT id, nom, ordre, pilier_id FROM sous_categories WHERE 1=1 ${filtre} ORDER BY pilier_id, ordre`)
+    .all();
+  const questions = db
+    .prepare(`SELECT id, ordre, texte, sous_categorie_id FROM questions WHERE 1=1 ${filtre} ORDER BY sous_categorie_id, ordre`)
+    .all();
+  const niveaux = db
+    .prepare('SELECT niveau, texte, valeur_numerique, question_id FROM niveaux ORDER BY question_id, niveau')
+    .all();
+
+  const niveauxParQuestion = new Map();
+  for (const n of niveaux) {
+    if (!niveauxParQuestion.has(n.question_id)) niveauxParQuestion.set(n.question_id, []);
+    niveauxParQuestion.get(n.question_id).push({ niveau: n.niveau, texte: n.texte, valeur_numerique: n.valeur_numerique });
+  }
+
+  const questionsParSousCategorie = new Map();
+  for (const q of questions) {
+    if (!questionsParSousCategorie.has(q.sous_categorie_id)) questionsParSousCategorie.set(q.sous_categorie_id, []);
+    questionsParSousCategorie
+      .get(q.sous_categorie_id)
+      .push({ id: q.id, ordre: q.ordre, texte: q.texte, niveaux: niveauxParQuestion.get(q.id) || [] });
+  }
+
+  const sousCategoriesParPilier = new Map();
+  for (const sc of sousCategories) {
+    if (!sousCategoriesParPilier.has(sc.pilier_id)) sousCategoriesParPilier.set(sc.pilier_id, []);
+    sousCategoriesParPilier
+      .get(sc.pilier_id)
+      .push({ id: sc.id, nom: sc.nom, ordre: sc.ordre, questions: questionsParSousCategorie.get(sc.id) || [] });
+  }
+
+  return piliers.map((pilier) => ({ ...pilier, sousCategories: sousCategoriesParPilier.get(pilier.id) || [] }));
 }
 
 module.exports = { importFromBuffer, getReferentiel, reconcileReferentiel, remplacerTout, estImportRemplacerEnCours };

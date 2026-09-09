@@ -5,11 +5,11 @@
 // l'API rendait son 400 -- en pretendant qu'un pilier ne se sauvegarde que
 // complet, elle venait d'en enregistrer un partiel. Ce test verifie les deux
 // moities du correctif : le 400 ET l'absence de toute ecriture partielle.
-const net = require('node:net');
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const { portLibre, attendreServeur, attendreMort, nettoyer, fetchMutant } = require('./test-helpers-serveur');
 
 const DELAI_DEMARRAGE_MS = 15000;
 const CHEMIN_SERVEUR = path.join(__dirname, '..', 'src', 'server.js');
@@ -22,53 +22,6 @@ function check(condition, message) {
     echecs += 1;
     console.error(`  FAIL ${message}`);
   }
-}
-
-function portLibre() {
-  return new Promise((resolve, reject) => {
-    const srv = net.createServer();
-    srv.listen(0, '127.0.0.1', () => {
-      const { port } = srv.address();
-      srv.close(() => resolve(port));
-    });
-    srv.on('error', reject);
-  });
-}
-
-async function attendreServeur(base, delaiMs) {
-  const fin = Date.now() + delaiMs;
-  let derniereErreur = null;
-  while (Date.now() < fin) {
-    try {
-      const res = await fetch(`${base}/api/env`);
-      if (res.ok) return;
-      derniereErreur = new Error(`HTTP ${res.status} sur /api/env`);
-    } catch (err) {
-      derniereErreur = err;
-    }
-    await new Promise((r) => setTimeout(r, 250));
-  }
-  throw new Error(`Serveur injoignable apres ${delaiMs} ms : ${derniereErreur}`);
-}
-
-function attendreMort(serveur, delaiMs = 5000) {
-  if (serveur.exitCode !== null || serveur.signalCode !== null) return Promise.resolve();
-  return new Promise((resolve) => {
-    const minuteur = setTimeout(resolve, delaiMs);
-    serveur.once('exit', () => { clearTimeout(minuteur); setTimeout(resolve, 100); });
-  });
-}
-
-async function nettoyer(dossier) {
-  for (let essai = 0; essai < 5; essai += 1) {
-    try {
-      fs.rmSync(dossier, { recursive: true, force: true });
-      return;
-    } catch {
-      await new Promise((r) => setTimeout(r, 200));
-    }
-  }
-  console.warn(`  info dossier temporaire non supprime : ${dossier}`);
 }
 
 function niveaux() {
@@ -123,7 +76,7 @@ async function main() {
   try {
     await attendreServeur(base, DELAI_DEMARRAGE_MS);
 
-    const creation = await fetch(`${base}/api/sessions`, {
+    const creation = await fetchMutant(`${base}/api/sessions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -133,7 +86,7 @@ async function main() {
     });
     const { id: sessionId } = await creation.json();
 
-    const identification = await fetch(`${base}/api/sessions/${sessionId}/repondants`, {
+    const identification = await fetchMutant(`${base}/api/sessions/${sessionId}/repondants`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -150,7 +103,7 @@ async function main() {
     const { id: repondantId } = await identification.json();
 
     console.log('3 reponses dont UNE (position 2) porte un niveau invalide : 400 attendu :');
-    const tentative = await fetch(`${base}/api/repondants/${repondantId}/piliers/${pilierId}/reponses`, {
+    const tentative = await fetchMutant(`${base}/api/repondants/${repondantId}/piliers/${pilierId}/reponses`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -181,7 +134,7 @@ async function main() {
     // 200 apres avoir ecrit UNE ligne, et le repondant restait bloque a la
     // soumission (1/40) sans savoir quelle question rouvrir.
     console.log('Doublons de question_id : compter les entrees ne prouve pas la couverture :');
-    const doublons = await fetch(`${base}/api/repondants/${repondantId}/piliers/${pilierId}/reponses`, {
+    const doublons = await fetchMutant(`${base}/api/repondants/${repondantId}/piliers/${pilierId}/reponses`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -209,7 +162,7 @@ async function main() {
       ['entree non-objet', { reponses: ['q1', 'q2', 'q3'] }],
     ];
     for (const [libelle, corps] of corpsMalFormes) {
-      const reponse = await fetch(`${base}/api/repondants/${repondantId}/piliers/${pilierId}/reponses`, {
+      const reponse = await fetchMutant(`${base}/api/repondants/${repondantId}/piliers/${pilierId}/reponses`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(corps),
@@ -223,7 +176,7 @@ async function main() {
     );
 
     console.log('Non-regression : le meme pilier, entierement valide, se sauvegarde normalement :');
-    const nominal = await fetch(`${base}/api/repondants/${repondantId}/piliers/${pilierId}/reponses`, {
+    const nominal = await fetchMutant(`${base}/api/repondants/${repondantId}/piliers/${pilierId}/reponses`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

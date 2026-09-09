@@ -9,9 +9,9 @@
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
-const net = require('node:net');
 const { spawn } = require('node:child_process');
 const ExcelJS = require('exceljs');
+const { portLibre, attendreServeur, attendreMort, nettoyer, fetchMutant } = require('./test-helpers-serveur');
 
 const DELAI_DEMARRAGE_MS = 15000;
 const CHEMIN_SERVEUR = path.join(__dirname, '..', 'src', 'server.js');
@@ -24,53 +24,6 @@ function check(condition, message) {
     echecs += 1;
     console.error(`  FAIL ${message}`);
   }
-}
-
-function portLibre() {
-  return new Promise((resolve, reject) => {
-    const srv = net.createServer();
-    srv.listen(0, '127.0.0.1', () => {
-      const { port } = srv.address();
-      srv.close(() => resolve(port));
-    });
-    srv.on('error', reject);
-  });
-}
-
-async function attendreServeur(base, delaiMs) {
-  const fin = Date.now() + delaiMs;
-  let derniereErreur = null;
-  while (Date.now() < fin) {
-    try {
-      const res = await fetch(`${base}/api/env`);
-      if (res.ok) return;
-      derniereErreur = new Error(`HTTP ${res.status} sur /api/env`);
-    } catch (err) {
-      derniereErreur = err;
-    }
-    await new Promise((r) => setTimeout(r, 250));
-  }
-  throw new Error(`Serveur injoignable apres ${delaiMs} ms : ${derniereErreur}`);
-}
-
-function attendreMort(serveur, delaiMs = 5000) {
-  if (serveur.exitCode !== null || serveur.signalCode !== null) return Promise.resolve();
-  return new Promise((resolve) => {
-    const minuteur = setTimeout(resolve, delaiMs);
-    serveur.once('exit', () => { clearTimeout(minuteur); setTimeout(resolve, 100); });
-  });
-}
-
-async function nettoyer(dossier) {
-  for (let essai = 0; essai < 5; essai += 1) {
-    try {
-      fs.rmSync(dossier, { recursive: true, force: true });
-      return;
-    } catch {
-      await new Promise((r) => setTimeout(r, 200));
-    }
-  }
-  console.warn(`  info dossier temporaire non supprime : ${dossier}`);
 }
 
 // Grille minimale au format exact attendu par parseWorkbook (referentiel.js) :
@@ -96,11 +49,11 @@ async function importer(base, nomPilier, mode) {
   const form = new FormData();
   form.append('fichier', new Blob([buffer]), 'referentiel.xlsx');
   form.append('mode', mode);
-  return fetch(`${base}/api/referentiel/import`, { method: 'POST', body: form });
+  return fetchMutant(`${base}/api/referentiel/import`, { method: 'POST', body: form });
 }
 
 async function creerSessionEtRepondant(base) {
-  const creation = await fetch(`${base}/api/sessions`, {
+  const creation = await fetchMutant(`${base}/api/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -111,7 +64,7 @@ async function creerSessionEtRepondant(base) {
   check(creation.status === 200, `session creee (recu ${creation.status})`);
   const { id: sessionId } = await creation.json();
 
-  const identification = await fetch(`${base}/api/sessions/${sessionId}/repondants`, {
+  const identification = await fetchMutant(`${base}/api/sessions/${sessionId}/repondants`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -156,7 +109,7 @@ async function main() {
     const { sessionId, repondantId, pilierId, questionId } = await creerSessionEtRepondant(base);
 
     console.log("Hors fenetre d'import : enregistrer un pilier reussit (temoin nominal) :");
-    const temoin = await fetch(`${base}/api/repondants/${repondantId}/piliers/${pilierId}/reponses`, {
+    const temoin = await fetchMutant(`${base}/api/repondants/${repondantId}/piliers/${pilierId}/reponses`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reponses: [{ question_id: questionId, niveau: 0 }] }),
@@ -171,17 +124,17 @@ async function main() {
     // pour autant risquer que l'import se termine avant nos verifications.
     await new Promise((r) => setTimeout(r, 800));
 
-    const ecritureBloquee = await fetch(`${base}/api/repondants/${repondantId}/piliers/${pilierId}/reponses`, {
+    const ecritureBloquee = await fetchMutant(`${base}/api/repondants/${repondantId}/piliers/${pilierId}/reponses`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reponses: [{ question_id: questionId, niveau: 3 }] }),
     });
     check(ecritureBloquee.status === 503, `PUT reponses PENDANT la fenetre -> 503 (recu ${ecritureBloquee.status})`);
 
-    const soumissionBloquee = await fetch(`${base}/api/repondants/${repondantId}/soumission`, { method: 'POST' });
+    const soumissionBloquee = await fetchMutant(`${base}/api/repondants/${repondantId}/soumission`, { method: 'POST' });
     check(soumissionBloquee.status === 503, `POST soumission PENDANT la fenetre -> 503 (recu ${soumissionBloquee.status})`);
 
-    const inscriptionBloquee = await fetch(`${base}/api/sessions/${sessionId}/repondants`, {
+    const inscriptionBloquee = await fetchMutant(`${base}/api/sessions/${sessionId}/repondants`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -202,7 +155,7 @@ async function main() {
 
     console.log("Fenetre refermee : un nouveau cycle identification + reponse reussit normalement apres l'import :");
     const apres = await creerSessionEtRepondant(base);
-    const ecritureApres = await fetch(`${base}/api/repondants/${apres.repondantId}/piliers/${apres.pilierId}/reponses`, {
+    const ecritureApres = await fetchMutant(`${base}/api/repondants/${apres.repondantId}/piliers/${apres.pilierId}/reponses`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reponses: [{ question_id: apres.questionId, niveau: 1 }] }),
@@ -216,17 +169,20 @@ async function main() {
     // repondant ou d'un pilier reels -- ce qui evite tout couplage avec l'etat
     // du referentiel que ces deux imports concurrents vont remanier.
     const conserverConcurrent = importer(base, 'Pilier Conserver Concurrent', 'conserver');
-    // Depart LEGEREMENT decale : le conserver, parti en premier, doit finir en
-    // premier (meme cout de chargement du dictionnaire ~qq s pour les deux, le
-    // remplacer a juste ~500 ms de retard au demarrage) -- pendant que le
-    // remplacer est ENCORE en cours quand on verifie juste apres.
-    await new Promise((r) => setTimeout(r, 500));
+    // Depart decale : le conserver, parti en premier, doit finir en premier
+    // (meme cout de chargement du dictionnaire ~qq s pour les deux, le
+    // remplacer a 1,5 s de retard au demarrage) -- pendant que le remplacer
+    // est ENCORE en cours quand on verifie juste apres. Marge elargie de
+    // 500 ms a 1,5 s (flakiness constatee sous charge machine : plusieurs
+    // sous-agents + suite de tests tournant en parallele reduisaient la marge
+    // au point d'inverser l'ordre de fin une fois sur ~20 runs).
+    await new Promise((r) => setTimeout(r, 1500));
     const remplacerConcurrent = importer(base, 'Pilier Remplacer Concurrent', 'remplacer');
 
     const resultatConserverConcurrent = await conserverConcurrent;
     check(resultatConserverConcurrent.status === 200, `import conserver concurrent -> 200 (recu ${resultatConserverConcurrent.status})`);
 
-    const ecritureJusteApresConserver = await fetch(`${base}/api/repondants/bidon/piliers/0/reponses`, {
+    const ecritureJusteApresConserver = await fetchMutant(`${base}/api/repondants/bidon/piliers/0/reponses`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reponses: [] }),
@@ -239,7 +195,7 @@ async function main() {
     const resultatRemplacerConcurrent = await remplacerConcurrent;
     check(resultatRemplacerConcurrent.status === 200, `import remplacer concurrent -> 200 une fois termine (recu ${resultatRemplacerConcurrent.status})`);
 
-    const ecritureApresLesDeux = await fetch(`${base}/api/repondants/bidon/piliers/0/reponses`, {
+    const ecritureApresLesDeux = await fetchMutant(`${base}/api/repondants/bidon/piliers/0/reponses`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reponses: [] }),

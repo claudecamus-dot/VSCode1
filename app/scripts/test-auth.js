@@ -9,43 +9,13 @@
 //   3. Barriere INACTIVE (variables absentes) : comportement STRICTEMENT
 //      inchange — la meme route repond 200 sans identifiants (controle).
 const assert = require('node:assert/strict');
-const net = require('node:net');
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const { portLibre, attendreServeur, attendreMort, nettoyer, USER, PASS, basic } = require('./test-helpers-serveur');
 
 const DELAI_DEMARRAGE_MS = 15000;
-const USER = 'animateur';
-const PASS = 'motdepasse-de-test';
-const basic = (u, p) => 'Basic ' + Buffer.from(`${u}:${p}`, 'utf8').toString('base64');
-
-function portLibre() {
-  return new Promise((resolve, reject) => {
-    const srv = net.createServer();
-    srv.listen(0, '127.0.0.1', () => {
-      const { port } = srv.address();
-      srv.close(() => resolve(port));
-    });
-    srv.on('error', reject);
-  });
-}
-
-async function attendreServeur(base, delaiMs) {
-  const fin = Date.now() + delaiMs;
-  let derniereErreur = null;
-  while (Date.now() < fin) {
-    try {
-      const res = await fetch(`${base}/api/env`); // route repondant : ouverte dans les 2 modes
-      if (res.ok) return;
-      derniereErreur = new Error(`HTTP ${res.status} sur /api/env`);
-    } catch (err) {
-      derniereErreur = err;
-    }
-    await new Promise((r) => setTimeout(r, 250));
-  }
-  throw new Error(`Serveur injoignable apres ${delaiMs} ms : ${derniereErreur}`);
-}
 
 async function avecServeur(envSupp, corps) {
   const port = await portLibre();
@@ -71,8 +41,8 @@ async function avecServeur(envSupp, corps) {
     throw err;
   } finally {
     serveur.kill();
-    await new Promise((r) => setTimeout(r, 300));
-    try { fs.rmSync(dossierTmp, { recursive: true, force: true }); } catch { /* best-effort */ }
+    await attendreMort(serveur);
+    await nettoyer(dossierTmp);
   }
 }
 

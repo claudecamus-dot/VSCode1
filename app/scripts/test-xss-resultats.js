@@ -57,16 +57,35 @@ check(
 );
 
 console.log('La fonction esc() couvre les cinq caracteres dangereux :');
-// Le verrou ne vaut que si esc() echappe reellement. On l'extrait de la page et
-// on l'execute, plutot que de se contenter de constater sa presence.
-const bloc = resultats.match(/function esc\(valeur\) \{[\s\S]*?\n {4}\}/);
-check(!!bloc, 'la fonction esc(valeur) est presente dans resultats.html');
+// Le verrou ne vaut que si esc() echappe reellement. esc() est desormais
+// partagee (esc.js, chargee en <script src> par les 4 pages qui la
+// dupliquaient avant — constat audit-technique 2026-09-04) : on l'extrait de
+// CE fichier, plus de resultats.html, et on l'execute plutot que de se
+// contenter de constater sa presence.
+const escJs = fs.readFileSync(path.join(DOSSIER_PAGES, 'esc.js'), 'utf8');
+const bloc = escJs.match(/function esc\(valeur\) \{[\s\S]*?\n\}/);
+check(!!bloc, 'la fonction esc(valeur) est presente dans esc.js');
 if (bloc) {
   const esc = new Function(`${bloc[0]}; return esc;`)();
   const sortie = esc('<img src=x onerror="alert(1)">&\'');
   check(!sortie.includes('<') && !sortie.includes('>'), 'esc() neutralise < et >');
   check(!sortie.includes('"') && !sortie.includes("'"), 'esc() neutralise les guillemets');
   check(sortie.includes('&amp;'), 'esc() echappe l\'esperluette (pas de double-decodage)');
+}
+
+// Le maillon que la centralisation d'esc() a cree : les 4 pages n'ont plus leur
+// propre esc(), elles CHARGENT esc.js. Retirer la balise laisserait toute la
+// suite verte et casserait la page a l'execution (ReferenceError: esc is not
+// defined) -- exactement le motif << garde-fou qui compare autre chose >>. On
+// verifie donc la balise elle-meme sur les 4 pages, et l'absence de `defer`
+// (esc() est appelee par du script inline execute avant DOMContentLoaded).
+console.log('\nChaque page qui utilise esc() charge bien esc.js :');
+for (const page of ['resultats.html', 'admin.html', 'pilotage.html', 'repondre.html']) {
+  const html = fs.readFileSync(path.join(DOSSIER_PAGES, page), 'utf8');
+  const balise = html.match(/<script[^>]*src="\/esc\.js"[^>]*>/);
+  check(!!balise, page + ' charge /esc.js');
+  if (balise) check(!/defer/.test(balise[0]), page + ' charge /esc.js sans defer');
+  check(!/function esc\(valeur\)/.test(html), page + ' ne redefinit pas esc() localement');
 }
 
 console.log(echecs === 0 ? '\nTOUS LES TESTS PASSENT' : `\n${echecs} TEST(S) EN ECHEC`);

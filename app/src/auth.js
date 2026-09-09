@@ -61,6 +61,7 @@ const PAGES_OUVERTES = new Set([
   '/repondre.html',
   '/maquette-question.html',
   '/env-banner.js',
+  '/esc.js',
   '/favicon.ico',
 ]);
 

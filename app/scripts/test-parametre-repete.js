@@ -9,11 +9,11 @@
 // Corrige par `unParam()` (garde la DERNIERE valeur, jamais un tableau brut) applique a
 // chaque lecture de req.query dans server.js. Ce test verrouille les deux comportements
 // ET verifie que le cas nominal (parametre unique) n'a pas change.
-const net = require('node:net');
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const { portLibre, attendreServeur, attendreMort, nettoyer, fetchMutant } = require('./test-helpers-serveur');
 
 const DELAI_DEMARRAGE_MS = 15000;
 const CHEMIN_SERVEUR = path.join(__dirname, '..', 'src', 'server.js');
@@ -30,59 +30,12 @@ function check(condition, message) {
   }
 }
 
-function portLibre() {
-  return new Promise((resolve, reject) => {
-    const srv = net.createServer();
-    srv.listen(0, '127.0.0.1', () => {
-      const { port } = srv.address();
-      srv.close(() => resolve(port));
-    });
-    srv.on('error', reject);
-  });
-}
-
-async function attendreServeur(base, delaiMs) {
-  const fin = Date.now() + delaiMs;
-  let derniereErreur = null;
-  while (Date.now() < fin) {
-    try {
-      const res = await fetch(`${base}/api/env`);
-      if (res.ok) return;
-      derniereErreur = new Error(`HTTP ${res.status} sur /api/env`);
-    } catch (err) {
-      derniereErreur = err;
-    }
-    await new Promise((r) => setTimeout(r, 250));
-  }
-  throw new Error(`Serveur injoignable apres ${delaiMs} ms : ${derniereErreur}`);
-}
-
-function attendreMort(serveur, delaiMs = 5000) {
-  if (serveur.exitCode !== null || serveur.signalCode !== null) return Promise.resolve();
-  return new Promise((resolve) => {
-    const minuteur = setTimeout(resolve, delaiMs);
-    serveur.once('exit', () => { clearTimeout(minuteur); setTimeout(resolve, 100); });
-  });
-}
-
-async function nettoyer(dossier) {
-  for (let essai = 0; essai < 5; essai += 1) {
-    try {
-      fs.rmSync(dossier, { recursive: true, force: true });
-      return;
-    } catch {
-      await new Promise((r) => setTimeout(r, 200));
-    }
-  }
-  console.warn(`  info dossier temporaire non supprime : ${dossier}`);
-}
-
 function niveaux() {
   return [0, 1, 2, 3].map((n) => ({ niveau: n, texte: `niveau ${n}`, valeur_numerique: n }));
 }
 
 async function soumettre(base, sessionId, { nom, prenom, estManager }, pilierId, q1) {
-  const identification = await fetch(`${base}/api/sessions/${sessionId}/repondants`, {
+  const identification = await fetchMutant(`${base}/api/sessions/${sessionId}/repondants`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -97,12 +50,12 @@ async function soumettre(base, sessionId, { nom, prenom, estManager }, pilierId,
     }),
   });
   const { id: repondantId } = await identification.json();
-  await fetch(`${base}/api/repondants/${repondantId}/piliers/${pilierId}/reponses`, {
+  await fetchMutant(`${base}/api/repondants/${repondantId}/piliers/${pilierId}/reponses`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ reponses: [{ question_id: q1, niveau: 2 }] }),
   });
-  await fetch(`${base}/api/repondants/${repondantId}/soumission`, { method: 'POST' });
+  await fetchMutant(`${base}/api/repondants/${repondantId}/soumission`, { method: 'POST' });
 }
 
 async function main() {
@@ -133,7 +86,7 @@ async function main() {
     await attendreServeur(base, DELAI_DEMARRAGE_MS);
 
     console.log('Preparation : session ouverte, un manager et un non-manager soumis dans la meme equipe :');
-    const creation = await fetch(`${base}/api/sessions`, {
+    const creation = await fetchMutant(`${base}/api/sessions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

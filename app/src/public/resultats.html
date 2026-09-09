@@ -117,6 +117,9 @@
   .delta-row .delta.stable { color: #888; }
   .delta-row .delta.nouveau { color: #888; font-weight: 400; font-style: italic; }
 </style>
+<script src="/esc.js"></script>
+<script src="/stats-partagees.js"></script>
+<script src="/classement.js"></script>
 <script src="/env-banner.js" defer></script>
 </head>
 <body>
@@ -212,9 +215,7 @@
     // bien une valeur echappee dans le HTML, mais le navigateur la decode en la
     // parsant : `$('equipe').value` rend ensuite la chaine d'ORIGINE. Toute
     // valeur relue du DOM doit donc etre re-echappee avant reinjection.
-    function esc(valeur) {
-      return String(valeur).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-    }
+    // esc() est fourni par /esc.js (charge juste au-dessus, sans defer).
 
     async function init() {
       if (!sessionId) {
@@ -236,15 +237,33 @@
       attacherRepli($('participantsTitre'));
 
       $('equipe').addEventListener('change', chargerResultats);
+      // chargerEquipes() n'est pas catche par ailleurs (chargerResultats(), lui,
+      // gere desormais ses propres echecs — cf. plus bas) : sans ce .catch(),
+      // un rejet ici devenait une rejection non geree (item 4 audit-technique
+      // 2026-09-04).
       $('avecManager').addEventListener('change', () => {
-        chargerEquipes();
+        chargerEquipes().catch((err) => console.error('chargerEquipes', err));
         chargerResultats();
       });
       $('btnExportPPT').addEventListener('click', exporterPPT);
       $('btnToutDeplier').addEventListener('click', toggleTout);
-      await chargerEquipes();
-      await chargerParticipation();
-      await chargerResultats();
+      // Deux appels independants (endpoints distincts, aucune donnee de l'un ne
+      // sert a l'autre) : paralleliser plutot qu'enchainer (constat
+      // audit-technique 2026-09-04). chargerResultats() lit le select rempli
+      // par chargerEquipes() ET participationSession pose par
+      // chargerParticipation() -> ne peut demarrer qu'une fois les DEUX finis.
+      try {
+        await Promise.all([chargerEquipes(), chargerParticipation()]);
+        await chargerResultats();
+      } catch (err) {
+        // Rejet non catche ici = page a moitie chargee sans aucun signal (item 4
+        // audit-technique 2026-09-04). On l'affiche clairement plutot que de
+        // laisser un ecran silencieusement casse.
+        console.error('init', err);
+        $('etatSession').hidden = false;
+        $('etatSession').innerHTML = '<strong>Erreur de chargement de la session.</strong> Rechargez la page ; si le problème persiste, contactez le support.';
+        $('barreControles').hidden = true;
+      }
     }
 
     async function chargerEquipes() {
@@ -312,6 +331,13 @@
         a.click();
         a.remove();
         URL.revokeObjectURL(url);
+      } catch (err) {
+        // Sans ce catch, un fetch()/blob() qui rejette (reseau coupe en cours de
+        // generation) laissait le clic silencieux : le bouton se reactivait
+        // (finally) sans jamais dire a l'animateur que l'export avait echoue
+        // (item 4 audit-technique 2026-09-04).
+        console.error('exporterPPT', err);
+        alert('Échec de la génération du PPT (connexion interrompue ou erreur inattendue).');
       } finally {
         btn.disabled = false;
         btn.textContent = libelle;
@@ -328,9 +354,10 @@
       return moyenne === null ? '—' : moyenne.toFixed(1);
     }
 
+    // StatsPartagees.moyenneDe est fourni par /stats-partagees.js — source unique
+    // partagee avec app/src/scores.js (constat audit-technique 2026-09-04).
     function moyenneGlobale(piliers) {
-      const valides = piliers.map((p) => p.moyenne).filter((m) => m !== null);
-      return valides.length ? valides.reduce((a, b) => a + b, 0) / valides.length : null;
+      return StatsPartagees.moyenneDe(piliers.map((p) => p.moyenne));
     }
 
     // --- Synthèse chiffrée : vue "en un coup d'œil" avant le détail ---
@@ -358,19 +385,41 @@
         return;
       }
       const manager = $('avecManager').checked ? 'avec' : 'sans';
-      const data = await (await fetch(`/api/sessions/${sessionId}/resultats?equipe=${encodeURIComponent(equipe)}&manager=${manager}`)).json();
-      $('effectif').textContent = `${data.effectif} réponse(s) prise(s) en compte`;
-      if (data.effectifTotal !== undefined) {
-        $('effectif').textContent += ` — ${data.effectifTotal} membre(s) dans l'équipe`;
+      // 3 fetches independants (commentaire et comparaison ne dependent pas de
+      // `data`, et se rendent eux-memes dans le DOM) : paralleliser plutot
+      // qu'enchainer (constat audit-technique 2026-09-04).
+      try {
+        const [data] = await Promise.all([
+          fetch(`/api/sessions/${sessionId}/resultats?equipe=${encodeURIComponent(equipe)}&manager=${manager}`).then((r) => r.json()),
+          chargerCommentaire(),
+          chargerComparaison(),
+        ]);
+        $('effectif').textContent = `${data.effectif} réponse(s) prise(s) en compte`;
+        if (data.effectifTotal !== undefined) {
+          $('effectif').textContent += ` — ${data.effectifTotal} membre(s) dans l'équipe`;
+        }
+        rendreSynthese(data);
+        afficherParticipants(data.repondants);
+        rendrePointsForts(data.piliers);
+        rendrePointsAttention(data.piliers);
+        rendreRadar(data.piliers);
+        rendrePiliers(data.piliers);
+      } catch (err) {
+        // Sans ce catch, une promesse rejetee ici (reseau, JSON invalide) sortait
+        // de chargerResultats() AVANT tout rendu : le <select> affichait deja la
+        // NOUVELLE equipe pendant que tous les panneaux gardaient encore les
+        // donnees de l'ANCIENNE — un melange silencieux de 2 equipes differentes
+        // (item 4, audit-technique 2026-09-04). On efface les panneaux et on
+        // affiche un message clair plutot que ce melange.
+        console.error('chargerResultats', err);
+        const msg = '<p class="vide">Erreur de chargement des résultats de cette équipe. Réessayez (changez d\'équipe ou rechargez la page).</p>';
+        $('effectif').textContent = '';
+        $('syntheseChiffree').innerHTML = '';
+        $('pointsForts').innerHTML = msg;
+        $('pointsAttention').innerHTML = msg;
+        $('zoneRadar').innerHTML = msg;
+        $('zonePiliers').innerHTML = msg;
       }
-      rendreSynthese(data);
-      await chargerCommentaire();
-      afficherParticipants(data.repondants);
-      rendrePointsForts(data.piliers);
-      rendrePointsAttention(data.piliers);
-      rendreRadar(data.piliers);
-      rendrePiliers(data.piliers);
-      await chargerComparaison();
     }
 
     function afficherParticipants(repondants) {
@@ -400,12 +449,21 @@
     async function enregistrerCommentaire() {
       const equipe = $('equipe').value;
       $('etatCommentaire').textContent = 'Enregistrement…';
-      const res = await fetch(`/api/sessions/${sessionId}/commentaire`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ equipe, texte: $('commentaire').value }),
-      });
-      $('etatCommentaire').textContent = res.ok ? 'Enregistré ✓' : "Échec de l'enregistrement";
+      try {
+        const res = await fetch(`/api/sessions/${sessionId}/commentaire`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ equipe, texte: $('commentaire').value }),
+        });
+        $('etatCommentaire').textContent = res.ok ? 'Enregistré ✓' : "Échec de l'enregistrement";
+      } catch (err) {
+        // Sans ce catch, un fetch() qui rejette (reseau coupe) laissait le
+        // libelle bloque sur "Enregistrement…" indefiniment — silencieux, et
+        // trompeur (l'animateur croit que ca sauvegarde encore) (item 4
+        // audit-technique 2026-09-04).
+        console.error('enregistrerCommentaire', err);
+        $('etatCommentaire').textContent = "Échec de l'enregistrement (connexion interrompue).";
+      }
     }
 
     $('btnEnregistrerCommentaire').addEventListener('click', enregistrerCommentaire);
@@ -414,22 +472,18 @@
     // --- Synthèse "points d'attention" (US6.2) ---
     // Remonte les questions au plus fort désaccord (écart-type) et aux plus
     // faibles moyennes, calculées sur la vue filtrée courante.
+    // aplatirQuestions/classerPointsAttention fournis par /classement.js — memes
+    // regles que le calcul serveur (construireBlocRestitution dans server.js,
+    // export PPT), extraites pour eviter que les deux implementations derivent.
     function rendrePointsAttention(piliers) {
-      const questions = piliers.flatMap((pilier) =>
-        pilier.sousCategories.flatMap((sc) =>
-          sc.questions
-            .filter((q) => q.moyenne !== null)
-            .map((q) => ({ ...q, contexte: `${esc(pilier.nom)} · ${esc(sc.nom)}` }))
-        )
-      );
+      const questions = Classement.aplatirQuestions(piliers, (pilier, sc) => `${esc(pilier.nom)} · ${esc(sc.nom)}`);
 
       if (questions.length === 0) {
         $('pointsAttention').innerHTML = '<h2>Points d\'attention</h2><p class="vide">Aucune réponse soumise pour cette équipe.</p>';
         return;
       }
 
-      const dispersion = [...questions].sort((a, b) => b.ecartType - a.ecartType).slice(0, 3);
-      const faibles = [...questions].sort((a, b) => a.moyenne - b.moyenne).slice(0, 3);
+      const { dispersion, faibles } = Classement.classerPointsAttention(questions);
 
       const ligneDispersion = (q) =>
         `<li>${esc(q.texte)} <span class="metrique">écart-type ${fmt(q.ecartType)}</span> <span class="contexte">(min ${q.min} / max ${q.max} — ${q.contexte})</span></li>`;
@@ -452,24 +506,14 @@
     // la plus faible). L'accord n'a de sens qu'avec au moins 2 réponses : avec une
     // seule, l'écart-type est trivialement 0 sans traduire un vrai consensus.
     function rendrePointsForts(piliers) {
-      const questions = piliers.flatMap((pilier) =>
-        pilier.sousCategories.flatMap((sc) =>
-          sc.questions
-            .filter((q) => q.moyenne !== null)
-            .map((q) => ({ ...q, contexte: `${esc(pilier.nom)} · ${esc(sc.nom)}` }))
-        )
-      );
+      const questions = Classement.aplatirQuestions(piliers, (pilier, sc) => `${esc(pilier.nom)} · ${esc(sc.nom)}`);
 
       if (questions.length === 0) {
         $('pointsForts').innerHTML = '<h2>Points forts</h2><p class="vide">Aucune réponse soumise pour cette équipe.</p>';
         return;
       }
 
-      const hauts = [...questions].sort((a, b) => b.moyenne - a.moyenne).slice(0, 3);
-      const accords = [...questions]
-        .filter((q) => q.reponses.length >= 2)
-        .sort((a, b) => a.ecartType - b.ecartType)
-        .slice(0, 3);
+      const { hauts, accords } = Classement.classerPointsForts(questions);
 
       const ligneHaut = (q) =>
         `<li><span class="fleche">▲</span>${esc(q.texte)} <span class="metrique">moyenne ${fmt(q.moyenne)} / 3</span> <span class="contexte">(${q.contexte})</span></li>`;
@@ -704,6 +748,15 @@
     // --- Accordéon pilier > sous-catégorie > question ---
 
     function rendrePiliers(piliers) {
+      // Preserve les accordeons ouverts (pilier + detail nominatif) a travers le
+      // rebuild complet du innerHTML ci-dessous (constat audit-technique
+      // 2026-09-04) : sans ca, changer le filtre "avec/sans manager" ou
+      // recharger la comparaison refermait tout, meme en restant sur la meme
+      // equipe. Les id sont stables tant que le nombre/l'ordre des
+      // piliers/sous-categories/questions ne change pas entre deux rendus.
+      const ouvertsPilier = new Set([...document.querySelectorAll('.pilier-contenu:not(.ferme)')].map((el) => el.id));
+      const ouvertsDetail = new Set([...document.querySelectorAll('.detail-nominatif:not(.ferme)')].map((el) => el.id));
+
       $('zonePiliers').innerHTML = piliers
         .map(
           (pilier, pIndex) => `
@@ -760,16 +813,23 @@
         .join('');
 
       document.querySelectorAll('.pilier-entete').forEach((el) => {
+        const contenu = $(`pilier-contenu-${el.dataset.pilier}`);
+        if (ouvertsPilier.has(contenu.id)) {
+          contenu.classList.remove('ferme');
+          const caret = el.querySelector('.caret');
+          if (caret) caret.textContent = '▾';
+        }
         el.addEventListener('click', () => {
-          const contenu = $(`pilier-contenu-${el.dataset.pilier}`);
           contenu.classList.toggle('ferme');
           const caret = el.querySelector('.caret');
           if (caret) caret.textContent = contenu.classList.contains('ferme') ? '▸' : '▾';
         });
       });
       document.querySelectorAll('[data-question-toggle]').forEach((el) => {
+        const cible = $(`detail-${el.dataset.questionToggle}`);
+        if (ouvertsDetail.has(cible.id)) cible.classList.remove('ferme');
         el.addEventListener('click', () => {
-          $(`detail-${el.dataset.questionToggle}`).classList.toggle('ferme');
+          cible.classList.toggle('ferme');
         });
       });
     }

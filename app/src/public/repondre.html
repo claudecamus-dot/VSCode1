@@ -38,6 +38,7 @@
   #boutonCopierLien { margin-top: 0.5rem; }
   #statutCopieLien { margin-left: 0.5rem; }
 </style>
+<script src="/esc.js"></script>
 <script src="/env-banner.js" defer></script>
 </head>
 <body>
@@ -122,9 +123,7 @@
     // de question/niveau) et les suggestions departement/equipe deja saisies par
     // d'autres repondants sont injectes dans du innerHTML — sans cet echappement,
     // un contenu contenant "<...>" casserait la page ou s'y executerait.
-    function esc(valeur) {
-      return String(valeur).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-    }
+    // esc() est fourni par /esc.js (charge dans <head>, sans defer).
 
     let referentiel = [];
     let reponsesEnCours = {}; // questionId -> choix

@@ -271,6 +271,49 @@ def main():
             print("   -", p)
     check(not pb4, f"aucune forme degeneree (largeur negative) avec comparaison + 2 axes + max=0 — {len(pb4)} probleme(s)")
 
+    print("Garde-fou longueur (item 4, audit-technique 2026-09-04) — nom d'equipe demesure :")
+    # Un nom d'equipe/departement n'est borne en longueur nulle part en amont
+    # (saisi librement a l'identification, app/src/server.js) : sans troncature
+    # dans titre_slide(), il deborde du placeholder de titre (bug reel, non
+    # attrape par verifier_geometrie/verifier_debordements_texte — voir le
+    # commentaire de MAX_LIGNES_COMMENTAIRE dans export-restitution-ppt.py).
+    nom_demesure = "Equipe " + ("Tres" * 60) + " Longue"
+    data_nom_long = {"couverture": None, "blocs": [bloc_equipe(nom_demesure, [2.0, 1.8, 1.6, 1.9])]}
+    out_nom_long = os.path.join(tmp, "deck-nom-long.pptx")
+    prs_nom_long, pb_nom_long = gen.construire(data_nom_long, gen.TEMPLATE, out_nom_long)
+    titres = [ph.text_frame.text
+              for slide in prs_nom_long.slides
+              for ph in slide.placeholders if ph.placeholder_format.idx == 0]
+    check(len(titres) >= 5, f"{len(titres)} slide(s) de titre trouvee(s) pour le bloc au nom demesure")
+    check(all(len(t) < len(nom_demesure) for t in titres),
+          f"le titre de slide est tronque (jamais le nom brut de {len(nom_demesure)} caracteres) — {titres}")
+    check(all(t.endswith("…") for t in titres),
+          "le titre tronque se termine par une ellipse (troncature visible, pas un plantage silencieux)")
+
+    print("Garde-fou longueur (item 4, audit-technique 2026-09-04) — commentaire demesure :")
+    # avec_comp=False pour isoler la geometrie du callout "commentaire" de celle,
+    # distincte, du bloc "evolution par pilier" (budget de hauteur separe, hors
+    # perimetre de ce garde-fou).
+    bloc_para = bloc_equipe("Equipe Verbeuse", [2.0, 1.8, 1.6, 1.9], avec_comp=False)
+    bloc_para["commentaire"] = "Ligne de commentaire repetee tres longuement, avec assez de mots pour bien remplir la largeur du callout. " * 100
+    data_comm_long = {"couverture": None, "blocs": [bloc_para]}
+    out_comm_long = os.path.join(tmp, "deck-commentaire-long.pptx")
+    prs_comm_long, pb_comm_long = gen.construire(data_comm_long, gen.TEMPLATE, out_comm_long)
+    if pb_comm_long:
+        for p in pb_comm_long:
+            print("   -", p)
+    check(not pb_comm_long, f"geometrie OK malgre un commentaire d'un seul tres long paragraphe — {len(pb_comm_long)} probleme(s)")
+
+    bloc_lignes = bloc_equipe("Equipe Sauts De Ligne", [2.0, 1.8, 1.6, 1.9], avec_comp=False)
+    bloc_lignes["commentaire"] = "\n".join(["Ligne courte."] * 300)
+    data_lignes_long = {"couverture": None, "blocs": [bloc_lignes]}
+    out_lignes_long = os.path.join(tmp, "deck-lignes-long.pptx")
+    prs_lignes_long, pb_lignes_long = gen.construire(data_lignes_long, gen.TEMPLATE, out_lignes_long)
+    if pb_lignes_long:
+        for p in pb_lignes_long:
+            print("   -", p)
+    check(not pb_lignes_long, f"geometrie OK malgre un commentaire de 300 sauts de ligne — {len(pb_lignes_long)} probleme(s)")
+
     print("\nTOUS LES TESTS PASSENT" if echecs == 0 else f"\n{echecs} TEST(S) EN ECHEC")
     sys.exit(0 if echecs == 0 else 1)
 

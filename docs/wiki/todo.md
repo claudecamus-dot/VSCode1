@@ -213,21 +213,130 @@ arbitre le 2026-09-04** et les deux sont implementes :
    `sessions` et le referentiel. Une soumission arrivee dans cette fenetre etait
    acceptee (200) **puis effacee sans aucune trace**.
    **Arbitrage : verrou fail-closed** pendant la fenetre — `estImportRemplacerEnCours()`
-   (`app/src/referentiel.js`) fait repondre 503 « reessayez » aux trois routes
-   mutantes du repondant (identification, `PUT .../reponses`, `POST .../soumission`)
-   tant qu'un import `mode=remplacer` est en cours. Durci en revue
-   (`bmad-code-review`, 2026-09-04) : c'est un **compteur**, pas un booleen — un
-   import `mode=conserver` qui se termine PENDANT que le `remplacer` tourne encore
-   ne releve plus le verrou a sa place (bug trouve par la 2e vague de revue avant
-   commit, jamais expose en prod) ; ca couvre aussi, sans cout supplementaire,
-   plusieurs imports `remplacer` concurrents — le verrou tient jusqu'au dernier a
-   se terminer. **Residu assume, hors mandat** : pas de garde architecturale
-   generique (middleware type CSRF) pour les futures routes d'ecriture repondant —
-   les 3 routes actuelles de `ROUTES_REPONDANT` (`auth.js`) sont couvertes
-   explicitement, une nouvelle route mutante devra penser a s'y ajouter. Verifie
-   par un test dedie qui reproduit la fenetre reelle ET la course conserver/remplacer
-   (`app/scripts/test-fenetre-import.js` : 503 pendant, 200 et verrou releve apres,
-   verrou tenu par le remplacer malgre un conserver concurrent termine avant lui).
+   (`app/src/referentiel.js`) fait repondre 503 « reessayez » aux routes
+   mutantes du repondant tant qu'un import `mode=remplacer` est en cours.
+   Durci en 2 vagues de revue adversariale (`/code-review high --fix`,
+   2026-09-04, jamais expose en prod) : (a) c'est un **compteur**, pas un
+   booleen — un import `mode=conserver` qui se termine PENDANT que le
+   `remplacer` tourne encore ne releve plus le verrou a sa place ; couvre
+   aussi, sans cout supplementaire, plusieurs imports `remplacer` concurrents
+   (le verrou tient jusqu'au dernier a se terminer) ; (b) le verrou est
+   desormais arme **avant** `parseWorkbook`, pas seulement autour de la
+   correction orthographique — un vrai classeur volumineux (pas le
+   classeur-jouet de 3 lignes du test) laissait la phase de parsing hors
+   fenetre fermee ; (c) 4 routes gardees (pas 3) : identification,
+   `PUT .../reponses`, `POST .../soumission`, et `POST /api/repondants/fusion`
+   (ecrit aussi dans `repondants`, oublie de la premiere passe). **Residu
+   assume, hors mandat** : pas de garde architecturale generique (middleware
+   type CSRF) pour les futures routes d'ecriture repondant — une nouvelle
+   route mutante devra penser a s'y ajouter. Verifie par un test dedie qui
+   reproduit la fenetre reelle ET la course conserver/remplacer
+   (`app/scripts/test-fenetre-import.js` : 503 pendant, 200 et verrou releve
+   apres, verrou tenu par le remplacer malgre un conserver concurrent termine
+   avant lui).
+
+## Menu d'audit-technique du 2026-09-04 (10 constats) + duplication de tests + durcissement CSRF — traites le jour meme
+
+Demande utilisateur explicite (« traite les 10 constats techniques et la
+duplication + le chasseur correctness ») : arbitrage par commande directe
+(§ 2 bis du dispositif — vaut arbitrage de l'ensemble des findings ouverts),
+trace ici et dans `.claude/supervision/arbitrages.json`. 4 chantiers
+independants dispatches en parallele (outil `Agent`), plus le travail fait en
+direct sur le cluster `resultats.html`/`server.js`/`referentiel.js` (partage
+de fichiers, pas delegable sans risque de collision) — 3 vagues de
+`/code-review high --fix` (jusqu'a 8 agents) avant commit, plusieurs bugs
+reels trouves et corriges (detail dans les sous-sections). Verifie : `npm
+test` (22 suites, integrale) + `npm run lint` + rendus reels (PowerPoint COM,
+navigateur Puppeteer, artefact de deploiement demarre reellement).
+
+- **#1 Regle metier dupliquee** (top-3 classement + moyenne non-null) —
+  Extrait en modules partages navigateur+serveur (UMD) :
+  `app/src/public/classement.js` (top-3 dispersion/faibles/hauts/accords,
+  utilise par `server.js:construireBlocRestitution` ET
+  `resultats.html:rendrePointsAttention/Forts`) et
+  `app/src/public/stats-partagees.js` (`moyenneDe`, desormais source unique —
+  `app/src/scores.js` la re-exporte). Cote Python (`export-restitution-ppt.py`,
+  ne peut pas partager de code avec JS), `moyenne()` cite `scores.js:9` en
+  commentaire comme reference de comportement + 4 cas de test ajoutes.
+- **#2 XSS `esc()` duplique 4x** — Extrait en `app/src/public/esc.js`, charge
+  en `<script src>` **sans `defer`** (piege identifie par le hub : un chargement
+  differe casserait le bloc inline non-defere de `resultats.html`) sur les 4
+  pages. Ajoute a `PAGES_OUVERTES` (`auth.js`) car `repondre.html` (parcours
+  repondant, sans Basic Auth) le charge aussi.
+- **#3 Garde-fous CI non branches** — `ci.yml` : commentaire faux corrige
+  (`package-lock.json` EST versionne) + `npm ci` au lieu de `npm install` ;
+  etape Python dediee ajoutee pour `test-ppt-charte.py` (geometrie/charte
+  python-pptx pure, aucun rendu Chrome/PowerPoint reel — la decision « pas de
+  rendu reel en CI » n'est pas remise en cause).
+- **#4 4 rendus de carte PPT quasi-dupliques + contradiction `_CARTE_H_FIXE`** —
+  **PREPARE, PAS INTEGRE** : le correctif vit dans `git stash@{0}` ("WIP tiers a
+  isoler (item4)"), pas dans l'arbre de travail — verifie le 2026-09-09 par
+  `git stash show --stat`. Ce qui suit decrit donc le contenu du stash, a
+  reprendre dans un commit dedie (conflit probable sur `app/package.json`, que
+  les deux cotes modifient). Factorises en `_rendu_carte()` parametree
+  (`export-restitution-ppt.py`). La
+  contradiction etait **une distinction voulue mal nommee**, pas un bug : deux
+  budgets de hauteur different legitimement (dimensionnement commun vs
+  recentrage des cartes sans label « moy. ») — renommes `_CARTE_H_FIXE_BUDGET`/
+  `_CARTE_H_FIXE_SCORE_REEL` avec le pourquoi documente. Verifie par rendu reel
+  PowerPoint COM (deck complet genere + eye-check des 4 types de carte).
+- **#5 `backup`/`restore` sans `--env-file`** — **PREPARE, PAS INTEGRE**, meme
+  `git stash@{0}` que #4 : `app/package.json` de l'arbre porte toujours les
+  `backup`/`restore` nus (verifie le 2026-09-09). Contenu du stash : remplaces
+  par `backup:dev/preprod/prod` + `restore:dev/preprod/prod`, miroir de
+  `start:dev/preprod/prod`. `app/README.md` a ete RECALE sur les scripts
+  reellement presents en attendant l'integration — le documenter autrement
+  ferait echouer la commande que le lecteur recopie.
+- **#6 N+1 `getReferentiel`** — Reecrite de O(1+P+P·SC+P·SC·Q) requetes a 4
+  requetes fixes (une par table), arbre assemble en memoire par `Map` groupees
+  par id parent. **Residu note** (finding efficacite, non traite) : toujours
+  rappelee plusieurs fois par requete HTTP (jusqu'a ~10x sur un export PPT
+  multi-equipes) faute de memoisation inter-appels — optimisation de second
+  ordre, hors perimetre de ce passage.
+- **#7 Reconstruction DOM integrale** (`resultats.html:rendrePiliers`) —
+  Accordeons (pilier + detail nominatif) desormais preserves a travers le
+  rebuild : etat capture par requete DOM avant `innerHTML =`, restaure par
+  correspondance d'id apres. Verifie par rendu reel (toggle "avec manager",
+  capture d'ecran avant/apres).
+- **#8 5 requetes serie evitables** (`resultats.html`) — `init()`
+  (`chargerEquipes`+`chargerParticipation`) et `chargerResultats()`
+  (resultats+commentaire+comparaison, 3 fetches independants) parallelises via
+  `Promise.all`.
+- **#9 `build-artifact.js` copie tout `node_modules`** — `npm ci --omit=dev`
+  execute dans un dossier de staging isole (jamais le `node_modules` de dev en
+  cours d'usage). Mesure reelle : artefact 17,1 Mo -> 10,0 Mo (-42 %),
+  `node_modules` 89 Mo/6951 fichiers -> 40 Mo/2895 fichiers (-55 %). Verifie
+  par demarrage reel du serveur depuis l'artefact decompresse.
+- **#10 `seed-demo.js` hors transaction** — Enveloppe complete dans
+  `enTransaction()` (`app/src/tx.js`) ; le script utilise desormais la connexion
+  partagee de `src/db.js` (une connexion separee n'aurait vu aucun effet du
+  `BEGIN`). Verifie par interruption forcee en cours de peuplement : rollback
+  complet, base jamais laissee a moitie peuplee.
+- **Duplication de tests** (10+ occurrences signalees par la revue) — Le bloc
+  serveur-de-test (~50 lignes : `portLibre`/`attendreServeur`/`attendreMort`/
+  `nettoyer`) et les identifiants Basic Auth de test (`USER`/`PASS`/`basic()`)
+  extraits en `app/scripts/test-helpers-serveur.js`, 12 fichiers migres.
+  **Residu note** (finding reuse, non traite) : le niveau au-dessus — le motif
+  complet "spawn serveur + DB temp + env + cleanup" (`avecServeur`) — reste
+  duplique par variations mineures dans une dizaine de fichiers ; unification
+  plus large, hors perimetre de ce passage.
+- **CSRF (chasseur correctness, code deja committe avant cette session)** —
+  3 constats sur `csrf.js`/`test-csrf-import.js`, **arbitrage utilisateur pris
+  en cours de route** : `memeOrigine()` passe en **fail-closed** (Origin/Referer
+  absents -> refuse, au lieu de laisser passer) — ferme le vecteur ou un proxy/
+  extension retire les deux en-tetes sur un vrai navigateur avec Basic Auth en
+  cache. **Effet de bord majeur decouvert et corrige en cours de route** :
+  `fetch()` Node (contrairement a un navigateur) ne pose pas `Origin` par
+  defaut, donc CHAQUE test qui POST/PUT/DELETE sans navigateur se faisait
+  bloquer en 403 par erreur — `fetchMutant()` (helper ci-dessus) pose l'Origin
+  de la requete elle-meme, applique aux ~41 appels mutants concernes sur 8
+  fichiers. Couverture ajoutee : scenarios Basic-Auth-active (le vecteur reel
+  vise par le correctif initial, jamais teste jusqu'ici) + routes repondant
+  supplementaires. **Residu note, non corrige** (topologie absente du projet
+  aujourd'hui) : `memeOrigine()` compare `Origin` au `Host` vu par le process
+  Node — un futur deploiement derriere reverse-proxy qui ne forwarde pas `Host`
+  a l'identique bloquerait les ecritures legitimes ; a instruire seulement si
+  cette topologie devient reelle.
 
 **Mineurs differes de la meme revue** (aucun n'est atteignable par l'IHM
 aujourd'hui) : `scripts/backup-db.js` ouvre toujours la base sans `timeout`

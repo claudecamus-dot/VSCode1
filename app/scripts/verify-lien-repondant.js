@@ -12,9 +12,9 @@
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
-const net = require('node:net');
 const { spawn } = require('node:child_process');
 const puppeteer = require('puppeteer-core');
+const { portLibre, attendreServeur, attendreMort, nettoyer, fetchMutant } = require('./test-helpers-serveur');
 
 const CHROME_PATH = process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const OUT_DIR = process.env.CAPTURES_OUT || path.join(__dirname, '..', '..', 'cadrage', 'captures', 'lien-repondant');
@@ -23,28 +23,6 @@ let echecs = 0;
 function check(condition, message) {
   if (condition) console.log(`  ok   ${message}`);
   else { echecs += 1; console.error(`  FAIL ${message}`); }
-}
-
-function portLibre() {
-  return new Promise((resolve, reject) => {
-    const srv = net.createServer();
-    srv.listen(0, '127.0.0.1', () => { const { port } = srv.address(); srv.close(() => resolve(port)); });
-    srv.on('error', reject);
-  });
-}
-
-async function attendreServeur(base, delaiMs) {
-  const fin = Date.now() + delaiMs;
-  let derniereErreur = null;
-  while (Date.now() < fin) {
-    try {
-      const res = await fetch(`${base}/api/env`);
-      if (res.ok) return;
-      derniereErreur = new Error(`HTTP ${res.status}`);
-    } catch (err) { derniereErreur = err; }
-    await new Promise((r) => setTimeout(r, 250));
-  }
-  throw new Error(`Serveur injoignable apres ${delaiMs} ms : ${derniereErreur}`);
 }
 
 function niveaux() {
@@ -81,7 +59,7 @@ async function main() {
   try {
     await attendreServeur(base, 15000);
 
-    const creation = await fetch(`${base}/api/sessions`, {
+    const creation = await fetchMutant(`${base}/api/sessions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -153,10 +131,10 @@ async function main() {
     throw err;
   } finally {
     if (browser) await browser.close();
-    try { fs.rmSync(userDataDir, { recursive: true, force: true }); } catch { /* best effort */ }
+    await nettoyer(userDataDir);
     serveur.kill();
-    await new Promise((r) => setTimeout(r, 300));
-    try { fs.rmSync(dossierTmp, { recursive: true, force: true }); } catch { /* best effort */ }
+    await attendreMort(serveur);
+    await nettoyer(dossierTmp);
   }
 
   console.log(echecs === 0 ? '\nTOUS LES POINTS PASSENT' : `\n${echecs} POINT(S) EN ECHEC`);

@@ -6,10 +6,11 @@
 // Moyenne des valeurs NON nulles d'une liste (null si aucune). Sert à agréger des
 // moyennes déjà calculées (question -> sous-catégorie -> pilier) en ignorant les
 // trous, pour qu'une sous-catégorie sans réponse ne compte pas comme un zéro.
-function moyenneDe(liste) {
-  const valides = liste.filter((m) => m !== null);
-  return valides.length > 0 ? valides.reduce((a, b) => a + b, 0) / valides.length : null;
-}
+// Source unique : app/src/public/stats-partagees.js (constat audit-technique
+// 2026-09-04 — resultats.html dupliquait cette formule côté client, jamais
+// réconciliée avec cette version testée). Re-exportée ici pour ne pas casser
+// les imports existants (`require('./scores')`).
+const { moyenneDe } = require('./public/stats-partagees.js');
 
 // Pré-analyses d'une question (US6.2) sur la liste des niveaux saisis : moyenne,
 // min, max et écart-type de POPULATION (division par N, pas N-1 — on décrit le

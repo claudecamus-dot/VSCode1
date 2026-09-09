@@ -1,9 +1,13 @@
 name: CI
 
 # Exécute la suite de tests (app/scripts/test-*.js via `npm test`) à chaque push
-# sur main et sur chaque pull request. Couvre la partie JS ; l'export PPT
-# (Python + rendu Chrome/PowerPoint) n'est pas testable en CI et reste vérifié
-# manuellement (voir docs/wiki/technical/tests.md).
+# sur main et sur chaque pull request. Couvre la partie JS ; le RENDU réel du PPT
+# (Chrome/PowerPoint, relecture à l'œil) n'est pas testable en CI et reste vérifié
+# manuellement (voir docs/wiki/technical/tests.md). En revanche, les vérifications
+# géométrie et charte graphique du générateur — python-pptx pur, aucun rendu
+# visuel réel — tournent bien ici : test-export-ppt.py (via `npm test` →
+# test-export-ppt-si-dispo.js, qui skip proprement sans python-pptx) et
+# test-ppt-charte.py (étape dédiée ci-dessous, absent de `npm test`).
 
 on:
   push:
@@ -24,10 +28,24 @@ jobs:
         with:
           node-version: '22'
 
-      # Pas de package-lock.json versionné dans ce projet → `npm install`
-      # (et non `npm ci`, qui exige un lockfile).
+      # package-lock.json EST versionné (app/package-lock.json) → `npm ci`
+      # (déterministe, plus rapide, échoue si le lockfile diverge de
+      # package.json — comportement voulu en CI).
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+
+      - name: Setup Python 3
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # python-pptx seul (pas de Chrome/PowerPoint) : suffit à faire tourner
+      # réellement test-export-ppt.py (géométrie, via test-export-ppt-si-dispo.js
+      # dans `npm test`, sinon SKIP faute de python-pptx) et test-ppt-charte.py
+      # (charte graphique, étape dédiée plus bas) — les deux inspectent le modèle
+      # objet python-pptx, sans jamais produire de rendu visuel réel.
+      - name: Install python-pptx
+        run: pip install python-pptx
 
       - name: Lint
         run: npm run lint
@@ -35,5 +53,14 @@ jobs:
       # Couverture affichée (c8), sans seuil imposé : on mesure d'abord
       # (constat superviseur flotte 2026-07-23 — aucun projet ne mesurait
       # ce que ses tests couvrent). Gate éventuel plus tard.
+      # Inclut désormais test-export-ppt.py pour de vrai (python-pptx installé
+      # ci-dessus), plus l'exécution SKIP sur postes non outillés.
       - name: Run tests (with coverage)
         run: npm run test:cov
+
+      # Charte graphique du PPT (police/couleurs/contraste/alignement) sur le
+      # vrai template OCTO — non branché dans `npm test` (app/README.md), ajouté
+      # ici en étape dédiée : ne nécessite que python-pptx, aucun rendu
+      # Chrome/PowerPoint réel (cf. docstring du script).
+      - name: PPT — charte graphique (python-pptx)
+        run: python scripts/test-ppt-charte.py

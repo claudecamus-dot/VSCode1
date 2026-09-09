@@ -10,6 +10,7 @@ const db = require('./db');
 const { enTransaction } = require('./tx');
 const { importFromBuffer, getReferentiel, estImportRemplacerEnCours } = require('./referentiel');
 const { moyenneDe, statsNiveaux, deltaHistorique } = require('./scores');
+const Classement = require('./public/classement.js');
 const { importInvitesFromBuffer, replaceInvites, getInvites, getNonRepondants, looksLikeEmail } = require('./invites');
 const { valeurCanonique } = require('./normalisation');
 const { estModeDemo } = require('./mode');
@@ -216,6 +217,7 @@ app.get('/api/repondants/valeurs/:champ', (req, res) => {
 });
 
 app.post('/api/repondants/fusion', (req, res) => {
+  if (refuserSiImportEnCours(res)) return;
   const { champ, source, cible } = req.body || {};
   const colonne = CHAMPS_FUSIONNABLES[champ];
   if (!colonne) return res.status(400).json({ error: 'Champ inconnu (departement ou equipe).' });
@@ -914,34 +916,21 @@ function construireBlocRestitution(session, filtre, type, nom, manager) {
   const { effectif, piliers } = agregerResultats(session.id, filtre, manager);
   if (effectif === 0) return null;
 
-  // Points d'attention (memes regles que l'ecran resultats, US6.2).
-  const questions = piliers.flatMap((p) =>
-    p.sousCategories.flatMap((sc) =>
-      sc.questions.filter((q) => q.moyenne !== null).map((q) => ({ ...q, contexte: `${p.nom} · ${sc.nom}` }))
-    )
-  );
-  const dispersion = [...questions]
-    .sort((a, b) => b.ecartType - a.ecartType)
-    .slice(0, 3)
-    .map((q) => ({ texte: q.texte, moyenne: q.moyenne, ecartType: q.ecartType, min: q.min, max: q.max, contexte: q.contexte }));
-  const faibles = [...questions]
-    .sort((a, b) => a.moyenne - b.moyenne)
-    .slice(0, 3)
-    .map((q) => ({ texte: q.texte, moyenne: q.moyenne, contexte: q.contexte }));
+  // Points d'attention / points forts (memes regles que l'ecran resultats,
+  // US6.2) — classement extrait dans classement.js pour eviter que cette
+  // implementation serveur et celle de resultats.html derivent l'une de
+  // l'autre (constat audit-technique 2026-09-04).
+  const questions = Classement.aplatirQuestions(piliers, (p, sc) => `${p.nom} · ${sc.nom}`);
+  const { dispersion: dispersionClassee, faibles: faiblesClasses } = Classement.classerPointsAttention(questions);
+  const { hauts: hautsClasses, accords: accordsClasses } = Classement.classerPointsForts(questions);
 
-  // Pendant positif de dispersion/faibles (US "Points forts") : scores les plus
-  // hauts, et meilleurs accords (dispersion la plus faible). Un accord n'a de
-  // sens qu'avec au moins 2 reponses : a 1 seule, l'ecart-type est trivialement
-  // 0 sans traduire un vrai consensus.
-  const hauts = [...questions]
-    .sort((a, b) => b.moyenne - a.moyenne)
-    .slice(0, 3)
-    .map((q) => ({ texte: q.texte, moyenne: q.moyenne, contexte: q.contexte }));
-  const accords = [...questions]
-    .filter((q) => q.reponses.length >= 2)
-    .sort((a, b) => a.ecartType - b.ecartType)
-    .slice(0, 3)
-    .map((q) => ({ texte: q.texte, moyenne: q.moyenne, ecartType: q.ecartType, min: q.min, max: q.max, contexte: q.contexte }));
+  const champsAvecDispersion = (q) => ({ texte: q.texte, moyenne: q.moyenne, ecartType: q.ecartType, min: q.min, max: q.max, contexte: q.contexte });
+  const champsSimples = (q) => ({ texte: q.texte, moyenne: q.moyenne, contexte: q.contexte });
+
+  const dispersion = dispersionClassee.map(champsAvecDispersion);
+  const faibles = faiblesClasses.map(champsSimples);
+  const hauts = hautsClasses.map(champsSimples);
+  const accords = accordsClasses.map(champsAvecDispersion);
 
   // Evolution : seulement pour les equipes (comparaison par equipe, US6.5).
   const comp = type === 'equipe' ? calculerComparaison(session, filtre.equipe, manager) : { disponible: false };

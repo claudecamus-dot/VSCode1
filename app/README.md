@@ -314,7 +314,7 @@ normalement ; seul cet export échoue.
 ## Sauvegarde / restauration de la base
 
 ```bash
-npm run backup                                    # écrit une sauvegarde horodatée dans BACKUP_DIR
+npm run backup                                      # écrit une sauvegarde horodatée dans BACKUP_DIR
 node scripts/restore-db.js <fichier-sauvegarde.db>  # restaure (app arrêtée), garde un filet de sécurité de l'état courant
 ```
 

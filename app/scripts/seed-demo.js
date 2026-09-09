@@ -13,7 +13,6 @@
 //   Sur PROD (APP_ENV=PROD) : refuse sauf --force.
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { DatabaseSync } = require('node:sqlite');
 
 const dbPath = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'app.db');
 if ((process.env.APP_ENV || '') === 'PROD' && !process.argv.includes('--force')) {
@@ -21,8 +20,12 @@ if ((process.env.APP_ENV || '') === 'PROD' && !process.argv.includes('--force'))
   process.exit(1);
 }
 
-const db = new DatabaseSync(dbPath);
-db.exec('PRAGMA foreign_keys = ON;');
+// Connexion PARTAGEE avec src/tx.js (celle de src/db.js), pas une DatabaseSync a
+// part : enTransaction() pose son BEGIN/COMMIT/ROLLBACK sur la connexion de
+// db.js — une connexion SQLite distincte ne verrait pas ce BEGIN, et les inserts
+// ci-dessous s'auto-committeraient un par un sans aucune protection.
+const db = require('../src/db');
+const { enTransaction } = require('../src/tx');
 
 // PRNG déterministe (mulberry32).
 function mulberry32(a) {
@@ -76,43 +79,50 @@ const SESSIONS = [
   { ouverture: now - 12 * DAY, fermeture: now + 18 * DAY, delta: 0.0, commentaires: true },
 ];
 
-// --- Purge de la démo existante uniquement (cascade via foreign_keys ON) ---
-const anciennes = db.prepare('SELECT id FROM sessions WHERE est_demo = 1').all().length;
-db.prepare('DELETE FROM sessions WHERE est_demo = 1').run();
-
-const insSession = db.prepare('INSERT INTO sessions (id, ouverture_at, fermeture_at, created_at, texte_intro, est_demo) VALUES (?, ?, ?, ?, ?, 1)');
-const insSQ = db.prepare('INSERT INTO session_questions (session_id, question_id) VALUES (?, ?)');
-const insRep = db.prepare(`INSERT INTO repondants
-  (id, session_id, email, nom, prenom, departement, equipe, role, est_manager, dans_equipe, created_at, soumis_at)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`);
-const insReponse = db.prepare('INSERT INTO reponses (repondant_id, question_id, niveau) VALUES (?, ?, ?)');
-const insComment = db.prepare('INSERT INTO commentaires (session_id, equipe, texte, updated_at) VALUES (?, ?, ?, ?)');
-
+// Purge + régénération dans UNE transaction : un échec en cours de peuplement
+// (contrainte violée, process tué) fait rejouer le ROLLBACK de tx.js plutôt que
+// de laisser des sessions démo à moitié écrites — soit la démo complète, soit
+// aucune (l'ancienne demeure), jamais un état intermédiaire incohérent.
+let anciennes = 0;
 let nSess = 0, nRep = 0, nRepo = 0, ni = 0;
-for (const s of SESSIONS) {
-  const sid = crypto.randomUUID();
-  insSession.run(sid, iso(s.ouverture), iso(s.fermeture), iso(s.ouverture), 'Session de démonstration — données fictives.');
-  for (const q of questions) insSQ.run(sid, q.qid);
-  nSess++;
-  for (const t of TEAMS) {
-    for (let r = 0; r < 4; r++) {
-      const estManager = r === 0 ? 1 : 0;
-      const prenom = PRENOMS[ni % PRENOMS.length];
-      const nom = NOMS[(ni * 5 + 3) % NOMS.length];
-      const role = estManager ? 'Manager' : ROLES[(r - 1) % ROLES.length];
-      const rid = crypto.randomUUID();
-      insRep.run(rid, sid, `${prenom}.${nom}@demo.example`.toLowerCase(), nom, prenom, DEPT, t.equipe, role,
-        estManager, iso(s.ouverture), iso(s.ouverture + (2 + r) * DAY));
-      nRep++;
-      for (const q of questions) {
-        insReponse.run(rid, q.qid, niveauFor(baseFor(t.bases, idxPilier.get(q.pid)) + s.delta));
-        nRepo++;
+enTransaction(() => {
+  // --- Purge de la démo existante uniquement (cascade via foreign_keys ON) ---
+  anciennes = db.prepare('SELECT id FROM sessions WHERE est_demo = 1').all().length;
+  db.prepare('DELETE FROM sessions WHERE est_demo = 1').run();
+
+  const insSession = db.prepare('INSERT INTO sessions (id, ouverture_at, fermeture_at, created_at, texte_intro, est_demo) VALUES (?, ?, ?, ?, ?, 1)');
+  const insSQ = db.prepare('INSERT INTO session_questions (session_id, question_id) VALUES (?, ?)');
+  const insRep = db.prepare(`INSERT INTO repondants
+    (id, session_id, email, nom, prenom, departement, equipe, role, est_manager, dans_equipe, created_at, soumis_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`);
+  const insReponse = db.prepare('INSERT INTO reponses (repondant_id, question_id, niveau) VALUES (?, ?, ?)');
+  const insComment = db.prepare('INSERT INTO commentaires (session_id, equipe, texte, updated_at) VALUES (?, ?, ?, ?)');
+
+  for (const s of SESSIONS) {
+    const sid = crypto.randomUUID();
+    insSession.run(sid, iso(s.ouverture), iso(s.fermeture), iso(s.ouverture), 'Session de démonstration — données fictives.');
+    for (const q of questions) insSQ.run(sid, q.qid);
+    nSess++;
+    for (const t of TEAMS) {
+      for (let r = 0; r < 4; r++) {
+        const estManager = r === 0 ? 1 : 0;
+        const prenom = PRENOMS[ni % PRENOMS.length];
+        const nom = NOMS[(ni * 5 + 3) % NOMS.length];
+        const role = estManager ? 'Manager' : ROLES[(r - 1) % ROLES.length];
+        const rid = crypto.randomUUID();
+        insRep.run(rid, sid, `${prenom}.${nom}@demo.example`.toLowerCase(), nom, prenom, DEPT, t.equipe, role,
+          estManager, iso(s.ouverture), iso(s.ouverture + (2 + r) * DAY));
+        nRep++;
+        for (const q of questions) {
+          insReponse.run(rid, q.qid, niveauFor(baseFor(t.bases, idxPilier.get(q.pid)) + s.delta));
+          nRepo++;
+        }
+        ni++;
       }
-      ni++;
+      if (s.commentaires) insComment.run(sid, t.equipe, t.commentaire, iso(s.ouverture + 5 * DAY));
     }
-    if (s.commentaires) insComment.run(sid, t.equipe, t.commentaire, iso(s.ouverture + 5 * DAY));
   }
-}
+});
 
 console.log(`Purge : ${anciennes} session(s) démo supprimée(s).`);
 console.log(`Semé (est_demo=1) : ${nSess} sessions, ${nRep} répondants, ${nRepo} réponses.`);

@@ -3,13 +3,17 @@
 // Produit dist/<nom>.tgz : un artefact autoportant (sources + dependances de prod
 // + template + requirements Python) qu'on deploie tel quel dans le dossier d'un
 // environnement (promotion DEV->PRE-PROD->PROD) ou qui sert de base au conteneur.
-// Hors-ligne : on copie le node_modules installe (le projet n'a aucune devDep),
-// et on embarque package-lock.json pour tracer/rejouer les versions.
+// Le projet A des devDependencies (eslint, c8, puppeteer-core...) : on les exclut
+// de l'artefact. node_modules n'est donc PAS copie depuis le node_modules de dev
+// en cours d'usage ; on l'installe a neuf, prod-only, dans le staging lui-meme
+// (npm ci --omit=dev, a partir du package-lock.json copie juste avant) — versions
+// figees comme en dev, mais sans les paquets qui ne servent qu'au developpement.
+// On embarque aussi package-lock.json pour tracer/rejouer les versions.
 //
 // Usage :   node scripts/build-artifact.js     (ou : npm run build:artifact)
 const fs = require('node:fs');
 const path = require('node:path');
-const { execFileSync } = require('node:child_process');
+const { execFileSync, execSync } = require('node:child_process');
 
 const APP = path.join(__dirname, '..');
 const REPO = path.join(APP, '..');
@@ -41,9 +45,16 @@ for (const f of ['package.json', 'package-lock.json', '.env.example']) {
   if (fs.existsSync(path.join(APP, f))) fs.cpSync(path.join(APP, f), path.join(stageApp, f));
 }
 
-// 4) Dependances de prod (copie du node_modules installe — 0 devDep dans ce projet).
-console.log('Copie de node_modules…');
-fs.cpSync(path.join(APP, 'node_modules'), path.join(stageApp, 'node_modules'), { recursive: true });
+// 4) Dependances de PROD uniquement : installees a neuf dans le staging (jamais
+//    dans le node_modules de dev en cours d'usage) via `npm ci --omit=dev`, a
+//    partir du package.json/package-lock.json deja copies dans stageApp. Fige les
+//    memes versions qu'en dev, sans les devDependencies (ex. puppeteer-core, qui
+//    ne sert qu'aux scripts de capture/dev, absent de app/src/server.js).
+console.log('Installation des dependances de production (npm ci --omit=dev)…');
+// execSync (pas execFileSync) : sur Windows, npm est un script .cmd, invocable
+// seulement via un shell (execFileSync direct leve EINVAL). Aucun argument
+// variable/externe ici (chaine figee), donc pas de risque d'injection.
+execSync('npm ci --omit=dev --no-audit --no-fund', { cwd: stageApp, stdio: 'inherit' });
 
 // 5) Template PPT (chemin relatif attendu par export-restitution-ppt.py : ../../template ppt).
 fs.mkdirSync(path.join(stage, 'template ppt'), { recursive: true });

@@ -15,12 +15,12 @@
 // correctif, la fermeture serait donc invisible et soumission/reponses
 // continueraient de reussir (200) au lieu du 409 attendu — c'est le defaut que
 // ce test rend visible.
-const net = require('node:net');
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { DatabaseSync } = require('node:sqlite');
+const { portLibre, attendreServeur, attendreMort, nettoyer, fetchMutant } = require('./test-helpers-serveur');
 
 const DELAI_DEMARRAGE_MS = 15000;
 const CHEMIN_SERVEUR = path.join(__dirname, '..', 'src', 'server.js');
@@ -33,53 +33,6 @@ function check(condition, message) {
     echecs += 1;
     console.error(`  FAIL ${message}`);
   }
-}
-
-function portLibre() {
-  return new Promise((resolve, reject) => {
-    const srv = net.createServer();
-    srv.listen(0, '127.0.0.1', () => {
-      const { port } = srv.address();
-      srv.close(() => resolve(port));
-    });
-    srv.on('error', reject);
-  });
-}
-
-async function attendreServeur(base, delaiMs) {
-  const fin = Date.now() + delaiMs;
-  let derniereErreur = null;
-  while (Date.now() < fin) {
-    try {
-      const res = await fetch(`${base}/api/env`);
-      if (res.ok) return;
-      derniereErreur = new Error(`HTTP ${res.status} sur /api/env`);
-    } catch (err) {
-      derniereErreur = err;
-    }
-    await new Promise((r) => setTimeout(r, 250));
-  }
-  throw new Error(`Serveur injoignable apres ${delaiMs} ms : ${derniereErreur}`);
-}
-
-function attendreMort(serveur, delaiMs = 5000) {
-  if (serveur.exitCode !== null || serveur.signalCode !== null) return Promise.resolve();
-  return new Promise((resolve) => {
-    const minuteur = setTimeout(resolve, delaiMs);
-    serveur.once('exit', () => { clearTimeout(minuteur); setTimeout(resolve, 100); });
-  });
-}
-
-async function nettoyer(dossier) {
-  for (let essai = 0; essai < 5; essai += 1) {
-    try {
-      fs.rmSync(dossier, { recursive: true, force: true });
-      return;
-    } catch {
-      await new Promise((r) => setTimeout(r, 200));
-    }
-  }
-  console.warn(`  info dossier temporaire non supprime : ${dossier}`);
 }
 
 function niveaux() {
@@ -123,7 +76,7 @@ async function main() {
     await attendreServeur(base, DELAI_DEMARRAGE_MS);
 
     console.log('Preparation : session ouverte, repondant identifie :');
-    const creation = await fetch(`${base}/api/sessions`, {
+    const creation = await fetchMutant(`${base}/api/sessions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -134,7 +87,7 @@ async function main() {
     check(creation.status === 200, `session creee (recu ${creation.status})`);
     const { id: sessionId } = await creation.json();
 
-    const identification = await fetch(`${base}/api/sessions/${sessionId}/repondants`, {
+    const identification = await fetchMutant(`${base}/api/sessions/${sessionId}/repondants`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -152,7 +105,7 @@ async function main() {
     const { id: repondantId } = await identification.json();
 
     console.log('Session OUVERTE : enregistrer le pilier complet reussit (temoin nominal) :');
-    const enregistrement = await fetch(`${base}/api/repondants/${repondantId}/piliers/${pilierId}/reponses`, {
+    const enregistrement = await fetchMutant(`${base}/api/repondants/${repondantId}/piliers/${pilierId}/reponses`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reponses: [{ question_id: q1, niveau: 0 }, { question_id: q2, niveau: 0 }] }),
@@ -170,7 +123,7 @@ async function main() {
     check(statutApresFermeture.statut === 'fermee', `preparation : la session est bien vue comme fermee (recu ${statutApresFermeture.statut})`);
 
     console.log('Session FERMEE : enregistrer un pilier est refuse (409), meme avec un payload valide :');
-    const enregistrementFerme = await fetch(`${base}/api/repondants/${repondantId}/piliers/${pilierId}/reponses`, {
+    const enregistrementFerme = await fetchMutant(`${base}/api/repondants/${repondantId}/piliers/${pilierId}/reponses`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reponses: [{ question_id: q1, niveau: 1 }, { question_id: q2, niveau: 1 }] }),
@@ -187,7 +140,7 @@ async function main() {
     );
 
     console.log('Session FERMEE : soumettre est refuse (409), meme si toutes les questions sont repondues :');
-    const soumission = await fetch(`${base}/api/repondants/${repondantId}/soumission`, { method: 'POST' });
+    const soumission = await fetchMutant(`${base}/api/repondants/${repondantId}/soumission`, { method: 'POST' });
     check(soumission.status === 409, `POST soumission apres cloture -> 409 (recu ${soumission.status})`);
     const corpsSoumission = await soumission.json();
     check(corpsSoumission.statut === 'fermee', 'le corps du 409 de soumission porte aussi le statut "fermee"');

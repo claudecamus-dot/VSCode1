@@ -61,6 +61,7 @@
   .mode-import input[type=radio] { width: auto; margin-top: 0.2rem; }
   .mode-import .danger { color: #b3261e; }
 </style>
+<script src="/esc.js"></script>
 <script src="/env-banner.js" defer></script>
 </head>
 <body>
@@ -615,10 +616,7 @@
     });
 
     // --- Fusion des doublons (US3.4bis) ---
-
-    function esc(valeur) {
-      return String(valeur).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-    }
+    // esc() est fourni par /esc.js (charge dans <head>, sans defer).
 
     async function chargerValeursFusion() {
       const champ = $('champFusion').value;

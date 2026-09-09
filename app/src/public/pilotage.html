@@ -31,6 +31,7 @@
   .equipe-row a { color: #2c5cc5; text-decoration: none; font-size: 0.9rem; white-space: nowrap; }
   .equipe-row a:hover { text-decoration: underline; }
 </style>
+<script src="/esc.js"></script>
 <script src="/env-banner.js" defer></script>
 </head>
 <body>
@@ -212,9 +213,7 @@
       $('zoneRadar').innerHTML = svg;
     }
 
-    function esc(s) {
-      return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-    }
+    // esc() est fourni par /esc.js (charge dans <head>, sans defer).
 
     // Liste des équipes du département ; le zoom ouvre le détail complet (US7.3).
     function rendreEquipes(equipes) {

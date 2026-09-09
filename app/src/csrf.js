@@ -13,22 +13,26 @@
 // les donnees collectees, avec ou sans Basic Auth active.
 //
 // Verifie sur les methodes qui MUTENT (POST/PUT/DELETE/PATCH) ; GET reste en
-// lecture, hors perimetre CSRF. Fail-open sur Origin/Referer ABSENTS : un
-// navigateur envoie systematiquement Origin sur les methodes mutantes (meme
-// requete same-origin, standard Fetch depuis plusieurs annees) — son absence
-// signale un client non-navigateur (curl, script, test), pas une attaque :
-// celui-ci n'a de toute façon aucun cache de credentials a rejouer malgre lui.
+// lecture, hors perimetre CSRF. FAIL-CLOSED sur Origin/Referer ABSENTS (durci
+// le 2026-09-04, arbitrage utilisateur — revue adversariale du correctif
+// initial) : un navigateur envoie normalement Origin sur les methodes
+// mutantes, mais un proxy d'entreprise ou une extension de confidentialite
+// peut le retirer sur un VRAI navigateur avec des identifiants Basic Auth en
+// cache — exactement le vecteur CSRF que ce module existe pour fermer. Un
+// client non-navigateur legitime (curl, script interne) doit envoyer Origin
+// explicitement s'il appelle une route mutante ; le cout assume est de
+// bloquer les rares navigateurs qui strippent les deux en-tetes.
 
 const METHODES_MUTANTES = new Set(['POST', 'PUT', 'DELETE', 'PATCH']);
 
 function memeOrigine(req) {
   const hote = req.headers.host;
   const source = req.headers.origin || req.headers.referer;
-  if (!hote || !source) return true;
   try {
+    // new URL(undefined) leve (Origin/Referer absents) -> capte par le catch,
+    // meme chemin fail-closed qu'une valeur illisible.
     return new URL(source).host === hote;
   } catch {
-    // Origin/Referer illisible : plus prudent de refuser que de laisser passer.
     return false;
   }
 }

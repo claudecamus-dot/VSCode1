@@ -8,11 +8,11 @@
 // verrouille l'ABSENCE totale de nom/prenom cote consolidation, et verifie en
 // temoin que la route resultats d'UNE equipe, elle, les porte toujours (la
 // regression a corriger n'est pas "plus jamais de nominatif nulle part").
-const net = require('node:net');
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const { portLibre, attendreServeur, attendreMort, nettoyer, fetchMutant } = require('./test-helpers-serveur');
 
 const DELAI_DEMARRAGE_MS = 15000;
 const CHEMIN_SERVEUR = path.join(__dirname, '..', 'src', 'server.js');
@@ -31,53 +31,6 @@ function check(condition, message) {
     echecs += 1;
     console.error(`  FAIL ${message}`);
   }
-}
-
-function portLibre() {
-  return new Promise((resolve, reject) => {
-    const srv = net.createServer();
-    srv.listen(0, '127.0.0.1', () => {
-      const { port } = srv.address();
-      srv.close(() => resolve(port));
-    });
-    srv.on('error', reject);
-  });
-}
-
-async function attendreServeur(base, delaiMs) {
-  const fin = Date.now() + delaiMs;
-  let derniereErreur = null;
-  while (Date.now() < fin) {
-    try {
-      const res = await fetch(`${base}/api/env`);
-      if (res.ok) return;
-      derniereErreur = new Error(`HTTP ${res.status} sur /api/env`);
-    } catch (err) {
-      derniereErreur = err;
-    }
-    await new Promise((r) => setTimeout(r, 250));
-  }
-  throw new Error(`Serveur injoignable apres ${delaiMs} ms : ${derniereErreur}`);
-}
-
-function attendreMort(serveur, delaiMs = 5000) {
-  if (serveur.exitCode !== null || serveur.signalCode !== null) return Promise.resolve();
-  return new Promise((resolve) => {
-    const minuteur = setTimeout(resolve, delaiMs);
-    serveur.once('exit', () => { clearTimeout(minuteur); setTimeout(resolve, 100); });
-  });
-}
-
-async function nettoyer(dossier) {
-  for (let essai = 0; essai < 5; essai += 1) {
-    try {
-      fs.rmSync(dossier, { recursive: true, force: true });
-      return;
-    } catch {
-      await new Promise((r) => setTimeout(r, 200));
-    }
-  }
-  console.warn(`  info dossier temporaire non supprime : ${dossier}`);
 }
 
 function niveaux() {
@@ -112,7 +65,7 @@ async function main() {
     await attendreServeur(base, DELAI_DEMARRAGE_MS);
 
     console.log('Preparation : session ouverte, repondant identifie, pilier repondu et soumis :');
-    const creation = await fetch(`${base}/api/sessions`, {
+    const creation = await fetchMutant(`${base}/api/sessions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -122,7 +75,7 @@ async function main() {
     });
     const { id: sessionId } = await creation.json();
 
-    const identification = await fetch(`${base}/api/sessions/${sessionId}/repondants`, {
+    const identification = await fetchMutant(`${base}/api/sessions/${sessionId}/repondants`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -139,14 +92,14 @@ async function main() {
     check(identification.status === 200, `repondant identifie (recu ${identification.status})`);
     const { id: repondantId } = await identification.json();
 
-    const enregistrement = await fetch(`${base}/api/repondants/${repondantId}/piliers/${pilierId}/reponses`, {
+    const enregistrement = await fetchMutant(`${base}/api/repondants/${repondantId}/piliers/${pilierId}/reponses`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reponses: [{ question_id: q1, niveau: 2 }] }),
     });
     check(enregistrement.status === 200, `pilier enregistre (recu ${enregistrement.status})`);
 
-    const soumission = await fetch(`${base}/api/repondants/${repondantId}/soumission`, { method: 'POST' });
+    const soumission = await fetchMutant(`${base}/api/repondants/${repondantId}/soumission`, { method: 'POST' });
     check(soumission.status === 200, `questionnaire soumis (recu ${soumission.status})`);
 
     console.log("Consolidation departement (nominatif:false) : NI nom NI prenom du repondant dans le JSON :");

@@ -5,11 +5,11 @@
 // illisibles, et sessionStatus() (qui compare les memes NaN) rendait la
 // session "ouverte" indefiniment, sans jamais se fermer. Ce test verrouille le
 // 400 en amont et la non-regression du chemin nominal.
-const net = require('node:net');
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const { portLibre, attendreServeur, attendreMort, nettoyer, fetchMutant } = require('./test-helpers-serveur');
 
 const DELAI_DEMARRAGE_MS = 15000;
 const CHEMIN_SERVEUR = path.join(__dirname, '..', 'src', 'server.js');
@@ -22,53 +22,6 @@ function check(condition, message) {
     echecs += 1;
     console.error(`  FAIL ${message}`);
   }
-}
-
-function portLibre() {
-  return new Promise((resolve, reject) => {
-    const srv = net.createServer();
-    srv.listen(0, '127.0.0.1', () => {
-      const { port } = srv.address();
-      srv.close(() => resolve(port));
-    });
-    srv.on('error', reject);
-  });
-}
-
-async function attendreServeur(base, delaiMs) {
-  const fin = Date.now() + delaiMs;
-  let derniereErreur = null;
-  while (Date.now() < fin) {
-    try {
-      const res = await fetch(`${base}/api/env`);
-      if (res.ok) return;
-      derniereErreur = new Error(`HTTP ${res.status} sur /api/env`);
-    } catch (err) {
-      derniereErreur = err;
-    }
-    await new Promise((r) => setTimeout(r, 250));
-  }
-  throw new Error(`Serveur injoignable apres ${delaiMs} ms : ${derniereErreur}`);
-}
-
-function attendreMort(serveur, delaiMs = 5000) {
-  if (serveur.exitCode !== null || serveur.signalCode !== null) return Promise.resolve();
-  return new Promise((resolve) => {
-    const minuteur = setTimeout(resolve, delaiMs);
-    serveur.once('exit', () => { clearTimeout(minuteur); setTimeout(resolve, 100); });
-  });
-}
-
-async function nettoyer(dossier) {
-  for (let essai = 0; essai < 5; essai += 1) {
-    try {
-      fs.rmSync(dossier, { recursive: true, force: true });
-      return;
-    } catch {
-      await new Promise((r) => setTimeout(r, 200));
-    }
-  }
-  console.warn(`  info dossier temporaire non supprime : ${dossier}`);
 }
 
 function niveaux() {
@@ -111,7 +64,7 @@ async function main() {
       { ouverture_at: 12345, fermeture_at: '2026-07-15T18:00:00Z' },
     ];
     for (const corps of casInvalides) {
-      const r = await fetch(`${base}/api/sessions`, {
+      const r = await fetchMutant(`${base}/api/sessions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(corps),
@@ -126,7 +79,7 @@ async function main() {
       { ouverture_at: '', fermeture_at: '2026-07-15T18:00:00Z' },
       { ouverture_at: '2026-07-01T09:00:00Z', fermeture_at: '' },
     ]) {
-      const r = await fetch(`${base}/api/sessions`, {
+      const r = await fetchMutant(`${base}/api/sessions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(corps),
@@ -140,7 +93,7 @@ async function main() {
 
     console.log('Non-regression : dates ISO valides -> la session se cree normalement :');
     const bonCorps = { ouverture_at: '2026-07-01T09:00:00Z', fermeture_at: '2026-12-31T23:59:59Z' };
-    const ok = await fetch(`${base}/api/sessions`, {
+    const ok = await fetchMutant(`${base}/api/sessions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(bonCorps),
