@@ -84,7 +84,7 @@ for (const page of ['resultats.html', 'admin.html', 'pilotage.html', 'repondre.h
   const html = fs.readFileSync(path.join(DOSSIER_PAGES, page), 'utf8');
   const balise = html.match(/<script[^>]*src="\/esc\.js"[^>]*>/);
   check(!!balise, page + ' charge /esc.js');
-  if (balise) check(!/defer/.test(balise[0]), page + ' charge /esc.js sans defer');
+  if (balise) check(!/\bdefer\b/.test(balise[0]), page + ' charge /esc.js sans defer');
   check(!/function esc\(valeur\)/.test(html), page + ' ne redefinit pas esc() localement');
 }
 
