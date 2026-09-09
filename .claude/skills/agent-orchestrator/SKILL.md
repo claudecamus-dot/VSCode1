@@ -13,8 +13,8 @@ d'office, stats plan-vs-réel par playbook/agent, `prudence` issu du diagnostic 
 `docs/wiki/technical/agents-supervision.md` (tableau de bord humain des mêmes données) et
 `.claude/orchestration/playbooks/` (workflows récurrents — format dans `playbooks/FORMAT.md`).
 
-<!-- SOCLE-PROVENANCE: socle : 8042d89 du 2026-09-09 -->
-> **Socle généré** — tout ce qui suit `## Méthode` vient du hub de supervision (`8042d89`, 2026-09-09) et sera **réécrit** à la prochaine propagation.
+<!-- SOCLE-PROVENANCE: socle : 47a1926 du 2026-09-09 -->
+> **Socle généré** — tout ce qui suit `## Méthode` vient du hub de supervision (`47a1926`, 2026-09-09) et sera **réécrit** à la prochaine propagation.
 > Le chapitre « Portée sur ce projet » ci-dessous, lui, n'est jamais réécrit : c'est le travail local.
 
 ## Portée sur ce projet (import du 2026-07-21 ; flotte arbitrée le 2026-07-21)
@@ -825,7 +825,9 @@ py .claude/orchestration/log_run.py '{"demande": "résumé court", "qualificatio
 (`ok` | `echec` | `non-rendu`) : `log_run.py` refuse un `resultat: succes` si une étape
 porte `etat: echec` ou `etat: non-rendu` — un fan-out dont un sous-agent a échoué ou n'a
 rien rendu ne peut pas être journalisé comme un succès global (motif OrchestraBench,
-arXiv:2608.05263, veille 2026-09-08). `qualification` : `orchestre` | `direct-signale` ;
+arXiv:2608.05263, veille 2026-09-08). Le même contrôle joue au `--solde` (revue de code du
+2026-09-09 : il passait par la porte de derrière) ; un `etat` hors vocabulaire n'est refusé
+que sur `succes`, un `echec` mal étiqueté reste journalisable (R5). `qualification` : `orchestre` | `direct-signale` ;
 `resultat` (issue **discriminante** — pas un `succes` réflexe, un journal où tout est
 `succes` ne porte aucun signal) : `succes` = livrable produit ET toutes les exigences
 explicites de la demande couvertes ET vérifications obligatoires faites **ET, pour un

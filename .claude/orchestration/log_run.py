@@ -4,7 +4,7 @@
 # | garder : la signaler au hub, qui corrige le canon et re-synchronise.
 # | (Depuis le hub : « py .claude/dispositif/sync_dispositif.py » — ce script
 # |  n'est pas déployé, il n'existe pas dans ce dépôt.)
-# | Provenance canon : 8042d89 du 2026-09-09 — permet, au prochain sync, de dire si
+# | Provenance canon : 47a1926 du 2026-09-09 — permet, au prochain sync, de dire si
 # | une différence vient d'une édition locale ou d'une avance du canon (voir
 # | `determiner_cause` dans sync_dispositif.py au hub).
 # +---------------------------------------------------------------------------
@@ -29,7 +29,10 @@ Un run `succes` dont au moins une étape porte `echec` ou `non-rendu` est REFUS�
 nommant l'étape : un fan-out dont une branche a échoué n'est pas un succès entier,
 et c'est exactement ce que l'étude mesure — l'échec d'un sous-agent dilué dans une
 synthèse lissée. `partiel` et `echec` passent : ils DISENT l'échec. Une valeur hors
-des trois est refusée aussi (sans quoi `"etat": "KO"` passerait pour inoffensif).
+des trois BLOQUE un `succes` (sans quoi `"etat": "KO"` passerait pour inoffensif),
+mais laisse passer un `echec`/`partiel` avec un avertissement — R5 exige que le run
+raté soit journalisé, et le refuser sur une faute de frappe en perdrait la trace
+(revue bmad-code-review, 2026-09-09). Le contrôle vaut à l'append ET au `--solde`.
 Consommé à terme par le superviseur étage 2 (métrique « plan vs réel »).
 
 JOURNALISER DÈS LA COMPOSITION DU PLAN, PAS À LA FIN (constat superviseur VSCode
@@ -228,10 +231,23 @@ def solder(argv) -> int:
     if refus:
         print(refus)
         return 1
+    # « Une etape en echec interdit le succes » s'appliquait au seul APPEND : `main()`
+    # route `--solde` vers `solder()` et retourne AVANT `verifier_etapes_du_plan`. Un
+    # run ouvert `en-cours` avec une branche `echec` se requalifiait donc `succes` par
+    # la porte de derriere — le garde-fou du 2026-09-08 contourne d'une commande
+    # (revue bmad-code-review, 2026-09-09). Controle sur une COPIE portant le resultat
+    # vise, comme a l'append, et toujours avant toute mutation.
+    refus_etapes = verifier_etapes_du_plan({**run, "resultat": resultat})
+    if refus_etapes:
+        print(refus_etapes)
+        return 1
     avant = run.get("resultat")
     run["resultat"] = resultat
     date = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
-    run["notes"] = (str(run.get("notes", "")) + f" | solde {date} : {note}").strip(" |")
+    # `or ""` et non `get("notes", "")` : le journal porte des runs a `"notes": null`,
+    # dont le solde ecrivait litteralement « None | solde ... » (meme motif que le
+    # `or ''` de la desambiguisation ci-dessus, revue bmad-code-review 2026-09-09).
+    run["notes"] = (str(run.get("notes") or "") + f" | solde {date} : {note}").strip(" |")
     # Ecriture atomique (meme convention que .claude/supervision/scan_transcripts.py) : "w" direct sur
     # RUNS_PATH tronque les 94 Ko du journal a mi-parcours si l'ecriture est interrompue
     # (Ctrl-C, coupure, disque plein). Le temporaire vit dans le meme repertoire pour
@@ -269,12 +285,21 @@ def verifier_etapes_du_plan(run: dict) -> str | None:
         elif etat in ETATS_ETAPE_FAUTIFS:
             fautives.append(f"{libelle} : etat '{etat}'")
     if inconnues:
-        return (
-            "log_run REFUS : etat d'etape hors vocabulaire -\n  "
+        message = (
+            "etat d'etape hors vocabulaire -\n  "
             + "\n  ".join(inconnues)
             + f"\n  Attendu : {' | '.join(ETATS_ETAPE)} (champ optionnel : une etape "
               "sans 'etat' reste acceptee)."
         )
+        # R5 (« verite du journal ») prime sur la police du vocabulaire : un `etat`
+        # mal orthographie faisait REFUSER l'ecriture d'un run `echec`/`partiel`,
+        # c'est-a-dire perdre la trace du run rate — precisement ce que R5 rend
+        # obligatoire de journaliser. Seul un `succes` reste bloque : c'est lui que
+        # `"etat": "KO"` rendrait faussement inoffensif (revue bmad-code-review,
+        # 2026-09-09).
+        if run.get("resultat") == "succes":
+            return "log_run REFUS : " + message
+        print("log_run AVERTISSEMENT : " + message)
     if run.get("resultat") == "succes" and fautives:
         return (
             "log_run REFUS : resultat 'succes' alors que le plan porte une etape en "
