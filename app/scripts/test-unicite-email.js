@@ -9,6 +9,7 @@ const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const { DatabaseSync } = require('node:sqlite');
 const { portLibre, attendreServeur, attendreMort, nettoyer, fetchMutant } = require('./test-helpers-serveur');
 
 const DELAI_DEMARRAGE_MS = 15000;
@@ -132,8 +133,15 @@ async function main() {
     check(memeEmailAutreSession.status === 200, `meme email, session differente -> 200 (recu ${memeEmailAutreSession.status})`);
 
     console.log("Verification finale : l'email du repondant deja identifie est normalise en base :");
-    const relecture = await (await fetch(`${base}/api/repondants/${repondantId1}`)).json();
-    check(relecture.email === 'a@b.fr', "l'email est normalise en base (minuscules, sans espaces)");
+    // Lecture DIRECTE en base, et non plus par GET /api/repondants/:id : depuis
+    // le correctif du finding securite de l'audit 2026-09-04, cette route est
+    // une projection non nominative (elle ne rend plus d'email — c'est le point
+    // de scripts/test-repondant-sans-pii.js). Ce qu'on verifie ici est la
+    // NORMALISATION A L'ECRITURE : la base est la bonne source pour ca.
+    const dbRelecture = new DatabaseSync(dbPath, { timeout: 5000 });
+    const enBase = dbRelecture.prepare('SELECT email FROM repondants WHERE id = ?').get(repondantId1);
+    dbRelecture.close();
+    check(enBase.email === 'a@b.fr', `l'email est normalise en base (minuscules, sans espaces) (recu ${JSON.stringify(enBase.email)})`);
   } catch (err) {
     console.error('Sortie du serveur pendant le test :\n' + sortie);
     throw err;

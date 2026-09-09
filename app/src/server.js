@@ -16,6 +16,7 @@ const { valeurCanonique } = require('./normalisation');
 const { estModeDemo } = require('./mode');
 const { barriereAuth } = require('./auth');
 const { verifierOrigine } = require('./csrf');
+const { entetesSecurite } = require('./entetes-securite');
 
 const app = express();
 // Routage sensible a la casse (defaut Express : desactive). Deuxieme ligne de
@@ -34,6 +35,11 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 // Active seulement si AUTH_USER/AUTH_PASS sont poses ; laisse le parcours
 // repondant ouvert (US10.5). Mesure provisoire — l'Epic 10 reste le chantier
 // de fond. Voir app/src/auth.js.
+// En-tetes de securite (voir entetes-securite.js) : EN TETE de chaine, avant la
+// barriere, pour couvrir aussi le 401 qu'elle rend et les erreurs du filet
+// terminal — sinon les seules reponses non protegees seraient precisement celles
+// que le navigateur affiche quand quelque chose va mal.
+app.use(entetesSecurite);
 app.use(barriereAuth());
 // Anti-CSRF (voir csrf.js) : Basic Auth ne protege pas des requetes rejouees
 // par le navigateur d'une victime depuis une page tierce. Place apres la
@@ -459,11 +465,28 @@ function sessionOuverteOu409(repondant, res) {
   return true;
 }
 
+// Vue REPONDANT : projection en LISTE BLANCHE, volontairement non nominative
+// (finding securite de l'audit du 2026-09-04). Cette route est ouverte sans
+// compte par ROUTES_REPONDANT (auth.js, US10.5) : son identifiant est un jeton
+// porteur, sans expiration, qui voyage dans l'URL, l'historique du navigateur et
+// tout lien copie — elle rendait pourtant la LIGNE COMPLETE (email, nom, prenom,
+// departement, equipe, role). La route reste OUVERTE (le parcours de reponse en
+// depend), mais ne renvoie plus que ce dont son unique appelant applicatif se
+// sert (src/public/repondre.html, chargerRepondant) : l'identifiant, la session
+// d'appartenance du lien, l'etat de soumission et les reponses deja saisies.
+// Liste blanche et non liste noire : une colonne ajoutee plus tard a la table
+// repondants reste fermee par defaut, comme la barriere d'auth elle-meme.
+// Le detail nominatif garde son destinataire legitime : l'animateur
+// authentifie, par /api/sessions/:id/resultats (drill-down US6.2).
+const CHAMPS_VUE_REPONDANT = ['id', 'session_id', 'soumis_at'];
+
 app.get('/api/repondants/:id', (req, res) => {
   const repondant = getRepondantOr404(req, res);
   if (!repondant) return;
   const reponses = db.prepare('SELECT question_id, niveau FROM reponses WHERE repondant_id = ?').all(repondant.id);
-  res.json({ ...repondant, reponses });
+  const vue = {};
+  for (const champ of CHAMPS_VUE_REPONDANT) vue[champ] = repondant[champ];
+  res.json({ ...vue, reponses });
 });
 
 // Fail-closed sur la fenetre destructive de l'import « remplacer » (decision de

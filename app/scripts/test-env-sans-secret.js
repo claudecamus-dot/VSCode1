@@ -76,18 +76,35 @@ for (const fichier of fichiers) {
   );
 }
 
-// Le canal des secrets doit rester ignore par git, sinon le conseil ci-dessus est faux.
-try {
-  execFileSync('git', ['check-ignore', '-q', '.env.prod.local'], { cwd: RACINE_APP, stdio: 'ignore' });
-  check(true, '.env.<env>.local est bien ignore par git');
-} catch (e) {
-  // check-ignore sort 1 quand le chemin n'est PAS ignore ; 128 si hors depot git ;
-  // ENOENT (git absent du PATH) laisse status a null/undefined, pas 128.
-  const gitIndisponible = e.status === 128 || e.code === 'ENOENT';
-  check(gitIndisponible, gitIndisponible
-    ? '(git indisponible : couverture de .env.<env>.local non verifiee)'
-    : '.env.<env>.local N EST PAS ignore par git : le canal des secrets fuiterait');
+// Les fichiers qui PORTENT des secrets doivent rester ignores par git, sinon le
+// conseil ci-dessus est faux.
+function verifierIgnore(chemin, libelle, consequence) {
+  try {
+    execFileSync('git', ['check-ignore', '-q', chemin], { cwd: RACINE_APP, stdio: 'ignore' });
+    check(true, `${libelle} est bien ignore par git`);
+  } catch (e) {
+    // check-ignore sort 1 quand le chemin n'est PAS ignore ; 128 si hors depot git ;
+    // ENOENT (git absent du PATH) laisse status a null/undefined, pas 128.
+    const gitIndisponible = e.status === 128 || e.code === 'ENOENT';
+    check(gitIndisponible, gitIndisponible
+      ? `(git indisponible : couverture de ${libelle} non verifiee)`
+      : `${libelle} N EST PAS ignore par git : ${consequence}`);
+  }
 }
+
+verifierIgnore('.env.prod.local', '.env.<env>.local', 'le canal des secrets fuiterait');
+
+// app/.env : ce n'est PAS un fichier du depot, c'est celui que le runbook de
+// l'artefact de deploiement fait CREER a l'exploitant (« copier app/.env.example
+// en app/.env », scripts/build-artifact.js) — a partir d'un .env.example qui
+// documente AUTH_USER / AUTH_PASS. Il n'etait couvert par aucun motif du
+// .gitignore (`.env*.local` ne le matche pas) : finding securite de l'audit du
+// 2026-09-04, troisieme occurrence du meme motif sur ce projet (deja vu sur la
+// copie de restore-db.js et sur les fichiers -wal/-shm de SQLite) — un .gitignore
+// ecrit par extension qui ne couvre pas la variante reellement produite par le
+// mode d'emploi.
+verifierIgnore('.env', 'app/.env (celui que le runbook fait creer depuis .env.example)',
+  'les identifiants poses par l exploitant partiraient dans l historique git');
 
 console.log(echecs === 0 ? '\nTOUS LES TESTS PASSENT' : `\n${echecs} TEST(S) EN ECHEC`);
 process.exit(echecs === 0 ? 0 : 1);

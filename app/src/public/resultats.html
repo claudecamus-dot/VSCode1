@@ -293,7 +293,15 @@
     // "Tout déplier" / "Tout replier" : interroge le DOM en direct (robuste aux
     // sections regenerees par innerHTML) plutot que de garder une liste a jour.
     // Ne touche pas aux accordeons plus fins (detail par pilier, detail nominatif),
-    // qui restent une divulgation manuelle question par question.
+    // qui restent replies tant qu'on ne les ouvre pas un a un.
+    // ATTENTION, ce repli est un effet d'AFFICHAGE, pas une retenue de donnees :
+    // le detail nominatif est deja injecte dans le DOM par rendrePiliers() et
+    // seulement masque par `.detail-nominatif.ferme { display: none }`. Il reste
+    // donc atteignable par Ctrl+F, l'impression, « tout selectionner » ou
+    // l'inspecteur — y compris pendant une restitution en partage d'ecran.
+    // Finding securite de l'audit du 2026-09-04 : le correctif de fond (ne
+    // l'envoyer au client qu'a la demande, sur une route dediee) est PROPOSE et
+    // attend un arbitrage ; ne pas lire ce commentaire comme une garantie.
     function toggleTout() {
       const contenus = [...document.querySelectorAll('.repli-contenu')];
       if (contenus.length === 0) return;

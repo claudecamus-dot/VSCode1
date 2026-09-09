@@ -18,3 +18,12 @@ coverage/
 # ignore ici et charge par --env-file-if-exists (voir les scripts start:* de
 # package.json). Garde-fou : scripts/test-env-sans-secret.js, chaine dans npm test.
 .env*.local
+# `app/.env` tout court : ce n'est pas un fichier du depot mais celui que le
+# runbook de l'artefact fait CREER a l'exploitant (« copier app/.env.example en
+# app/.env », scripts/build-artifact.js), a partir d'un modele qui documente
+# AUTH_USER / AUTH_PASS. Aucun motif ci-dessus ne le couvrait — `.env*.local` ne
+# le matche pas — donc les identifiants de production s'y posaient dans un
+# fichier suivi par git. Motif deja vu deux fois ici (copie de restore-db.js,
+# fichiers -wal/-shm) : un .gitignore ecrit par extension qui rate la variante
+# reellement produite par le mode d'emploi. Finding audit du 2026-09-04.
+.env
