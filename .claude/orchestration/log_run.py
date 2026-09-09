@@ -4,7 +4,7 @@
 # | garder : la signaler au hub, qui corrige le canon et re-synchronise.
 # | (Depuis le hub : « py .claude/dispositif/sync_dispositif.py » — ce script
 # |  n'est pas déployé, il n'existe pas dans ce dépôt.)
-# | Provenance canon : 187ce52 du 2026-09-08 — permet, au prochain sync, de dire si
+# | Provenance canon : 8042d89 du 2026-09-09 — permet, au prochain sync, de dire si
 # | une différence vient d'une édition locale ou d'une avance du canon (voir
 # | `determiner_cause` dans sync_dispositif.py au hub).
 # +---------------------------------------------------------------------------
@@ -22,6 +22,14 @@ Un run 'succes'/'orchestre' SANS étape revue-increment au plan ni trace dans no
 est REFUSÉ (rien n'est écrit) sauf champ `derogation_revue` (str, motif explicite —
 cf. `verifier_revue_increment`, finding
 `VScode5:revue-obligatoire-sautee-sept-runs-sur-dix`, 2026-09-04).
+
+Chaque étape du plan accepte un champ OPTIONNEL `etat` valant `ok`, `echec` ou
+`non-rendu` (veille « OrchestraBench », arXiv:2608.05263, adoptée le 2026-09-08).
+Un run `succes` dont au moins une étape porte `echec` ou `non-rendu` est REFUSÉ en
+nommant l'étape : un fan-out dont une branche a échoué n'est pas un succès entier,
+et c'est exactement ce que l'étude mesure — l'échec d'un sous-agent dilué dans une
+synthèse lissée. `partiel` et `echec` passent : ils DISENT l'échec. Une valeur hors
+des trois est refusée aussi (sans quoi `"etat": "KO"` passerait pour inoffensif).
 Consommé à terme par le superviseur étage 2 (métrique « plan vs réel »).
 
 JOURNALISER DÈS LA COMPOSITION DU PLAN, PAS À LA FIN (constat superviseur VSCode
@@ -89,6 +97,11 @@ RESULTATS_SOLDE = ("succes", "en-attente-validation", "partiel", "echec")
 # taux de reussite et echappaient au controle « en-attente-validation » (reproduit
 # le 2026-08-31).
 RESULTATS_APPEND = ("en-cours",) + RESULTATS_SOLDE
+# Vocabulaire FERMÉ de l'état d'une étape du plan. Fermé et non libre : la moitié de
+# l'intérêt du champ est qu'un `"etat": "KO"` — écrit de bonne foi — ne passe PAS pour
+# un état inoffensif à côté d'un `resultat: succes`.
+ETATS_ETAPE = ("ok", "echec", "non-rendu")
+ETATS_ETAPE_FAUTIFS = ("echec", "non-rendu")
 
 # --- « Solde sous revue » : capacité OPT-IN, ÉTEINTE PARTOUT par défaut ------
 # Mécanique reprise TELLE QUELLE de `.claude/hooks/warn_verif_before_commit.py`
@@ -232,6 +245,48 @@ def solder(argv) -> int:
     return 0
 
 
+def verifier_etapes_du_plan(run: dict) -> str | None:
+    """Refus si le plan contredit le `resultat` — sinon None.
+
+    Veille « OrchestraBench » (arXiv:2608.05263), adoptée le 2026-09-08 : les
+    orchestrateurs évalués diluent l'échec d'un sous-agent dans une synthèse lissée,
+    et le plan final ne dit plus qu'une branche n'a rien rendu. Le seul point
+    DÉTERMINISTE du dispositif étant le journal, c'est ici que le contrôle tient :
+    un `succes` dont une étape porte `echec` ou `non-rendu` ne s'écrit pas.
+
+    Le message NOMME l'étape (rang, libellé, agent). « une étape a échoué » ferait
+    exactement ce que la trouvaille reproche : dire l'échec sans dire lequel.
+    Le champ reste OPTIONNEL — les runs déjà journalisés n'en portent aucun, et une
+    étape mal formée (non-dict) est ignorée plutôt que transformée en TypeError."""
+    fautives, inconnues = [], []
+    for rang, etape in enumerate(run.get("plan") or [], start=1):
+        if not isinstance(etape, dict) or "etat" not in etape:
+            continue
+        etat = etape.get("etat")
+        libelle = f"etape {rang} ('{etape.get('etape', '')}', agent '{etape.get('agent', '')}')"
+        if etat not in ETATS_ETAPE:
+            inconnues.append(f"{libelle} : etat {etat!r}")
+        elif etat in ETATS_ETAPE_FAUTIFS:
+            fautives.append(f"{libelle} : etat '{etat}'")
+    if inconnues:
+        return (
+            "log_run REFUS : etat d'etape hors vocabulaire -\n  "
+            + "\n  ".join(inconnues)
+            + f"\n  Attendu : {' | '.join(ETATS_ETAPE)} (champ optionnel : une etape "
+              "sans 'etat' reste acceptee)."
+        )
+    if run.get("resultat") == "succes" and fautives:
+        return (
+            "log_run REFUS : resultat 'succes' alors que le plan porte une etape en "
+            "echec -\n  "
+            + "\n  ".join(fautives)
+            + "\n  Un fan-out dont une branche a echoue n'est pas un succes entier. "
+              "Journaliser 'partiel' (ce qui a ete rendu) ou 'echec', et dire dans "
+              "notes ce que l'etape n'a pas rendu - pas de synthese lissee."
+        )
+    return None
+
+
 def main(argv) -> int:
     if argv and argv[0] == "--solde":
         return solder(argv[1:])
@@ -257,6 +312,12 @@ def main(argv) -> int:
     if "resultat" in run and run["resultat"] not in RESULTATS_APPEND:
         print(f"log_run : resultat invalide ({run['resultat']!r}) — attendu : "
               f"{' | '.join(RESULTATS_APPEND)}")
+        return 1
+    # AVANT `verifier_revue_increment` : un plan qui se contredit lui-meme doit etre
+    # signale pour ce qu'il est, pas renvoye vers la boucle de revue.
+    refus_etapes = verifier_etapes_du_plan(run)
+    if refus_etapes:
+        print(refus_etapes)
         return 1
     refus_revue = verifier_revue_increment(run)
     if refus_revue:

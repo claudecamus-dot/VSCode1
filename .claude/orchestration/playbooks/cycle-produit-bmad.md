@@ -15,7 +15,7 @@ conformément à la règle de routage BMAD du catalogue.
 ```json
 {
   "nom": "cycle-produit-bmad",
-  "description": "Cycle produit BMAD complet : brief → PRD → architecture → epics/stories → readiness → sprint → cycle story (create/validate/dev/review), clos par revue-increment.",
+  "description": "Cycle produit BMAD complet (v6.12.0) : brief → PRD → architecture → epics/stories → sprint (qui porte la gate readiness) → build → code-review, clos par revue-increment.",
   "statut": "jamais-joue",
   "source": "genere:generate_bmad_playbook.py",
   "declencheurs": [
@@ -76,7 +76,7 @@ conformément à la règle de routage BMAD du catalogue.
         "type": "deterministe",
         "critere": "artefact « readiness report » produit dans planning_artifacts"
       },
-      "checkpoint": "gate humain : PRD/UX/architecture/stories alignés avant d'engager l'implémentation"
+      "checkpoint": false
     },
     {
       "id": "bmad-sprint-planning",
@@ -87,7 +87,7 @@ conformément à la règle de routage BMAD du catalogue.
         "type": "deterministe",
         "critere": "artefact « sprint status » produit dans implementation_artifacts"
       },
-      "checkpoint": false
+      "checkpoint": "gate humain : PRD/UX/architecture/stories alignés avant d'engager l'implémentation"
     },
     {
       "id": "bmad-create-story-create",
@@ -117,9 +117,8 @@ conformément à la règle de routage BMAD du catalogue.
       "mode": "cascade",
       "modele": "(session)",
       "contrat": {
-        "type": "deterministe",
-        "critere": "story implémentée, suite du projet verte",
-        "commande": "npm test"
+        "type": "llm",
+        "critere": "étape déclarée terminée par la skill, sans artefact vérifiable dans le CSV"
       },
       "checkpoint": false
     },
@@ -132,7 +131,7 @@ conformément à la règle de routage BMAD du catalogue.
         "type": "llm",
         "critere": "revue adversariale rendue avec triage des findings (pas de vérification déterministe possible)"
       },
-      "checkpoint": "issues → retour bmad-dev-story (une relance) ; approuvé → story suivante ou fin d'epic"
+      "checkpoint": "issues → retour bmad-build (une relance) ; approuvé → story suivante ou fin d'epic"
     },
     {
       "id": "revue-increment",

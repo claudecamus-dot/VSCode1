@@ -247,6 +247,35 @@ def _commit_message(commit_flags):
     return "\n".join(parts)
 
 
+def _commit_uses_all(commit_flags):
+    """True si le commit valide AUSSI les modifs non stagées (`-a`/`--all`),
+    y compris en option courte GROUPÉE (`-am`, `-amwip`, `-av`). Parcours
+    positionnel identique à `_commit_message` : ce qui suit un `m` est le
+    message, jamais un drapeau — `git commit -ma` et `git commit -m -a` ne
+    valent donc PAS `--all`."""
+    i = 0
+    while i < len(commit_flags):
+        t = commit_flags[i]
+        if t in ("-m", "--message"):
+            i += 2  # la valeur qui suit est le message
+            continue
+        if t == "--all":
+            return True
+        if t.startswith("--"):
+            i += 1
+            continue
+        if t.startswith("-") and len(t) > 1:
+            groupe = t[1:]
+            coupe = groupe.index("m") if "m" in groupe else len(groupe)
+            if "a" in groupe[:coupe]:
+                return True
+            if coupe == len(groupe) - 1:
+                i += 2  # `m` en fin de groupe : le message est le token suivant
+                continue
+        i += 1
+    return False
+
+
 def _dod_assumee(message):
     """True si le message de commit assume explicitement la definition-of-done."""
     low = (message or "").lower()
@@ -274,7 +303,7 @@ def _staged_files(cwd, commit_flags):
         return None
     # `git commit -a/--all` valide aussi les modifs de fichiers suivis non stagés :
     # les ajouter, sinon on manquerait le périmètre réel du commit.
-    if any(f in ("-a", "--all") for f in commit_flags):
+    if _commit_uses_all(commit_flags):
         unstaged = _run(["diff", "--name-only"])
         if unstaged:
             files = list(dict.fromkeys(files + unstaged))

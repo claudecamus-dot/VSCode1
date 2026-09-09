@@ -129,7 +129,9 @@ GitHub, dépôts publics d'agents/skills/playbooks) évoluent plus vite que le d
   même moment, et son travail n'est pas commité. Pour lire une version antérieure :
   `git show <ref>:<chemin>`, jamais une commande qui touche le disque. Un hook les
   refuse (`guard_destructive_git.py`, étendu le 2026-09-02 après un incident réel
-  sur un relecteur), mais la consigne vaut par elle-même.
+  sur un relecteur), mais la consigne vaut par elle-même. (Paragraphe écrit chez
+  VSCode1 et VSCode3 le 2026-09-02, jamais remonté au hub — repris ici le 2026-09-08
+  avant propagation, finding `flotte:kit-installe-derive-sur-les-5-cibles`.)
 - **Dupliquer un TODO déterministe** déjà affiché par le scan, sauf pour le préciser.
 - **Dépasser 5 findings.** Un rapport que personne ne lit rejoint les skills mortes.
 

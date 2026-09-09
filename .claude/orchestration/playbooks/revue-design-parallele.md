@@ -68,3 +68,8 @@ sous-agents.
   "regle_reprise": "une relance ciblée par étape en échec de contrat (sous-agent muet ou hors format : une seule relance du sous-agent concerné), puis escalade utilisateur avec l'état réel"
 }
 ```
+
+<!-- SOCLE-PROVENANCE: socle : 8042d89 du 2026-09-09 -->
+> **Socle généré** — tout ce qui PRÉCÈDE ce bandeau vient du hub de supervision (`8042d89`, 2026-09-09) et sera **réécrit** à la prochaine propagation.
+> Le chapitre « Portée sur ce projet » placé après ce bandeau, lui, n'est jamais réécrit : c'est le travail local.
+
