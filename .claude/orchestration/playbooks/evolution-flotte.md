@@ -52,7 +52,7 @@ faute de playbook qui matche.
       "modele": "(session)",
       "contrat": {
         "type": "deterministe",
-        "critere": "modification scopée et adaptée à la cible (jamais un écrasement aveugle d'une copie divergée — édits ciblés si le fichier a des adaptations locales) ; chaque exigence explicite de la demande cochée contre le diff ; si plusieurs cibles, appliquer projet par projet"
+        "critere": "modification scopée et adaptée à la cible (jamais un écrasement aveugle d'une copie divergée — édits ciblés si le fichier a des adaptations locales) ; chaque exigence explicite de la demande cochée contre le diff ; si plusieurs cibles, appliquer projet par projet ; si l'étape s'étend sur plusieurs cibles ou une longue série d'édits, rendre un jalon intermédiaire journalisable (cible traitée, ce qui reste) avant de poursuivre — coût tokens/latence mis en regard du bénéfice de détection précoce (veille 2026-09-08, Beyond the Leaderboard, arXiv:2607.05775)"
       },
       "checkpoint": false
     },
@@ -115,3 +115,8 @@ faute de playbook qui matche.
   "regle_reprise": "une relance ciblée par étape en échec de contrat, puis escalade utilisateur avec l'état réel du/des dépôt(s) cible(s)"
 }
 ```
+
+<!-- SOCLE-PROVENANCE: socle : 275dfcd du 2026-09-10 -->
+> **Socle généré** — tout ce qui PRÉCÈDE ce bandeau vient du hub de supervision (`275dfcd`, 2026-09-10) et sera **réécrit** à la prochaine propagation.
+> Le chapitre « Portée sur ce projet » placé après ce bandeau, lui, n'est jamais réécrit : c'est le travail local.
+

@@ -3,12 +3,10 @@
 Un playbook = un fichier `*.md` de ce dossier décrivant un workflow récurrent de façon
 déclarative. La partie machine est un bloc ` ```json ` unique (parsé par la skill
 `agent-orchestrator`) ; le reste du fichier est de la prose libre (contexte, précédents,
-limites). Conception : `docs/reflexions/agent-orchestrateur.md` §4 (brique 3) et §10
-(incrément O-B) — doc de référence portée depuis le projet source, voir son en-tête.
-Sur ce projet, la suite de tests Python du superviseur/orchestrateur (qui validait ce
-format dans le projet source) n'a pas été portée : l'écosystème de tests ici est
-`npm test` (node:assert/strict), pas pytest — voir `docs/reflexions/agent-orchestrateur.md`
-en-tête pour ce choix.
+limites). Référence : `.claude/skills/agent-orchestrator/SKILL.md` § 2 (composition du
+plan). **Aucun test de ce hub ne verrouille ce format** — vérifié le 2026-08-31 : le
+`tests/test_agent_orchestration.py` que cette page citait vit dans VSCode2 et VSCode3,
+pas ici. Le bloc JSON n'est donc protégé que par la relecture.
 
 ## Champs du bloc JSON
 
@@ -28,16 +26,27 @@ en-tête pour ce choix.
 | --- | --- | --- |
 | `id` | slug unique dans le playbook | Référence (journal, diagnostic superviseur) |
 | `agent` | agent/skill du catalogue, ou `session principale` | Qui exécute |
-| `mode` | `cascade` \| `parallele` \| `asynchrone` | La dépendance de données décide (§5 de la conception) |
-| `modele` | `haiku` \| `sonnet` \| `opus` \| `fable` \| `(session)` \| `(thread)` | Sous-agents uniquement ; `(session)` pour tout ce qui tourne inline ; `(thread)` pour un sous-agent du fleet `.claude/agents/` sans `model:` déclaré en frontmatter (hérite du modèle de la session appelante — cf. catalogue) |
+| `mode` | `cascade` \| `parallele` \| `asynchrone` | La dépendance de données décide (§5 de `docs/reflexions/conception-agent-orchestrator.md`) |
+| `modele` | `haiku` \| `sonnet` \| `opus` \| `fable` \| `(session)` | Sous-agents uniquement ; `(session)` pour tout ce qui tourne inline |
 | `fan_out_max` | entier ≤ 4 | Obligatoire si `mode` = `parallele` |
-| `contrat` | objet `{type, critere[, commande]}` | Vérifié avant de passer à l'étape suivante. `type` : `deterministe` (fichier attendu présent, commande verte — préférer) \| `reel` (rendu regardé par un humain/screenshot : `run`, `pptx-verify`) \| `llm` (dernier recours) |
+| `contrat` | objet `{type, critere[, commande]}` | Vérifié avant de passer à l'étape suivante. `type` : `deterministe` (fichier attendu présent, commande verte — préférer) \| `reel` (rendu regardé par un humain/screenshot : run-dev-server, pptx-verify) \| `llm` (dernier recours) |
 | `checkpoint` | `false` \| texte (raison) | Validation utilisateur obligatoire avant de continuer — toujours non-`false` avant une action irréversible (commit, suppression, publication) |
 
 Une étape `parallele` doit être suivie d'une étape de consolidation en `cascade`
 (jamais d'écritures concurrentes sur les mêmes fichiers). Un playbook de dev se termine
 par l'étape `revue-increment` (leçon superviseur : « jamais invoquée » — rendue
 structurelle ici).
+
+## Jalon intermédiaire (étapes longues)
+
+Le format n'a pas de champ dédié pour un point d'étape intermédiaire — veille adoptée
+2026-09-08 (Beyond the Leaderboard, arXiv:2607.05775) : un sous-agent long (plusieurs
+dizaines d'appels d'outils) risque la « behavioral state decay » (l'état pertinent
+d'une décision se noie dans une trajectoire qui s'allonge) sans jalon qu'un
+orchestrateur pourrait auditer en cours de route. Tant qu'aucun champ n'est ajouté au
+schéma, noter l'exigence dans le `critere` du `contrat` de l'étape longue elle-même : un
+point d'étape journalisable rendu par l'agent avant de poursuivre, coût tokens/latence
+mis en regard du bénéfice de détection précoce.
 
 ## Exécution et journal
 
@@ -46,3 +55,20 @@ vérifications obligatoires ni les checkpoints), le suit avec TodoWrite, vérifi
 contrat, et journalise le run dans `runs.jsonl` avec `"playbook": "<nom>"` dans les notes
 ou le plan — c'est ce qui permettra au superviseur (étage 2 / incrément O-C) de mesurer
 le taux de réussite par playbook et de remonter les playbooks jamais joués.
+
+<!-- SOCLE-PROVENANCE: socle : 275dfcd du 2026-09-10 -->
+> **Socle généré** — tout ce qui PRÉCÈDE ce bandeau vient du hub de supervision (`275dfcd`, 2026-09-10) et sera **réécrit** à la prochaine propagation.
+> Le chapitre « Portée sur ce projet » placé après ce bandeau, lui, n'est jamais réécrit : c'est le travail local.
+
+## Portée sur ce projet
+
+- **Conception** : `docs/reflexions/agent-orchestrateur.md` §4 (brique 3) et §10 (incrément
+  O-B) — doc de référence portée depuis le projet source, voir son en-tête. La suite de
+  tests Python du superviseur/orchestrateur qui validait ce format dans le projet source
+  n'a pas été portée ici : l'écosystème de tests de ce projet est `npm test`
+  (`node:assert/strict`), pas `pytest` — voir l'en-tête de ce même doc pour ce choix.
+- **`modele` : valeur `(thread)`** — un sous-agent du fleet `.claude/agents/` propre à ce
+  projet, sans `model:` déclaré en frontmatter, hérite du modèle de la session appelante
+  (cf. `.claude/orchestration/catalogue.md`).
+- **`contrat` de type `reel`** : l'exemple local de rendu réel est le skill `run` de ce
+  projet (pas `run-dev-server`).
