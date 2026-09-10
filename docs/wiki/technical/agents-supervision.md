@@ -1,5 +1,5 @@
 ---
-updated: 2026-09-04
+updated: 2026-09-10
 generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, étage 1)
 ---
 
@@ -8,20 +8,21 @@ generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, ét
 > ⚠️ **Page générée automatiquement** (hook SessionStart → `.claude/supervision/scan_transcripts.py`).
 > **Ne pas éditer à la main** — toute modification serait écrasée au prochain scan.
 
-Dernier scan : 2026-09-04T18:24:37+02:00 · **26 sessions** (transcripts) · **54** invocations de skills · **30** lancements de sous-agents.
+Dernier scan : 2026-09-10T08:02:05+02:00 · **28 sessions** (transcripts) · **59** invocations de skills · **45** lancements de sous-agents.
 
 ## Skills — usage réel
 
 | Skill | Famille | Invocations | Première | Dernière |
 | --- | --- | --- | --- | --- |
-| `agent-orchestrator` | projet | 18 | 2026-07-21 | 2026-09-04 |
+| `agent-orchestrator` | projet | 20 | 2026-07-21 | 2026-09-07 |
 | `agent-supervisor` | projet | 7 | 2026-07-21 | 2026-07-28 |
+| `revue-increment` | projet | 7 | 2026-07-21 | 2026-09-04 |
 | `run` | (builtin/session) | 7 | 2026-07-01 | 2026-09-04 |
-| `revue-increment` | projet | 6 | 2026-07-21 | 2026-07-28 |
 | `artifact-design` | (builtin/session) | 3 | 2026-07-07 | 2026-09-01 |
 | `bmad-review-edge-case-hunter` | BMAD | 3 | 2026-09-01 | 2026-09-01 |
 | `pptx-verify` | projet | 3 | 2026-07-01 | 2026-07-21 |
 | `bmad-code-review` | BMAD | 2 | 2026-09-01 | 2026-09-01 |
+| `code-review` | (builtin/session) | 2 | 2026-09-04 | 2026-09-04 |
 | `bmad-review-adversarial-general` | BMAD | 1 | 2026-09-01 | 2026-09-01 |
 | `dataviz` | (builtin/session) | 1 | 2026-09-01 | 2026-09-01 |
 | `roadmap-keeper` | global | 1 | 2026-07-01 | 2026-07-01 |
@@ -32,10 +33,12 @@ Dernier scan : 2026-09-04T18:24:37+02:00 · **26 sessions** (transcripts) · **5
 
 | Sous-agent | Lancements | Premier | Dernier |
 | --- | --- | --- | --- |
-| `general-purpose` | 5 | 2026-09-01 | 2026-09-01 |
+| `(defaut)` | 8 | 2026-09-04 | 2026-09-04 |
+| `general-purpose` | 8 | 2026-09-01 | 2026-09-04 |
+| `ppt-designer` | 4 | 2026-07-08 | 2026-09-04 |
 | `Explore` | 3 | 2026-07-08 | 2026-09-01 |
 | `bmad-revue` | 3 | 2026-09-01 | 2026-09-01 |
-| `ppt-designer` | 3 | 2026-07-08 | 2026-07-22 |
+| `developer` | 3 | 2026-09-04 | 2026-09-04 |
 | `ux-designer` | 3 | 2026-07-01 | 2026-09-01 |
 | `auditor-subagent` | 2 | 2026-09-01 | 2026-09-01 |
 | `qa-engineer` | 2 | 2026-09-01 | 2026-09-01 |
@@ -49,10 +52,6 @@ Dernier scan : 2026-09-04T18:24:37+02:00 · **26 sessions** (transcripts) · **5
 
 ## Jamais utilisés
 
-**projet** — 1/14 jamais invoqués :
-
-`audit-technique`
-
 **BMAD** — 43/46 jamais invoqués :
 
 <details><summary>Voir la liste</summary>
@@ -61,16 +60,24 @@ Dernier scan : 2026-09-04T18:24:37+02:00 · **26 sessions** (transcripts) · **5
 
 </details>
 
+## Skills hub-only
+
+_S'invoquent DEPUIS le hub de supervision, en ciblant ce projet — jamais depuis ce dépôt (leur `SKILL.md` le déclare). Leur `n=0` ici est le fonctionnement nominal, pas un défaut d'usage : aucun usage local ne le corrigera, il n'y a donc rien à en conclure ni rien à désinstaller._
+
+`audit-technique`
+
 ## Skills bibliothèque / référence
 
 _Consommés en lisant/exécutant leurs `scripts/`, ou via un sous-agent qui les suit (ex. `ppt-designer`, qui n'a pas l'outil Skill) — le compteur d'invocations ne peut structurellement pas les voir. `n=0` n'y vaut donc PAS « mort » : ne pas désinstaller sur ce seul signal (constat superviseur #2)._
 
-`deck-design-library`, `deck-design-review`, `pdf-quality`, `pptx-deck`, `pptx-framed-image`, `restitution-deck-design`, `restitution-ppt`, `slide-text-polish`
+`deck-design-library`, `deck-design-review`, `pdf-quality`, `pptx-deck`, `pptx-framed-image`, `restitution-deck-design`, `restitution-ppt`, `revue-ui-web`, `slide-text-polish`
 
 ## TODO agents (constats automatiques)
 
-1. **Skills projet sans usage** : `audit-technique` — vérifier pertinence et déclencheurs.
-2. **Skills en sommeil (>30 j sans usage)** : `agent-supervisor`, `documentarian`, `onboarder`, `ppt-designer`, `pptx-verify`, `revue-increment`, `roadmap-keeper`, `skill-creator`, `ui-designer`.
+⚠️ **Mesure incomplète** — 19 transcript(s) sur 28 absent(s) du disque. Un `n=0` ne veut plus dire « jamais invoquée » mais « on ne le voit plus » : les listes ci-dessous sous-estiment l'usage réel. Ne rien désinstaller sur cette base.
+
+1. **Désinstaller les shims BMAD dépréciés** (4) : `bmad-create-architecture` → `bmad-architecture`, `bmad-create-prd` → `bmad-prd`, `bmad-edit-prd` → `bmad-prd`, `bmad-validate-prd` → `bmad-prd` — dépréciés par BMAD dans leur propre `description`, chacun avec son remplaçant ; le seul élagage qui ne repose pas sur notre mesure d'usage.
+2. **Skills en sommeil (>30 j sans usage)** : `documentarian`, `onboarder`, `pptx-verify`, `roadmap-keeper`, `skill-creator`, `ui-designer`.
 
 ## Arbitrages enregistrés
 
@@ -98,22 +105,34 @@ _Constats clos par décision humaine (`.claude/supervision/arbitrages.json`) —
 - **`propagation-canon:2026-09-01`** (2026-09-03) : ARBITRÉ (passe du 2026-09-03, traitement des findings vscode5) : les deux volets restent HORS PÉRIMÈTRE LOCAL, conformément à la règle du projet (CLAUDE.md, leçon P1 — corriger au hub, jamais localement). (a) revue-design-parallele.md : option retenue = A3 (des trois posées le 09-02) — ne rien faire ici, remonter au hub, qui doit soit retirer le fichier de son canon, soit doter la propagation d'un mode --check listant les fichiers qu'elle recréerait malgré un arbitrage de suppression. Le fichier reste donc suivi et ressuscité localement, routing-hints.json continuera d'en porter une entrée, jusqu'à ce que le hub agisse. (b) write_diagnostic.py (vocabulaire de catégories en retard sur le canon du hub) : même traitement — c'était déjà la seule option conforme identifiée le 09-02. Aucune modification locale faite sur ces deux points ; ce projet reste incapable de loger un constat de pratique (volet 2) tant que le hub n'a pas régénéré l'export.
 - **`arbitrages:revue-mvp-2026-09-01`** (2026-09-03) : ARBITRÉ (passe du 2026-09-03, traitement des findings vscode5) — les 3 sous-points tranchés par l'utilisateur : (1) MODÈLE DE SESSION — option retenue : campagne (multi-session), en remplacement du modèle équipe actuel (B2 des trois posées le 09-02). Décision de DESTINATION actée ; la refonte du modèle de données sessions elle-même reste un chantier non chiffré et non cadré — à scoper séparément (cadrage produit) avant toute implémentation. Aucun code modifié. Note ajoutée à cadrage/epics-us.md après Epic 2. (2) ÉCHÉANCE EPIC 10 — option retenue : repli assumé, l'Epic 10 est CLOS. La barrière HTTP Basic Auth intérimaire (durcie et re-vérifiée par exécution le 2026-09-02) est déclarée cible finale du MVP ; US10.3/US10.4/le reste de US10.6 ne sont plus planifiées pour ce MVP. Clôture ajoutée à cadrage/epics-us.md après Epic 10. (3) MANDAT DE CORRECTION — périmètre acté par écrit : XSS (resultats.html:433/473), middleware d'erreur async (server.js:1100) et restore-db (test-restore-copie-ignoree.js) sont CLOS, vérifiés par exécution le 09-02. @media (0/6 pages HTML de src/public) est explicitement DIFFÉRÉ, hors mandat de cet incrément — à reprendre dans un futur constat plutôt que de rester un résidu implicite.
 - **`echeance:2026-08-16-tri-agents-bmad`** (2026-09-03) : ARBITRÉ (passe du 2026-09-03, traitement des findings vscode5) : (a) 9 agents encore à 0 invocation (auditor-subagent, debugger, developer, developer-migrator, developer-refactor, orchestrator, orchestrator-dev, pathfinder, planner) — option retenue : C2, nouvelle échéance de re-mesure au 2026-10-03 (+30 jours depuis la présente passe), pas de mise en sommeil immédiate. Motif utilisateur : éviter un 3e report du même mécanisme SANS pour autant figer une mise en sommeil sur une mesure qu'on sait déjà partiellement datée. (b) auditor et qa-engineer restent explicitement EXCLUS de tout lot de mise en sommeil futur, quelle que soit l'issue au 2026-10-03 — mesurablement utilisés depuis le 2026-09-01 (auditor n=1, qa-engineer n=2). (c) BMAD (46 skills, 0 usage local) : NON TRANCHÉ ici, conformément à la décision du 2026-09-02 — reste aligné sur la mesure fleet-wide en cours au hub (2/46 invoquées côté hub) pour ne pas produire une décision locale incohérente avec l'arbitrage en cours à l'étage supérieur.
+- **`audit-technique:2026-09-04-menu-10-constats`** (2026-09-04) : ARBITRÉ par commande directe de l'utilisateur (« traite les 10 constats techniques et la duplication + le chasseur correctness ») — vaut arbitrage de l'ensemble des findings ouverts (§ 2 bis). Périmètre : les 10 constats de l'audit-technique transmis par le hub (dédup règle métier, dédup XSS esc(), CI non branchée, dédup cartes PPT, backup/restore sans env-file, N+1 getReferentiel, reconstruction DOM resultats.html, requêtes série évitables, node_modules complet dans l'artefact, seed-demo hors transaction), la duplication de boilerplate de test signalée par le chasseur cleanup du /code-review du même jour, et les 3 constats CSRF (memeOrigine fail-open, couverture de test insuffisante) du chasseur correctness. Tout appliqué et vérifié le jour même (détail : docs/wiki/todo.md § « Menu d'audit-technique du 2026-09-04 »). 2 sous-arbitrages posés en cours de route via question explicite : (1) CSRF memeOrigine() → fail-closed sur Origin/Referer absents (option recommandée retenue, coût assumé : navigateurs rares avec proxy/extension qui strippent les deux en-têtes) ; (2) découpage du commit → 2 commits distincts (incrément app séparé du dispositif). 3 vagues de /code-review high --fix (jusqu'à 8 agents) avant commit ont trouvé et fait corriger plusieurs bugs réels non exposés en prod (verrou import armé après parseWorkbook au lieu d'avant, route /api/repondants/fusion non gardée, verify-lien-repondant.js dupliquant un pattern déjà remplacé ailleurs) — voir le détail dans le commit lui-même. Résidus notés non traités (hors mandat, documentés dans todo.md) : garde générique type middleware pour les futures routes d'écriture répondant, memoïsation de getReferentiel inter-appels, unification du motif avecServeur au-dessus de test-helpers-serveur.js, comportement CSRF derrière un reverse-proxy (topologie absente du projet aujourd'hui).
+- **`flotte:23-items-cadres`** (2026-09-09) : TRAITE EN DEUX COMMITS (mandat utilisateur du 2026-09-09, << traite les projets par ordre de risque >>). Le cadrage a d'abord etabli que le travail de la seance du 08/09, reste non commite (33 fichiers), couvrait deja 7 des 10 items : regle metier centralisee (classement.js, stats-partagees.js), esc() ramenee de 4 copies a une seule (esc.js), 3 garde-fous CI branches, N+1 getReferentiel ramene de 66 requetes a 4, etat des accordeons preserve au rebuild, ecran resultats parallelise, build-artifact en npm ci --omit=dev, seed-demo en transaction. Commit 76dcd3c apres trois rectifications : todo.md declarait faits les items 4 et 5 qui vivent en realite dans git stash@{0} ; README.md documentait des commandes npm absentes du package.json ; et la centralisation d'esc() avait cree un maillon que rien ne verifiait (retirer la balise <script src=/esc.js> laissait la suite verte et cassait la page en ReferenceError) -- garde ajoutee, vue rouge par mutation reelle. Puis commit 79ba137 sur les points de SECURITE que la seance n'avait pas traites : (a) GET /api/repondants/<id> livrait email, nom, prenom, departement et role SANS identifiants, verifie en HTTP reel barriere active -- cadrage : un seul appelant applicatif, le parcours repondant public, qui ne consomme aucun champ nominatif, d'ou une projection en LISTE BLANCHE (id, session_id, soumis_at, reponses) plutot que la fermeture de la route ; (b) app/.env non couvert par .gitignore alors que le runbook le fait creer depuis .env.example ; (c) aucun en-tete de securite (CSP, X-Frame-Options, nosniff, Referrer-Policy same-origin choisie pour ne pas affaiblir le repli Referer du CSRF fail-closed). 12 tests vus rouges avant correctif, plus une mutation reelle de la CSP dans un vrai navigateur. npm test code 0, lint propre. NON APPLIQUE, propose et argumente : le detail nominatif de resultats.html est envoye au client puis masque par CSS -- le destinataire est l'animateur authentifie, donc ce n'est pas une fuite vers un tiers, mais le correctif correct (chargement a la demande par route dediee) touche 3 fichiers et change le contrat de la route principale, il est decrit precisement et laisse a l'arbitrage. Restent ouverts : items 4 et 5 plus le volet Python de l'item 1 (stash, commit dedie a prevoir), parcours repondant encore en 3 requetes en serie, et les constats de robustesse (ROLLBACK nu, JSON.parse de localStorage, borne serveur du commentaire, mode= en 500).
+- **`VSCode1:audit-2026-09-09`** (2026-09-09) : ACCEPTE + APPLIQUE (mandat utilisateur du 2026-09-09 : « traite definitivement les 17 ecarts restants »). Commit 23bd21b, 15 fichiers sous app/, +1053/-39, pousse. SIX des sept constats traites, chacun avec son test vu ROUGE avant : (1) mode.js decodage garde — un cookie « mode=% » levait URIError et rendait 500, mesure par node -e avant correctif ; (2) borne serveur de 5000 caracteres sur le commentaire de restitution, mesuree sur la chaine RECUE, 400 au-dela ; (3) annulerTransaction() dans tx.js, reutilise aux deux ROLLBACK nus de referentiel.js — la cause reelle n'est plus ecrasee ; (4) lireModele() avec repli PAR CLE sur les JSON.parse de localStorage ; (5) les 3 fetch en serie de repondre.html passent en Promise.all, mesure 1 -> 3 appels en vol, 148 -> 53 ms ; (7) rel=noopener noreferrer sur 3 liens et un window.open. LE SEPTIEME (rendrePiliers reconstruit tout le DOM) est MESURE ET DOCUMENTE, non corrige, et la mesure change la decision : sur 72 questions, un rebuild serialise 212 802 caracteres / 2 898 elements, dont 77 % pour le seul detail nominatif. La vraie sortie n'est donc pas un rendu incrementiel mais le chargement a la demande de ce detail — c'est-a-dire EXACTEMENT le correctif de securite qui attend l'arbitrage utilisateur. Les deux constats se ferment d'un seul geste. PASSE ADVERSARIALE de l'agent (ses 3 couches bmad-code-review ayant ete tuees par la limite d'API, il l'a faite lui-meme) : QUATRE contournements trouves et corriges, chacun etant un autre chemin qui ecrivait le meme etat AVANT la garde — env-banner.js decodait le meme cookie sans garde sur toutes les pages ; body-parser refusait avant la borne en 500 au lieu de 413 ; sauvegarderTemplates() ecrivait sans garde ; repondre.html avait 4 acces localStorage nus dont un en amont de init(). C'est la question « quel autre chemin ecrit le meme etat avant elle ? » qui les a tous sortis. Verifications : npm test 34 scripts chaines exit 0 (31 avant), npm run lint exit 0, node --check sur les 11 .js et controle vm.Script sur les scripts inline des 3 pages. RESTE OUVERT : le detail nominatif (decision utilisateur, desormais eclairee par la mesure des 77 %) ; les items #4, #5 et le volet Python, prepares dans le stash tiers et non appliques — AGGRAVATION SIGNALEE : app/package.json a ete modifie ici (31 -> 34 scripts), qui appliquera le stash devra fusionner et non ecraser ; la CSP 'unsafe-inline', latitude assumee. NON VALIDE : la revue bmad-code-review n'a rendu aucun rapport, une relance sur 23bd21b reste utile.
 
 ## Diagnostic qualitatif (étage 2 — `agent-supervisor`)
 
-_Diagnostic ⚠️ à relancer (> 14 j) — rien à signaler, tous les constats précédents ont été arbitrés._
+_Diagnostic à jour._
 
-_5 constat(s) de ce diagnostic écarté(s) par un arbitrage — pour en rouvrir un, demander au superviseur un `re_challenge` avec des données nouvelles :_
+1. **Le detail nominatif masque par CSS seule attend votre decision — et la mesure du 2026-09-09 montre qu'il ferme DEUX constats d'un seul geste** — Les deux constats ouverts sur ce point (securite : donnees envoyees puis cachees ; performance : rebuild integral du DOM) ont le MEME correctif — charger le detail a la demande. Traiter la performance par un rendu incrementiel serait plus complexe et laisserait la fuite ouverte. · **Proposition** : Charger le detail nominatif a la demande (requete dediee au depliement, ou champ non envoye tant qu'il n'est pas demande), ce qui ferme le constat de securite ET fait tomber 77 % du cout de rebuild. Decision utilisateur : elle change le comportement de l'ecran.
+2. **Trois correctifs sont prets dans stash@{0} et jamais appliques : cartes PPT factorisees, backup/restore par environnement, volet Python de la regle metier — et le stash entrera en conflit sur package.json** — Le stash n'est pas du travail perdu, c'est du travail pret. Mais il vieillit contre une base qui bouge : chaque commit sur app/ augmente le cout du pop. Le faire tot coute moins que de le faire tard. · **Proposition** : Appliquer stash@{0} en FUSIONNANT package.json (ne pas ecraser : la ligne scripts.test a change des deux cotes), rejouer npm test depuis app/, puis committer les trois items separement pour que chacun porte sa raison. Si le stash n'est plus voulu, le dire et le supprimer explicitement plutot que de le laisser vieillir.
+3. **Le hook qui liste ce qui attend une decision n'existe QUE au hub : les 5 cibles ne l'ont pas, et le kit ne le distribue pas** — Le hub a construit ce hook pour lui-meme le 2026-09-09 (finding : les decisions n'etaient affichees nulle part). La flotte a exactement le meme besoin, et son mandat de garant l'oblige a propager ce qu'il se donne. Attention : sa fonction ligne_decisions_audit() lit .claude/audits/, repertoire qui n'existe QUE au hub — la version distribuee doit degrader proprement (repertoire absent = ligne vide, le fail-open est deja ecrit). · **Proposition** : (A) Ajouter point_du_jour.py au kit exporte et le cabler en SessionStart chez les 5 cibles, apres verification qu'il degrade bien sans repertoire d'audits. (B) Ou, si l'on juge que le point du jour est une fonction de pilotage propre au hub, le dire explicitement dans la doc du kit — pour que l'absence soit un choix trace et non un oubli.
 
-- ~~La barriere Basic Auth declaree « fail-closed, activee en PROD » ne l'est ni l'une ni l'autre : contournement par la CASSE prouve sur HEAD, et aucun environnement ne pose AUTH_USER/AUTH_PASS - la dimension securite « moyen » du 2026-07-30 sous-estimait le risque~~ (`securite:barriere-auth-fail-closed`)
-- ~~3e recidive du trou de journalisation/DoD : 19 commits en 35 jours pour 0 run journalise, 0 marqueur DoD et revue-increment jamais rechargee - le garde-fou arbitre le 2026-07-28 etait aveugle au shell primaire pendant toute la periode~~ (`journalisation:dod-au-commit`)
-- ~~La resynchro canon du 2026-09-01 a propage a l'envers : elle a ressuscite un playbook qu'un arbitrage avait supprime, et laisse le superviseur local incapable d'ecrire le moindre constat de pratique~~ (`propagation-canon:2026-09-01`)
-- ~~La revue multi-agents du 2026-09-01 a trouve des defauts bloquants et remis 3 arbitrages a l'utilisateur - aucun n'a de canal : arbitrages.json s'arrete au 2026-07-29 et le diagnostic n'avait pas bouge depuis le 2026-07-28~~ (`arbitrages:revue-mvp-2026-09-01`)
-- ~~Les deux decisions datees au 2026-08-16 (mise en sommeil groupee des agents jamais appeles, tri des 46 skills BMAD) n'ont pas ete prises : 16 jours de retard, et la remediation par « declencheur de routage » du 2026-07-28 n'a rien change au routage reel~~ (`echeance:2026-08-16-tri-agents-bmad`)
+_10 constat(s) de ce diagnostic écarté(s) par un arbitrage — pour en rouvrir un, demander au superviseur un `re_challenge` avec des données nouvelles :_
+
+- ~~Regle metier top-3/dispersion ecrite 2x (JS client+serveur) ; moyenne-non-null ecrite 3x (client/serveur/Python)~~ (`flotte:23-items-cadres`)
+- ~~Defense XSS esc() dupliquee 4x sans synchronisation, 1 seul test la couvre~~ (`flotte:23-items-cadres`)
+- ~~3 garde-fous CI non branches (package-lock, etape Python absente, test-ppt-charte.py hors npm test)~~ (`flotte:23-items-cadres`)
+- ~~4 rendus de carte PPT quasi-dupliques + contradiction sur _CARTE_H_FIXE~~ (`flotte:23-items-cadres`)
+- ~~npm run backup/restore sans --env-file, retombent sur app/data/app.db par defaut~~ (`flotte:23-items-cadres`)
+- ~~N+1 referentiel.js:getReferentiel (66 requetes), rappelee a 5 sites reels dans agregerResultats~~ (`flotte:23-items-cadres`)
+- ~~Reconstruction DOM integrale a chaque changement de filtre (innerHTML)~~ (`flotte:23-items-cadres`)
+- ~~5 requetes en serie evitables au chargement de l ecran resultats~~ (`flotte:23-items-cadres`)
+- ~~build-artifact.js copie node_modules entier (6951 fichiers) sur un commentaire faux (0 devDep)~~ (`flotte:23-items-cadres`)
+- ~~seed-demo.js : ~2400 ecritures hors transaction alors que tx.js:enTransaction existe~~ (`flotte:23-items-cadres`)
 
 ## Seuil de qualification — la mesure
 
-Depuis le 2026-09-04 : **2** demande(s) vue(s) hors commande slash (+ 2 slash), **0** run(s) orchestré(s) journalisé(s) sur la même fenêtre — soit **0 %** des demandes orchestrées.
+Depuis le 2026-09-04 : **25** demande(s) vue(s) hors commande slash (+ 4 slash), **3** run(s) orchestré(s) journalisé(s) sur la même fenêtre — soit **12 %** des demandes orchestrées.
 _Ce chiffre ne dit pas ce qui AURAIT dû être orchestré : le hook compte, il ne juge pas. Il donne le dénominateur qui manquait pour arbitrer le seuil sur données plutôt que sur habitude._
 
 ---
