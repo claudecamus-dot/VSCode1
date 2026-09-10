@@ -25,7 +25,6 @@ cp1252 leve UnicodeDecodeError sur tout caractere hors table (incident 2026-07-2
 """
 
 import datetime as dt
-import io
 import json
 import os
 import re
@@ -288,7 +287,7 @@ def ligne_decisions_audit(repertoire=None):
         return ""
     for nom_fichier in fichiers:
         try:
-            with io.open(os.path.join(repertoire, nom_fichier),
+            with open(os.path.join(repertoire, nom_fichier),
                          encoding="utf-8") as fh:
                 audit = json.load(fh)
         except (OSError, ValueError):
@@ -306,13 +305,13 @@ def ligne_decisions_audit(repertoire=None):
                 if _constat_en_arbitrage(c):
                     n += 1
         if n:
-            par_projet.append("%s %d" % (_ascii(projet), n))
+            par_projet.append(f"{_ascii(projet)} {n}")
             total += n
     if not total:
         return ""
-    return ("%d constat(s) d'audit attendent VOTRE decision (%s) -- taper : "
-            "tranche <projet>:<sujet> | montre les decisions"
-            % (total, ", ".join(par_projet)))
+    detail = ", ".join(par_projet)
+    return (f"{total} constat(s) d'audit attendent VOTRE decision ({detail})"
+            " -- taper : tranche <projet>:<sujet> | montre les decisions")
 
 
 def _constat_en_arbitrage(c):
@@ -348,26 +347,25 @@ def main():
             "..." if len(ouverts) > 3 else "")
         premier = ouverts[0]["cible"]
         lignes.append(
-            "%d finding(s) du diagnostic sans arbitrage : %s -- taper : "
-            "applique %s | refuse %s"
-            % (len(ouverts), apercu, premier, premier))
+            f"{len(ouverts)} finding(s) du diagnostic sans arbitrage : {apercu}"
+            f" -- taper : applique {premier} | refuse {premier}")
 
     entrees = trouvailles_ouvertes()
     n, age = trouvailles_en_attente()
     if n:
         suffixe = ""
         if age is not None:
-            suffixe = " (la plus ancienne depuis %d j%s)" % (
-                age, " -- a trancher" if age >= SEUIL_ALERTE_JOURS else "")
+            urgence = " -- a trancher" if age >= SEUIL_ALERTE_JOURS else ""
+            suffixe = f" (la plus ancienne depuis {age} j{urgence})"
         def _age_ou_moins_un(e):
             a = _age_jours(e.get("date"))
             return -1 if a is None else a
         doyenne = _ascii((max(entrees, key=_age_ou_moins_un).get("titre")
                           or "").strip())[:60]
-        verbes = (' -- taper : adopte "%s" | ecarte "%s"' % (doyenne, doyenne)
+        verbes = (f' -- taper : adopte "{doyenne}" | ecarte "{doyenne}"'
                   if doyenne else "")
-        lignes.append("%d trouvaille(s) de veille attendent votre decision%s%s"
-                      % (n, suffixe, verbes))
+        lignes.append(
+            f"{n} trouvaille(s) de veille attendent votre decision{suffixe}{verbes}")
 
     # Kit agentic installe chez les cibles vs kit publie (finding
     # flotte:write_diagnostic-deploye-refuse-les-categories-pratique, 2026-09-08) :
@@ -381,7 +379,7 @@ def main():
         if derives:
             lignes.append(kit_installe.ligne_point_du_jour(derives))
     except Exception as exc:
-        lignes.append("kit installe : mesure impossible (%s)" % _ascii(str(exc)))
+        lignes.append(f"kit installe : mesure impossible ({_ascii(str(exc))})")
 
     # Les constats d'audit qui attendent une decision humaine (2026-09-09) : ils
     # ne se ferment pas tout seuls et n'etaient affiches nulle part.
@@ -390,7 +388,7 @@ def main():
         if ligne_audit:
             lignes.append(ligne_audit)
     except Exception as exc:
-        lignes.append("decisions d'audit : mesure impossible (%s)" % _ascii(str(exc)))
+        lignes.append(f"decisions d'audit : mesure impossible ({_ascii(str(exc))})")
 
     if not lignes:
         # Le silence est une information : rien ne vous attend. On le dit une fois,
@@ -428,7 +426,7 @@ def _signaler(exc):
         return mod.signaler_incident(exc)
     except Exception:
         import traceback
-        print("Point du jour : ECHEC (%s: %s)" % (exc.__class__.__name__, exc))
+        print(f"Point du jour : ECHEC ({exc.__class__.__name__}: {exc})")
         traceback.print_exception(type(exc), exc, exc.__traceback__)
         return 0
 
