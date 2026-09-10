@@ -109,12 +109,30 @@ async function main() {
     check(!texteConsolidation.includes(NOM_REPONDANT), `le nom du repondant est absent de la consolidation (${NOM_REPONDANT})`);
     check(!texteConsolidation.includes(PRENOM_REPONDANT), `le prenom du repondant est absent de la consolidation (${PRENOM_REPONDANT})`);
 
-    console.log("Temoin : la route resultats d'UNE equipe reste nominative (la regression n'etend pas le silence partout) :");
+    // TEMOIN, mis a jour le 2026-09-10. Ce temoin existe pour empecher que la
+    // correction ci-dessus ne derive en « plus jamais de nominatif nulle part »,
+    // ce qui casserait le drill-down US6.2 sans que rien ne le signale. Sa
+    // FORME a change avec l'arbitrage du 2026-09-10 : l'agrege d'equipe n'est
+    // plus nominatif non plus (le detail y voyageait masque par une simple
+    // regle CSS), le drill-down passe par une route dediee appelee au
+    // depliement. Le temoin suit donc la donnee la ou elle est desormais.
+    console.log("Temoin : le drill-down d'UNE equipe reste possible, sur sa route dediee :");
     const resultatsEquipe = await fetch(`${base}/api/sessions/${sessionId}/resultats?equipe=EquipeConfid`);
     check(resultatsEquipe.status === 200, `GET resultats -> 200 (recu ${resultatsEquipe.status})`);
-    const texteResultats = JSON.stringify(await resultatsEquipe.json());
-    check(texteResultats.includes(NOM_REPONDANT), `le nom du repondant est present dans les resultats d'equipe (${NOM_REPONDANT})`);
-    check(texteResultats.includes(PRENOM_REPONDANT), `le prenom du repondant est present dans les resultats d'equipe (${PRENOM_REPONDANT})`);
+    const resultatsJson = await resultatsEquipe.json();
+    const piliersEquipe = JSON.stringify(resultatsJson.piliers);
+    check(!piliersEquipe.includes(NOM_REPONDANT), `l'agrege d'equipe n'est plus nominatif non plus (${NOM_REPONDANT} absent des piliers)`);
+
+    const detail = await fetch(`${base}/api/sessions/${sessionId}/questions/${q1}/detail?equipe=EquipeConfid`);
+    check(detail.status === 200, `GET detail d'une question -> 200 (recu ${detail.status})`);
+    const texteDetail = await detail.text();
+    check(texteDetail.includes(NOM_REPONDANT), `le nom du repondant arrive sur la route de detail (${NOM_REPONDANT})`);
+    check(texteDetail.includes(PRENOM_REPONDANT), `le prenom du repondant arrive sur la route de detail (${PRENOM_REPONDANT})`);
+
+    // Et cette route de detail n'ouvre PAS une porte departement : elle exige
+    // une equipe, elle ne consolide rien.
+    const detailSansEquipe = await fetch(`${base}/api/sessions/${sessionId}/questions/${q1}/detail?departement=DeptConfid`);
+    check(detailSansEquipe.status === 400, `la route de detail refuse un filtre departement (recu ${detailSansEquipe.status})`);
   } catch (err) {
     console.error('Sortie du serveur pendant le test :\n' + sortie);
     throw err;

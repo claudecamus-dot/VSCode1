@@ -733,15 +733,27 @@ app.put('/api/sessions/:id/commentaire', (req, res) => {
 // { equipe } ou { departement } : structure pilier -> objectif -> question avec
 // moyennes et pre-analyses. Reutilisee par l'ecran de resultats (Epic 5/US6.2),
 // la comparaison historique (US6.5) et la consolidation departement (Epic 7).
-// `options.nominatif` : faux retire le detail « qui a repondu quoi » du resultat.
-// Il n'a de destinataire legitime que l'ecran animateur d'UNE equipe (drill-down
-// US6.2) et l'export PPT, qui reste cote serveur. La consolidation departement et
-// la comparaison historique n'en affichent rien mais le recevaient quand meme :
-// le navigateur du sponsor telechargeait nom, prenom et niveau de chaque reponse
-// du departement, alors que le document des personas lui promet une granularite
-// equipe minimum.
+// `options.nominatif` : le detail « qui a repondu quoi » (nom, prenom et
+// libelle du niveau, par reponse). Il est desormais OPT-IN — `nominatif: true`
+// et rien d'autre l'active — la ou il etait opt-out (`!== false`).
+//
+// Ce sens de defaut est le correctif de fond du 2026-09-10 (arbitrage
+// utilisateur du constat de securite du 2026-09-04). Historique : le 2026-09-01
+// on avait ferme la consolidation departement et la comparaison historique en
+// leur passant `{ nominatif: false }` — chacune l'avait oublie et telechargeait
+// nom, prenom et niveau de chaque reponse dans le navigateur du sponsor. Fermer
+// les fuites une par une laisse la SUIVANTE ouverte : tout appelant qui oublie
+// l'option recoit la PII. Avec un defaut opt-in, l'oubli va vers le silence, et
+// c'est demander la PII qui devient un acte explicite et relisible en diff.
+// Aujourd'hui un seul appelant la demande : la route de detail d'UNE question,
+// appelee au depliement d'un accordeon (US6.2), authentifiee et scopee equipe.
+//
+// `nbReponses` est rendu DANS TOUS LES CAS : c'est le compte, pas l'identite.
+// L'ecran en a besoin pour annoncer « voir le detail nominatif (N) » sans avoir
+// recu les N lignes, et le classement des « points forts » pour exiger au moins
+// 2 reponses avant de parler d'accord.
 function agregerResultats(sessionId, filtre, manager, options = {}) {
-  const nominatif = options.nominatif !== false;
+  const nominatif = options.nominatif === true;
   let sql = 'SELECT * FROM repondants WHERE session_id = ? AND soumis_at IS NOT NULL';
   const params = [sessionId];
   if (filtre.equipe !== undefined) {
@@ -781,6 +793,12 @@ function agregerResultats(sessionId, filtre, manager, options = {}) {
         // Deja filtre par repondant (requete IN ci-dessus) — plus de requete ici.
         const reponsesQuestion = reponsesParQuestion.get(question.id) || [];
 
+        // Quand le detail n'est pas demande, la cle `reponses` est ABSENTE, pas
+        // vide. Un tableau vide se confond avec « personne n'a repondu » et se
+        // lit sans bruit : `q.reponses.length` aurait rendu 0 partout, et
+        // « voir le detail nominatif (0) » se serait affiche sur des questions
+        // repondues sans que rien n'echoue. Absente, la cle fait echouer tout
+        // lecteur residuel au lieu de lui mentir.
         const reponsesDetail = nominatif
           ? reponsesQuestion.map((r) => {
               const repondant = repondantsParId.get(r.repondant_id);
@@ -792,14 +810,24 @@ function agregerResultats(sessionId, filtre, manager, options = {}) {
                 niveau_texte: niveauInfo ? niveauInfo.texte : null,
               };
             })
-          : [];
+          : undefined;
 
         // Pre-analyses (US6.2) : moyenne, min, max et ecart-type des niveaux
         // saisis (statsNiveaux, teste unitairement) ; un fort ecart-type signale
         // un desaccord dans l'equipe, donc un point d'attention.
         const { moyenne, min, max, ecartType } = statsNiveaux(reponsesQuestion.map((r) => r.niveau));
 
-        return { id: question.id, texte: question.texte, moyenne, min, max, ecartType, niveaux: question.niveaux, reponses: reponsesDetail };
+        return {
+          id: question.id,
+          texte: question.texte,
+          moyenne,
+          min,
+          max,
+          ecartType,
+          niveaux: question.niveaux,
+          nbReponses: reponsesQuestion.length,
+          reponses: reponsesDetail,
+        };
       });
 
       const moyenneSousCategorie = moyenneDe(questions.map((q) => q.moyenne));
@@ -813,6 +841,56 @@ function agregerResultats(sessionId, filtre, manager, options = {}) {
   return { effectif: repondants.length, piliers: resultatPiliers };
 }
 
+// Detail nominatif d'UNE question : « qui a repondu quoi », charge A LA DEMANDE
+// au depliement de l'accordeon (US6.2), et nulle part ailleurs.
+//
+// Pourquoi une route separee plutot qu'un `?nominatif=1` sur /resultats : le
+// parametre aurait garde UNE route capable de deverser la PII de TOUTES les
+// questions d'un coup, donc la meme reponse volumineuse a n'importe qui sachant
+// l'ajouter. Ici la granularite EST la garde : une requete ne peut rendre que
+// les reponses d'une seule question, d'une seule equipe, d'une seule session.
+//
+// Controles, dans l'ordre : la session existe ; `equipe` est fourni (sans lui
+// on refuse — jamais de repli « toute la session ») ; la question appartient au
+// referentiel de CETTE session (sinon 404) ; le filtre manager de l'agrege
+// s'applique a l'identique. L'authentification, elle, n'est pas refaite ici :
+// elle est portee en amont par `barriereAuth()` (fail-closed integral), qui
+// protege tout ce qui n'est pas dans ROUTES_REPONDANT — et cette route n'y est
+// pas, volontairement. Le test verrouille ce 401, en casse melangee comprise.
+app.get('/api/sessions/:id/questions/:questionId/detail', (req, res) => {
+  const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Session inconnue.' });
+  const equipe = unParam(req.query.equipe);
+  const manager = req.query.manager;
+  if (!equipe) return res.status(400).json({ error: "Le parametre 'equipe' est requis." });
+
+  // On repasse par agregerResultats plutot que par une requete dediee : le
+  // filtre equipe, l'exclusion des non-soumis et le filtre manager sont ainsi
+  // LE MEME code que l'agrege. Une garde qui reimplemente son propre filtre
+  // derive de celui qu'elle est censee refleter — c'est comme ca qu'on obtient
+  // deux verites sur « qui compte dans cette equipe ».
+  const { piliers } = agregerResultats(session.id, { equipe }, manager, { nominatif: true });
+  // Comparaison en CHAINE des deux cotes : `questions.id` est un INTEGER SQLite
+  // (donc un `number` en sortie de better-sqlite3) tandis qu'un parametre
+  // d'URL est toujours une `string`. Un `===` direct rendait 404 sur toutes les
+  // questions, y compris les valides — attrape par le test au premier passage.
+  const questionIdDemande = String(req.params.questionId);
+  for (const pilier of piliers) {
+    for (const sousCategorie of pilier.sousCategories) {
+      const question = sousCategorie.questions.find((q) => String(q.id) === questionIdDemande);
+      if (question) {
+        return res.json({
+          questionId: question.id,
+          equipe,
+          nbReponses: question.nbReponses,
+          reponses: question.reponses,
+        });
+      }
+    }
+  }
+  return res.status(404).json({ error: 'Question inconnue pour cette session.' });
+});
+
 app.get('/api/sessions/:id/resultats', (req, res) => {
   const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session inconnue.' });
@@ -820,6 +898,11 @@ app.get('/api/sessions/:id/resultats', (req, res) => {
   const manager = req.query.manager;
   if (!equipe) return res.status(400).json({ error: "Le parametre 'equipe' est requis." });
 
+  // SANS detail nominatif (defaut opt-in depuis le 2026-09-10) : l'ecran le
+  // reclame question par question sur /questions/:questionId/detail quand
+  // l'animateur deplie. `repondants` ci-dessous garde ses noms : le panneau
+  // « qui a repondu / qui manque » est un affichage assume, jamais masque —
+  // ce qu'on retire est l'APPARIEMENT nom <-> niveau repondu.
   const { effectif, piliers } = agregerResultats(session.id, { equipe }, manager);
   let membres = db
     .prepare('SELECT nom, prenom, soumis_at, est_manager FROM repondants WHERE session_id = ? AND equipe = ?')

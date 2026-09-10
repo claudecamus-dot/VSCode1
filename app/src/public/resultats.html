@@ -294,14 +294,14 @@
     // sections regenerees par innerHTML) plutot que de garder une liste a jour.
     // Ne touche pas aux accordeons plus fins (detail par pilier, detail nominatif),
     // qui restent replies tant qu'on ne les ouvre pas un a un.
-    // ATTENTION, ce repli est un effet d'AFFICHAGE, pas une retenue de donnees :
-    // le detail nominatif est deja injecte dans le DOM par rendrePiliers() et
-    // seulement masque par `.detail-nominatif.ferme { display: none }`. Il reste
-    // donc atteignable par Ctrl+F, l'impression, « tout selectionner » ou
-    // l'inspecteur — y compris pendant une restitution en partage d'ecran.
-    // Finding securite de l'audit du 2026-09-04 : le correctif de fond (ne
-    // l'envoyer au client qu'a la demande, sur une route dediee) est PROPOSE et
-    // attend un arbitrage ; ne pas lire ce commentaire comme une garantie.
+    // Le repli reste un effet d'AFFICHAGE — mais depuis le 2026-09-10 il n'a
+    // plus rien de sensible a masquer : le detail nominatif ne descend plus
+    // avec l'agrege, chaque bloc `.detail-nominatif` nait VIDE et n'est rempli
+    // qu'au depliement, par chargerDetailNominatif(). Un bloc jamais ouvert
+    // n'est donc atteignable ni par Ctrl+F, ni par l'impression, ni par
+    // « enregistrer la page », ni par l'inspecteur (finding securite de l'audit
+    // du 2026-09-04, arbitre et applique). Ce que « tout deplier » ouvre reste
+    // en revanche a l'ecran : ne pas s'en servir en partage d'ecran.
     function toggleTout() {
       const contenus = [...document.querySelectorAll('.repli-contenu')];
       if (contenus.length === 0) return;
@@ -765,23 +765,23 @@
     // --- Accordéon pilier > sous-catégorie > question ---
 
     function rendrePiliers(piliers) {
-      // COUT RESIDUEL CONNU, MESURE le 2026-09-09 (constat performance
-      // « ameliore mais pas resolu » : le correctif du 09/09 a preserve l'etat
-      // des accordeons, pas supprime le rebuild). Sur un referentiel de
-      // 6 piliers x 3 objectifs x 4 questions (72 questions) et un effectif de
-      // 8, un seul rebuild serialise 212 802 caracteres / 2 898 elements, fait
-      // 4 parcours de document complet et 78 rattachements d'ecouteurs.
-      // Le meme rendu SANS le detail nominatif : 49 866 caracteres /
-      // 666 elements — le detail nominatif pese donc 77 % du cout.
-      // Autrement dit, la vraie sortie de ce constat n'est pas un rendu
+      // COUT DU REBUILD, mesure du 2026-09-09 puis du 2026-09-10. Sur un
+      // referentiel de 6 piliers x 3 objectifs x 4 questions (72 questions) et
+      // un effectif de 8, un rebuild serialisait 212 802 caracteres / 2 898
+      // elements ; le detail nominatif en pesait 77 %. Le chargement A LA
+      // DEMANDE (arbitrage du 2026-09-10) l'a retire du rendu initial. Mesure
+      // rejouee le 2026-09-10 avec le MEME harnais et les MEMES donnees, seul
+      // le code changeant : 46 122 caracteres / 594 elements, soit -78,3 %,
+      // un rendu 4,6 fois plus leger. C'est la sortie qui fermait les DEUX
+      // constats a la fois — le securite (masquage CSS != retenue de donnees)
+      // et le performance.
+      //
+      // Ce qui RESTE ouvert : le rebuild integral a chaque filtre. Un rendu
       // incrementiel (registre de noeuds par pIndex-scIndex-qIndex, chemin de
-      // construction ET chemin de mise a jour, regle d'invalidation : bien
+      // construction ET de mise a jour, regle d'invalidation) reste bien
       // au-dela d'un correctif court, et sans couverture automatisee possible
-      // avec l'outillage de test actuel) mais le chargement A LA DEMANDE du
-      // detail nominatif — exactement le correctif de fond qui attend un
-      // arbitrage utilisateur (cf. commentaire ligne 297 et suivantes).
-      // Ne pas « optimiser » ce rebuild avant cet arbitrage : les deux
-      // chantiers touchent le meme bloc.
+      // avec l'outillage de test actuel. Il porte desormais sur ~4 fois moins
+      // de DOM, ce qui affaiblit d'autant son interet.
       //
       // Preserve les accordeons ouverts (pilier + detail nominatif) a travers le
       // rebuild complet du innerHTML ci-dessous (constat audit-technique
@@ -820,23 +820,8 @@
                         : `<span class="stats">min ${q.min} · max ${q.max} · écart-type ${fmt(q.ecartType)}</span>`
                     }</span>
                   </div>
-                  <span class="lien-detail" data-question-toggle="${pIndex}-${scIndex}-${qIndex}">voir le détail nominatif (${q.reponses.length})</span>
-                  <div class="detail-nominatif ferme" id="detail-${pIndex}-${scIndex}-${qIndex}">
-                    ${
-                      q.reponses.length === 0
-                        ? '<span class="vide">Aucune réponse.</span>'
-                        : q.reponses
-                            .map(
-                              (r) => `
-                      <div class="detail-ligne">
-                        <strong>${esc(r.prenom)} ${esc(r.nom)}</strong> —
-                        <span class="niveau-num">niveau ${r.niveau}</span>
-                        <span class="niveau-texte">${esc(r.niveau_texte)}</span>
-                      </div>`
-                            )
-                            .join('')
-                    }
-                  </div>
+                  <span class="lien-detail" data-question-toggle="${pIndex}-${scIndex}-${qIndex}">voir le détail nominatif (${q.nbReponses})</span>
+                  <div class="detail-nominatif ferme" id="detail-${pIndex}-${scIndex}-${qIndex}" data-question-id="${esc(q.id)}"></div>
                 </div>`
                 )
                 .join('')}`
@@ -862,11 +847,73 @@
       });
       document.querySelectorAll('[data-question-toggle]').forEach((el) => {
         const cible = $(`detail-${el.dataset.questionToggle}`);
-        if (ouvertsDetail.has(cible.id)) cible.classList.remove('ferme');
+        // Un accordeon rouvert apres rebuild doit RE-demander son detail : le
+        // nouveau bloc est vide, l'ancien contenu est parti avec l'innerHTML.
+        if (ouvertsDetail.has(cible.id)) {
+          cible.classList.remove('ferme');
+          chargerDetailNominatif(cible);
+        }
         el.addEventListener('click', () => {
           cible.classList.toggle('ferme');
+          if (!cible.classList.contains('ferme')) chargerDetailNominatif(cible);
         });
       });
+    }
+
+    // Charge « qui a repondu quoi » pour UNE question, au depliement seulement.
+    //
+    // C'est le correctif de fond arbitre le 2026-09-10. Avant, ce detail etait
+    // deja dans le DOM des l'affichage, simplement masque par
+    // `.detail-nominatif.ferme { display: none }` : un masquage d'affichage,
+    // pas une retenue de donnees — Ctrl+F, l'impression, « enregistrer la
+    // page » et l'inspecteur le rendaient a qui voyait l'ecran. Il ne quitte
+    // desormais le serveur que sur ce clic.
+    //
+    // Effet mesure au passage sur le constat de performance : le detail pesait
+    // 77 % du rebuild de rendrePiliers() (212 802 caracteres serialises contre
+    // 49 866 sans lui, referentiel 6x3x4 et effectif 8, mesure du 2026-09-09).
+    // Le rebuild complet a chaque filtre reste, mais sur ~4 fois moins de DOM.
+    async function chargerDetailNominatif(bloc) {
+      // Deja charge : on ne redemande pas a chaque ouverture/fermeture. L'etat
+      // vit sur le noeud, qui est jete au rebuild — donc le cache disparait
+      // exactement quand la donnee qu'il refletait cesse d'etre a jour.
+      if (bloc.dataset.charge === '1' || bloc.dataset.enCours === '1') return;
+      const equipe = $('equipe').value;
+      const questionId = bloc.dataset.questionId;
+      if (!equipe || !questionId) return;
+      const manager = $('avecManager').checked ? 'avec' : 'sans';
+      bloc.dataset.enCours = '1';
+      bloc.innerHTML = '<span class="vide">Chargement du détail…</span>';
+      try {
+        const reponse = await fetch(
+          `/api/sessions/${sessionId}/questions/${encodeURIComponent(questionId)}/detail` +
+            `?equipe=${encodeURIComponent(equipe)}&manager=${manager}`
+        );
+        if (!reponse.ok) throw new Error(`HTTP ${reponse.status}`);
+        const { reponses } = await reponse.json();
+        bloc.innerHTML =
+          !reponses || reponses.length === 0
+            ? '<span class="vide">Aucune réponse.</span>'
+            : reponses
+                .map(
+                  (r) => `
+                      <div class="detail-ligne">
+                        <strong>${esc(r.prenom)} ${esc(r.nom)}</strong> —
+                        <span class="niveau-num">niveau ${r.niveau}</span>
+                        <span class="niveau-texte">${esc(r.niveau_texte)}</span>
+                      </div>`
+                )
+                .join('');
+        bloc.dataset.charge = '1';
+      } catch (err) {
+        // Meme raison que le catch de chargerResultats() : sans lui, un rejet
+        // laissait « Chargement du détail… » a l'ecran pour toujours, ce que
+        // l'animateur lit comme « cette question n'a pas de reponses ».
+        console.error('chargerDetailNominatif', err);
+        bloc.innerHTML = '<span class="vide">Détail indisponible. Repliez puis dépliez pour réessayer.</span>';
+      } finally {
+        bloc.dataset.enCours = '0';
+      }
     }
 
     init();

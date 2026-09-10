@@ -42,11 +42,16 @@
   // "Points forts" : scores les plus hauts + meilleurs accords, top 3 chacun.
   // L'accord n'a de sens qu'avec au moins 2 reponses : a 1 seule, l'ecart-type
   // est trivialement 0 sans traduire un vrai consensus.
+  //
+  // Compte via `nbReponses` et non `reponses.length` (2026-09-10) : le detail
+  // nominatif ne descend plus au navigateur avec l'agrege, `reponses` n'existe
+  // donc plus ici. Le SEUIL est inchange — ce classement n'a jamais eu besoin
+  // de savoir QUI a repondu, seulement COMBIEN.
   function classerPointsForts(questions) {
     return {
       hauts: [...questions].sort((a, b) => b.moyenne - a.moyenne).slice(0, 3),
       accords: [...questions]
-        .filter((q) => q.reponses.length >= 2)
+        .filter((q) => q.nbReponses >= 2)
         .sort((a, b) => a.ecartType - b.ecartType)
         .slice(0, 3),
     };

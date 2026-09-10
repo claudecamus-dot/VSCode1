@@ -143,15 +143,43 @@ async function main() {
     const apresSoumission = await (await fetch(`${base}/api/repondants/${repondantId}`)).json();
     check(apresSoumission.soumis_at !== null, 'soumis_at bascule apres la soumission');
 
-    console.log("Contre-epreuve : l'ANIMATEUR authentifie voit toujours le detail nominatif de son equipe (US6.2) :");
+    // CONTRE-EPREUVE, reformulee le 2026-09-10. Elle garde son role — prouver
+    // que le durcissement du parcours repondant n'a pas casse le drill-down de
+    // l'animateur — mais vise la route ou ce drill-down vit desormais. Depuis
+    // l'arbitrage du 2026-09-10, /resultats rend l'agrege sans appariement
+    // nom <-> niveau ; le detail d'UNE question s'obtient a la demande sur
+    // /questions/:questionId/detail, authentifie de la meme facon.
+    console.log("Contre-epreuve : l'ANIMATEUR authentifie obtient toujours le detail nominatif, a la demande (US6.2) :");
     const resultats = await fetch(
       `${base}/api/sessions/${sessionId}/resultats?equipe=${encodeURIComponent(PII.equipe)}&manager=avec`,
       { headers: entetesAnimateur }
     );
     check(resultats.status === 200, `resultats animateur -> 200 (recu ${resultats.status})`);
-    const brutResultats = await resultats.text();
-    check(brutResultats.includes(PII.nom), "le nom du repondant est bien present cote animateur (drill-down non casse)");
-    check(brutResultats.includes(PII.prenom), 'le prenom du repondant est bien present cote animateur');
+    const { piliers } = await resultats.json();
+    check(
+      !JSON.stringify(piliers).includes(PII.nom),
+      "l'agrege ne porte plus l'appariement nom <-> niveau (il ne descend plus masque dans le DOM)"
+    );
+
+    const detail = await fetch(
+      `${base}/api/sessions/${sessionId}/questions/${q1}/detail?equipe=${encodeURIComponent(PII.equipe)}&manager=avec`,
+      { headers: entetesAnimateur }
+    );
+    check(detail.status === 200, `detail d'une question -> 200 pour l'animateur (recu ${detail.status})`);
+    const brutDetail = await detail.text();
+    check(brutDetail.includes(PII.nom), 'le nom du repondant est bien rendu a la demande (drill-down non casse)');
+    check(brutDetail.includes(PII.prenom), 'le prenom du repondant est bien rendu a la demande');
+
+    // Et le repondant, lui, n'y accede pas : cette route n'est pas dans la
+    // liste blanche du parcours repondant, donc la barriere fail-closed la
+    // protege comme le reste de l'espace animateur.
+    const detailSansIdentifiants = await fetch(
+      `${base}/api/sessions/${sessionId}/questions/${q1}/detail?equipe=${encodeURIComponent(PII.equipe)}&manager=avec`
+    );
+    check(
+      detailSansIdentifiants.status === 401,
+      `la route de detail refuse un appel du parcours repondant (recu ${detailSansIdentifiants.status})`
+    );
   } catch (err) {
     console.error('Sortie du serveur pendant le test :\n' + sortie);
     throw err;
