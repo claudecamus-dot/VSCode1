@@ -5,7 +5,10 @@ des angles distincts (ex. parcours utilisateur, cohérence visuelle, contenu, ac
 consolidés ensuite en une liste de correctifs concrets.
 
 Importé depuis le projet VSCode2, où ce pattern était éprouvé sur des revues UX/design.
-Ici, **statut `importe` — à confirmer sur les premiers runs de ce projet**.
+Ici, **statut `jamais-joue`** (FORMAT.md n'a que deux valeurs : `eprouve` | `jamais-joue` —
+`importe` n'en fait pas partie, corrigé le 2026-09-11 après avoir trouvé la correction
+locale déjà faite chez VSCode3 sans avoir été remontée) — à confirmer sur les premiers
+runs de ce projet.
 
 Règles du mode parallèle (cf. `agent-orchestrator`) : angles réellement indépendants,
 lecture seule pendant le fan-out, ≤ 4 sous-agents, consolidation obligatoire — chaque
@@ -22,10 +25,10 @@ sous-agents.
 {
   "nom": "revue-design-parallele",
   "description": "Revue UX/design (ou revue multi-angles d'un livrable) par fan-out de sous-agents en lecture seule, puis consolidation en backlog d'actions priorisées.",
-  "statut": "importe",
+  "statut": "jamais-joue",
   "source": "manuel",
   "declencheurs": [
-    "revue UX/UI indépendante d'un ensemble d'écrans",
+    "revue UX/UI indépendante d'un ensemble d'écrans ou de slides",
     "passer en revue X sous plusieurs angles",
     "audit d'un livrable selon des dimensions distinctes (design, contenu, cohérence, parcours)"
   ],
@@ -69,7 +72,7 @@ sous-agents.
 }
 ```
 
-<!-- SOCLE-PROVENANCE: socle : 8042d89 du 2026-09-09 -->
-> **Socle généré** — tout ce qui PRÉCÈDE ce bandeau vient du hub de supervision (`8042d89`, 2026-09-09) et sera **réécrit** à la prochaine propagation.
+<!-- SOCLE-PROVENANCE: socle : 0ad0fed du 2026-09-11 -->
+> **Socle généré** — tout ce qui PRÉCÈDE ce bandeau vient du hub de supervision (`0ad0fed`, 2026-09-11) et sera **réécrit** à la prochaine propagation.
 > Le chapitre « Portée sur ce projet » placé après ce bandeau, lui, n'est jamais réécrit : c'est le travail local.
 
