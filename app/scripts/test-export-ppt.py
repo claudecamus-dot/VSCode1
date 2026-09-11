@@ -144,6 +144,12 @@ def bloc_equipe(nom, vals, avec_comp=True, radar=None):
 
 
 def main():
+    print("Fonction moyenne() (equivalente a app/src/scores.js:9 moyenneDe) :")
+    check(gen.moyenne([]) is None, "liste vide -> None")
+    check(gen.moyenne([None, None, None]) is None, "toutes les valeurs None -> None (pas une exception, pas 0)")
+    check(gen.moyenne([None, 2.0, None, 4.0]) == 3.0, "les None sont ignores, pas comptes comme 0 (recu {})".format(gen.moyenne([None, 2.0, None, 4.0])))
+    check(gen.moyenne([1.0, 2.0, 3.0]) == 2.0, "moyenne simple sans None")
+
     tmp = tempfile.mkdtemp(prefix="test-ppt-")
     # radarImage n'est plus utilise par le generateur (radar desormais vectoriel,
     # dessine depuis objectifs/piliers — voir _dessiner_radar) : ces PNG factices
