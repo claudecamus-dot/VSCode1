@@ -33,6 +33,7 @@ import os
 import json
 import math
 import re
+from functools import partial
 from pptx import Presentation
 from pptx.util import Inches
 from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
@@ -157,6 +158,12 @@ def joli_nom(nom):
     return " ".join(out).replace("' ", "'")
 
 
+# Moyenne des valeurs NON nulles d'une liste (None si aucune) — comportement a
+# faire correspondre a la reference JS TESTEE app/src/scores.js:9 `moyenneDe`
+# (memes cas limites : liste vide -> null/None, valeurs null ignorees plutot que
+# comptees comme 0, pas d'arrondi). Python et JS ne partagent pas le meme code
+# (deux runtimes), donc si tu modifies l'un, verifie l'equivalence logique avec
+# l'autre plutot que de les dupliquer sans y penser.
 def moyenne(valeurs):
     vals = [v for v in valeurs if v is not None]
     return sum(vals) / len(vals) if vals else None
@@ -782,26 +789,38 @@ GAP_MIN, GAP_MAX = 0.14, 0.28
 # 6pt (illisible) ; a 2 cartes chaque question respire et prend une taille lisible. On
 # montre donc le top 2 par colonne.
 N_CARTES_MAX = 2
+# Marge interne HORIZONTALE d'une carte (texte apres le lisere), utilisee par
+# _rendu_carte — a ne pas confondre avec PAD_CARTE (marge VERTICALE ajoutee a la
+# hauteur de carte dans _cartes_colonne, valeur differente : 0.26).
+PAD_TEXTE_CARTE = 0.24
 
 
-# Hauteur d'une carte HORS question : gap(0.04) + contexte(0.17) + gap(0.10) +
-# barre + label "moy."(0.41). Source unique partagee entre _bloc_carte_h (hauteur) et
-# le calcul inverse de ql_max dans _cartes_colonne — evite qu'un des deux derive de
-# l'autre. Le budget "barre" inclut le label "moy. X.X" pose sous le repere de moyenne
-# des widgets de dispersion (les cartes a barre simple gardent un peu de marge en bas).
-_CARTE_H_FIXE = 0.04 + 0.17 + 0.10 + 0.41   # = 0.72 : dimensionne TOUTES les cartes (budget commun)
-# Contenu REEL d'une carte "score" (barre + "sur 3", SANS ligne "moy.") : sert
-# uniquement a RE-CENTRER ces cartes (sinon, centrees sur le budget commun 0.72, elles
-# laissent un vide en bas la ou les cartes "dispersion" mettent leur "moy."). Ne change
-# ni le dimensionnement ni ql_max, donc pas la troncature.
-_CARTE_H_FIXE_SCORES = 0.04 + 0.17 + 0.10 + 0.28   # = 0.59
+# Deux constantes distinctes et NON contradictoires (clarifie suite a un audit —
+# 2026-09-04 : les noms d'origine _CARTE_H_FIXE / _CARTE_H_FIXE_SCORES laissaient
+# penser a un oubli de renommage sur 2 des 4 rendus ; ce n'en est pas un, cf. le
+# "pourquoi" ci-dessous) :
+#   - _CARTE_H_FIXE_BUDGET dimensionne TOUTES les cartes des 4 colonnes (hauteur
+#     de carte calculee dans _cartes_colonne ET calcul inverse de ql_max) : un
+#     budget COMMUN, pour que les colonnes "dispersion/accords" (widget
+#     d'amplitude + label "moy. X.X") et "scores" (barre simple, sans label)
+#     restent alignees en hauteur au sein d'un meme bloc (slides Points forts +
+#     Points d'attention affichent la meme taille de carte, cf. _taille_cartes_bloc).
+#   - _CARTE_H_FIXE_SCORE_REEL sert UNIQUEMENT a RE-CENTRER le contenu des cartes
+#     "score" (rendu sans label "moy.") DANS leur carte : ces cartes sont
+#     dimensionnees comme les autres (budget commun ci-dessus), mais leur contenu
+#     reel est plus court (pas de label sous la barre) — les centrer sur le budget
+#     commun laisserait un vide visible en bas. N'affecte ni le dimensionnement de
+#     la carte ni ql_max, donc jamais la troncature.
+# Hauteur HORS question : gap(0.04) + contexte(0.17) + gap(0.10) + barre + label.
+_CARTE_H_FIXE_BUDGET = 0.04 + 0.17 + 0.10 + 0.41       # = 0.72 (barre + label "moy. X.X")
+_CARTE_H_FIXE_SCORE_REEL = 0.04 + 0.17 + 0.10 + 0.28   # = 0.59 (barre + "sur 3", sans "moy.")
 
 
 # Hauteur du contenu d'une carte = question (ql lignes, a `taille` pt) + contexte
 # + barre. Seule la hauteur de la question depend de `taille` (contexte et barre
 # gardent une taille fixe) — les rendus placent leurs elements aux memes offsets,
 # d'ou cette source unique.
-def _bloc_carte_h(ql, taille=D.TYPE["small"], fixe=_CARTE_H_FIXE):
+def _bloc_carte_h(ql, taille=D.TYPE["small"], fixe=_CARTE_H_FIXE_BUDGET):
     lh = LH_QUESTION * (taille / D.TYPE["small"])
     return ql * lh + fixe
 
@@ -946,10 +965,68 @@ def _cartes_colonne(slide, x, w, items, accent, rendu, taille_forcee=None):
     lh = LH_QUESTION * (taille / D.TYPE["small"])
     y = top
     for it, card_h in zip(items, card_hs):
-        ql_max = max(1, int((card_h - PAD_CARTE - _CARTE_H_FIXE) / lh + 1e-6))
+        ql_max = max(1, int((card_h - PAD_CARTE - _CARTE_H_FIXE_BUDGET) / lh + 1e-6))
         D.add_card(slide, x, y, w, card_h, accent)
         rendu(slide, x, y, w, card_h, it, taille, ql_max)
         y += card_h + gap
+
+
+def _rendu_carte(slide, x, y, w, h, q, taille, ql_max, dispersion):
+    """Rendu commun aux 4 colonnes de cartes (points forts/attention) : question
+    -> contexte -> widget de mesure, dans le meme gabarit, avec la meme gestion
+    du texte trop long (_texte_et_lignes). Les 4 rendus d'origine
+    (dispersion/accords d'un cote, scores faibles/hauts de l'autre) etaient des
+    quasi-copies : seuls le WIDGET de mesure et le LIBELLE/VALEUR affiches a
+    droite different reellement entre les deux familles — factorise ici,
+    parametre par `dispersion` :
+      - dispersion=True  (cartes "Plus forts désaccords" / "Meilleurs accords") :
+        widget d'amplitude min-max (_widget_amplitude) + metrique = ecart-type.
+      - dispersion=False (cartes "Scores les plus faibles/hauts") : barre simple
+        (D.add_hbar) + metrique = moyenne ("sur 3").
+    Ni la couleur ni l'icone ne varient dans la carte elle-meme (toujours
+    D.INK) : le SENS (▲ positif / ▼ a travailler) est porte par l'en-tete de
+    colonne (_entete_colonne), pas par le rendu de carte.
+    `h` (donc la taille de la carte) est deja fixee par _cartes_colonne avec le
+    budget COMMUN aux 4 familles (_CARTE_H_FIXE_BUDGET) ; seul le RE-CENTRAGE du
+    contenu dans la carte differe pour les cartes "score" (_CARTE_H_FIXE_SCORE_REEL,
+    plus courtes puisqu'elles n'affichent pas de label "moy.") — voir le
+    commentaire au-dessus de ces deux constantes."""
+    tx = x + PAD_TEXTE_CARTE
+    tw = w - PAD_TEXTE_CARTE - 0.18
+    # Bloc {question + contexte + barre} centre dans la carte ; chaque element
+    # suit le precedent (pas de vide au milieu, carte non etiree). `taille`
+    # est choisie par _cartes_colonne pour que la question la plus longue de
+    # la colonne tienne sans deborder (D.ajuster_police).
+    texte, ql = _texte_et_lignes(q.get("texte", ""), tw, taille, ql_max)
+    fixe_centrage = _CARTE_H_FIXE_BUDGET if dispersion else _CARTE_H_FIXE_SCORE_REEL
+    top0 = y + (h - _bloc_carte_h(ql, taille, fixe_centrage)) / 2
+    qh = ql * LH_QUESTION * (taille / D.TYPE["small"])
+    D.add_text(slide, tx, top0, tw, qh,
+               [(texte, {"size": taille, "bold": True,
+                         "line_spacing": 0.96})])
+    D.add_text(slide, tx, top0 + qh + 0.04, tw, 0.17,
+               [(_contexte_joli(q.get("contexte", "")),
+                 {"size": D.TYPE["tiny"], "color": D.MUTED})])
+    ry = top0 + qh + 0.31
+    moy = q.get("moyenne")
+    if dispersion:
+        # Barre d'amplitude min..max sur l'echelle 0..3 + repere de moyenne.
+        rw = w - PAD_TEXTE_CARTE - 1.55
+        mn = q.get("min") if q.get("min") is not None else 0
+        mx = q.get("max") if q.get("max") is not None else 3
+        _widget_amplitude(slide, tx, ry, rw, mn, mx, moy)
+        # La plage min–max est deja montree par la barre ; on n'affiche que la
+        # metrique de classement, nommee en clair (et non l'abreviation "é-t").
+        valeur, libelle = fmt(q.get("ecartType")), "écart-type"
+    else:
+        rw = w - PAD_TEXTE_CARTE - 1.35
+        D.add_hbar(slide, tx, ry, rw, 0.13, (moy / 3.0) if moy is not None else 0, D.INK)
+        valeur, libelle = fmt(moy), "sur 3"
+    _valeur_cote_barre(slide, tx + rw + 0.14, ry, w - PAD_TEXTE_CARTE - rw - 0.20,
+                       [(valeur, {"size": D.TYPE["h3"], "bold": True, "color": D.INK,
+                                  "align": PP_ALIGN.RIGHT}),
+                        (libelle, {"size": D.TYPE["tiny"], "color": D.MUTED,
+                                   "align": PP_ALIGN.RIGHT})])
 
 
 def slide_points(prs, layouts, bloc):
@@ -958,69 +1035,17 @@ def slide_points(prs, layouts, bloc):
     # n° de slide du template OCTO, que la carte du bas viendrait sinon toucher.
     colw = (BORD_DROIT - MARGE_X - 0.5) / 2
     xg, xd = MARGE_X, MARGE_X + colw + 0.5
-    pad = 0.24                              # marge interne carte (apres le liseré)
     # Taille de carte COMMUNE aux slides 4 et 5 (meme calcul dans slide_points_forts).
     taille_cartes = _taille_cartes_bloc(bloc, colw)
 
-    def rendu_dispersion(slide, x, y, w, h, q, taille, ql_max):
-        tx = x + pad
-        tw = w - pad - 0.18
-        # Bloc {question + contexte + barre} centre dans la carte ; chaque element
-        # suit le precedent (pas de vide au milieu, carte non etiree). `taille`
-        # est choisie par _cartes_colonne pour que la question la plus longue de
-        # la colonne tienne sans deborder (D.ajuster_police).
-        texte, ql = _texte_et_lignes(q.get("texte", ""), tw, taille, ql_max)
-        top0 = y + (h - _bloc_carte_h(ql, taille)) / 2
-        qh = ql * LH_QUESTION * (taille / D.TYPE["small"])
-        D.add_text(slide, tx, top0, tw, qh,
-                   [(texte, {"size": taille, "bold": True,
-                             "line_spacing": 0.96})])
-        D.add_text(slide, tx, top0 + qh + 0.04, tw, 0.17,
-                   [(_contexte_joli(q.get("contexte", "")),
-                     {"size": D.TYPE["tiny"], "color": D.MUTED})])
-        # Barre d'amplitude min..max sur l'echelle 0..3 + repere de moyenne.
-        ry = top0 + qh + 0.31
-        rw = w - pad - 1.55
-        mn = q.get("min") if q.get("min") is not None else 0
-        mx = q.get("max") if q.get("max") is not None else 3
-        _widget_amplitude(slide, tx, ry, rw, mn, mx, q.get("moyenne"))
-        # La plage min–max est deja montree par la barre ; on n'affiche que la
-        # metrique de classement, nommee en clair (et non l'abreviation "é-t").
-        _valeur_cote_barre(slide, tx + rw + 0.14, ry, w - pad - rw - 0.20,
-                           [(fmt(q.get("ecartType")),
-                             {"size": D.TYPE["h3"], "bold": True, "color": D.INK,
-                              "align": PP_ALIGN.RIGHT}),
-                            ("écart-type", {"size": D.TYPE["tiny"], "color": D.MUTED,
-                                            "align": PP_ALIGN.RIGHT})])
-
-    def rendu_faible(slide, x, y, w, h, q, taille, ql_max):
-        tx = x + pad
-        tw = w - pad - 0.18
-        texte, ql = _texte_et_lignes(q.get("texte", ""), tw, taille, ql_max)
-        top0 = y + (h - _bloc_carte_h(ql, taille, _CARTE_H_FIXE_SCORES)) / 2   # carte sans "moy." : centrer sur le contenu reel
-        qh = ql * LH_QUESTION * (taille / D.TYPE["small"])
-        D.add_text(slide, tx, top0, tw, qh,
-                   [(texte, {"size": taille, "bold": True,
-                             "line_spacing": 0.96})])
-        D.add_text(slide, tx, top0 + qh + 0.04, tw, 0.17,
-                   [(_contexte_joli(q.get("contexte", "")),
-                     {"size": D.TYPE["tiny"], "color": D.MUTED})])
-        ry = top0 + qh + 0.31
-        rw = w - pad - 1.35
-        moy = q.get("moyenne")
-        D.add_hbar(slide, tx, ry, rw, 0.13, (moy / 3.0) if moy is not None else 0, D.INK)
-        _valeur_cote_barre(slide, tx + rw + 0.14, ry, w - pad - rw - 0.20,
-                           [(fmt(moy), {"size": D.TYPE["h3"], "bold": True, "color": D.INK,
-                                        "align": PP_ALIGN.RIGHT}),
-                            ("sur 3", {"size": D.TYPE["tiny"], "color": D.MUTED,
-                                       "align": PP_ALIGN.RIGHT})])
-
     _entete_colonne(slide, xg, colw, "▼", "Plus forts désaccords",
                     "Forte dispersion des réponses — sujets à clarifier")
-    _cartes_colonne(slide, xg, colw, bloc.get("dispersion", []), D.INK, rendu_dispersion, taille_cartes)
+    _cartes_colonne(slide, xg, colw, bloc.get("dispersion", []), D.INK,
+                    partial(_rendu_carte, dispersion=True), taille_cartes)
     _entete_colonne(slide, xd, colw, "▼", "Scores les plus faibles",
                     "Maturité la plus basse — leviers de progrès prioritaires")
-    _cartes_colonne(slide, xd, colw, bloc.get("faibles", []), D.INK, rendu_faible, taille_cartes)
+    _cartes_colonne(slide, xd, colw, bloc.get("faibles", []), D.INK,
+                    partial(_rendu_carte, dispersion=False), taille_cartes)
 
 
 # ----------------------------------------------------------------------------
@@ -1031,63 +1056,20 @@ def slide_points_forts(prs, layouts, bloc):
     slide = titre_slide(prs, layouts, f"{bloc['nom']} — Points forts")
     colw = (BORD_DROIT - MARGE_X - 0.5) / 2
     xg, xd = MARGE_X, MARGE_X + colw + 0.5
-    pad = 0.24
     # Taille de carte COMMUNE aux slides 4 et 5 (meme calcul dans slide_points) :
     # les deux slides affichent ainsi la meme taille de texte.
     taille_cartes = _taille_cartes_bloc(bloc, colw)
 
-    def rendu_haut(slide, x, y, w, h, q, taille, ql_max):
-        tx = x + pad
-        tw = w - pad - 0.18
-        texte, ql = _texte_et_lignes(q.get("texte", ""), tw, taille, ql_max)
-        top0 = y + (h - _bloc_carte_h(ql, taille, _CARTE_H_FIXE_SCORES)) / 2   # carte sans "moy." : centrer sur le contenu reel
-        qh = ql * LH_QUESTION * (taille / D.TYPE["small"])
-        D.add_text(slide, tx, top0, tw, qh,
-                   [(texte, {"size": taille, "bold": True, "line_spacing": 0.96})])
-        D.add_text(slide, tx, top0 + qh + 0.04, tw, 0.17,
-                   [(_contexte_joli(q.get("contexte", "")),
-                     {"size": D.TYPE["tiny"], "color": D.MUTED})])
-        ry = top0 + qh + 0.31
-        rw = w - pad - 1.35
-        moy = q.get("moyenne")
-        D.add_hbar(slide, tx, ry, rw, 0.13, (moy / 3.0) if moy is not None else 0, D.INK)
-        _valeur_cote_barre(slide, tx + rw + 0.14, ry, w - pad - rw - 0.20,
-                           [(fmt(moy), {"size": D.TYPE["h3"], "bold": True, "color": D.INK,
-                                        "align": PP_ALIGN.RIGHT}),
-                            ("sur 3", {"size": D.TYPE["tiny"], "color": D.MUTED,
-                                       "align": PP_ALIGN.RIGHT})])
-
-    def rendu_accord(slide, x, y, w, h, q, taille, ql_max):
-        tx = x + pad
-        tw = w - pad - 0.18
-        texte, ql = _texte_et_lignes(q.get("texte", ""), tw, taille, ql_max)
-        top0 = y + (h - _bloc_carte_h(ql, taille)) / 2
-        qh = ql * LH_QUESTION * (taille / D.TYPE["small"])
-        D.add_text(slide, tx, top0, tw, qh,
-                   [(texte, {"size": taille, "bold": True, "line_spacing": 0.96})])
-        D.add_text(slide, tx, top0 + qh + 0.04, tw, 0.17,
-                   [(_contexte_joli(q.get("contexte", "")),
-                     {"size": D.TYPE["tiny"], "color": D.MUTED})])
-        ry = top0 + qh + 0.31
-        rw = w - pad - 1.55
-        mn = q.get("min") if q.get("min") is not None else 0
-        mx = q.get("max") if q.get("max") is not None else 3
-        _widget_amplitude(slide, tx, ry, rw, mn, mx, q.get("moyenne"))
-        _valeur_cote_barre(slide, tx + rw + 0.14, ry, w - pad - rw - 0.20,
-                           [(fmt(q.get("ecartType")),
-                             {"size": D.TYPE["h3"], "bold": True, "color": D.INK,
-                              "align": PP_ALIGN.RIGHT}),
-                            ("écart-type", {"size": D.TYPE["tiny"], "color": D.MUTED,
-                                            "align": PP_ALIGN.RIGHT})])
-
     _entete_colonne(slide, xg, colw, "▲", "Scores les plus hauts",
                     "Maturité la plus haute — points d'appui à valoriser")
-    _cartes_colonne(slide, xg, colw, bloc.get("hauts", []), D.INK, rendu_haut, taille_cartes)
+    _cartes_colonne(slide, xg, colw, bloc.get("hauts", []), D.INK,
+                    partial(_rendu_carte, dispersion=False), taille_cartes)
     _entete_colonne(slide, xd, colw, "▲", "Meilleurs accords",
                     "Dispersion la plus faible des réponses — consensus fort")
     accords = bloc.get("accords", [])
     if accords:
-        _cartes_colonne(slide, xd, colw, accords, D.INK, rendu_accord, taille_cartes)
+        _cartes_colonne(slide, xd, colw, accords, D.INK,
+                        partial(_rendu_carte, dispersion=True), taille_cartes)
     else:
         # Un accord n'a de sens qu'avec >= 2 reponses (ex. equipe a 1 seul
         # repondant) : etat vide explicite plutot qu'une colonne silencieuse.
