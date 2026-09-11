@@ -153,6 +153,16 @@
       "cible": "flotte:point-du-jour-absent-des-5-cibles",
       "date": "2026-09-11",
       "decision": "ACCEPTE + DEJA RESOLU, verifie le 2026-09-11 sur ce depot uniquement (les 4 autres cibles restent a rejuger par le hub). Le constat, date du 2026-09-10, affirmait l'absence du hook point_du_jour.py sur VSCode1. Reverification directe : le fichier .claude/hooks/point_du_jour.py existe bien dans ce depot, aux cotes des autres hooks (garde-fous git, revue increment, veille agentic, orchestrator gate). Le fichier .claude/settings.json le reference egalement, dans la section SessionStart (confirme par lecture directe des bornes de section du fichier), avec un message de statut dedie. Le hook est donc present ET cable sur VSCode1 : soit le constat etait deja inexact pour cette cible au moment de sa redaction, soit il a ete resolu depuis sans que diagnostic.json le reflete. Finding retire cote VSCode1."
+    },
+    {
+      "cible": "VSCode1:detail-nominatif-decision-eclairee-par-la-mesure",
+      "date": "2026-09-11",
+      "decision": "ACCEPTE + DEJA APPLIQUE AVANT CETTE PASSE (finding perime a la lecture). Le correctif propose -- charger le detail nominatif a la demande -- a ete applique le 2026-09-10 par le commit e730597 et arbitre le meme jour sous la cible VSCode1:detail-nominatif-charge-a-la-demande, soit APRES la generation de ce diagnostic (08:07) et avant cette passe. Verifie sur le code reel : resultats.html ligne 824, le div .detail-nominatif nait VIDE et n est rempli qu au clic par un fetch vers une route dediee (chargerDetailNominatif, lignes 876-917) -- la donnee n est donc plus envoyee puis cachee par CSS, ce qui fermait le volet securite. Reste hors de ce finding : rendrePiliers() reconstruit toujours le DOM entier (innerHTML, ligne 795) a chaque changement de filtre, mais sans les 77 % de cout que portait le detail nominatif."
+    },
+    {
+      "cible": "VSCode1:audit-performance-niveau-moyen",
+      "date": "2026-09-11",
+      "decision": "ACCEPTE + LARGEMENT TRAITE, le reste demande une REMESURE, pas un correctif. Le constat unique qui tenait la dimension performance au niveau moyen etait le rebuild integral de rendrePiliers(), dont la mesure du 2026-09-09 imputait 77 % du cout au seul detail nominatif (212 802 caracteres / 2898 elements, contre 49 866 / 666 sans lui). Ce poids est tombe : le detail nominatif est charge a la demande depuis le commit e730597 du 2026-09-10. Le rebuild par innerHTML subsiste (resultats.html:795) mais sur un DOM ampute de ses trois quarts -- c est desormais une question de rendu incrementiel isole, pas la fuite de donnees doublee d un cout que ce finding decrivait. La dimension ne bougera au tableau de bord que quand le hub aura RE-JOUE audit-technique sur ce depot (l audit du hub date du 2026-09-09, anterieur au correctif) : c est un audit facture, propose a l utilisateur, jamais lance d office."
     }
   ]
 }

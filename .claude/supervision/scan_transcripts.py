@@ -4,7 +4,7 @@
 # | garder : la signaler au hub, qui corrige le canon et re-synchronise.
 # | (Depuis le hub : « py .claude/dispositif/sync_dispositif.py » — ce script
 # |  n'est pas déployé, il n'existe pas dans ce dépôt.)
-# | Provenance canon : 47a1926 du 2026-09-09 — permet, au prochain sync, de dire si
+# | Provenance canon : 13d7355 du 2026-09-11 — permet, au prochain sync, de dire si
 # | une différence vient d'une édition locale ou d'une avance du canon (voir
 # | `determiner_cause` dans sync_dispositif.py au hub).
 # +---------------------------------------------------------------------------
@@ -52,10 +52,10 @@ import glob
 import hashlib
 import json
 import os
-import traceback
 import re
 import subprocess
 import sys
+import traceback
 
 SUP_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(SUP_DIR))
@@ -1202,6 +1202,49 @@ def avertissement_mesure(state: dict) -> str:
     )
 
 
+def veille_sans_production(state: dict) -> str:
+    """L avertissement « veille lancee, rien produit », ou "" quand tout va bien.
+
+    Finding `veille-sans-depot` (diagnostic VSCode du 2026-09-10), volet (b). Le
+    sous-agent `veille-agentic` avait tourne le 2026-09-04 et n avait rien depose :
+    `.claude/veille/` etait absent du disque quatre heures plus tard, et le volet
+    « etat de l art agentic » du diagnostic sortait donc structurellement vide. Rien
+    ne distinguait ce cas d une veille JAMAIS LANCEE — deux situations qui n appellent
+    pas le meme geste (relancer avec un brief corrige vs simplement lancer).
+
+    Deterministe, 0 token : on compare la derniere invocation mesuree (tous canaux,
+    `derniers_usages`) a ce que le fichier declare (`derniere_veille`). Une invocation
+    POSTERIEURE au dernier artefact veut dire que le tour s est perdu.
+
+    Fail-open a chaque etape (fichier absent mais jamais lancee -> rien a signaler ;
+    JSON illisible -> pas d alarme inventee) : un scan ne tombe jamais sur cette
+    lecture, et n accuse jamais sur un doute."""
+    dernier_lancement = (derniers_usages(state) or {}).get("veille-agentic", "")
+    if not dernier_lancement:
+        return ""          # jamais lancee ici : ce n est pas le cas que ce signal vise
+    chemin = os.path.join(REPO, ".claude", "veille", "veille.json")
+    try:
+        with open(chemin, encoding="utf-8") as fh:
+            derniere_veille = (json.load(fh) or {}).get("derniere_veille", "") or ""
+    except FileNotFoundError:
+        return (
+            f"⚠️ **Veille lancée le {dernier_lancement[:10]}, aucun artefact produit** — "
+            "`.claude/veille/veille.json` est absent de ce dépôt : le volet « état de "
+            "l'art agentic » est structurellement vide, et une veille qui échoue reste "
+            "indistinguable d'une veille jamais lancée. Relancer avec un brief imposant "
+            "le chemin ABSOLU d'écriture."
+        )
+    except (OSError, ValueError):
+        return ""          # illisible : on ne fabrique pas une alarme sur un doute
+    if derniere_veille and derniere_veille >= dernier_lancement:
+        return ""
+    return (
+        f"⚠️ **Veille lancée le {dernier_lancement[:10]}, artefact plus ancien** — "
+        f"`.claude/veille/veille.json` date du {(derniere_veille or '?')[:10]} : le "
+        "dernier tour n'a rien déposé. Vérifier où sa sortie a atterri avant de relancer."
+    )
+
+
 def dormants(state):
     """Les noms dont l usage LE PLUS RECENT, tous canaux confondus, depasse le seuil.
 
@@ -1596,6 +1639,9 @@ def build_page(state: dict, fam: dict, todos: list, diag_todos: list = None, dia
     avert = avertissement_mesure(state)
     if avert:
         L += [avert, ""]
+    avert_veille = veille_sans_production(state)
+    if avert_veille:
+        L += [avert_veille, ""]
     if todos:
         L += [f"{i}. {t}" for i, t in enumerate(todos, 1)]
     else:
@@ -1770,6 +1816,10 @@ def build_html_section(state: dict, fam: dict, todos: list, diag_todos: list = N
     avert = avertissement_mesure(state)
     if avert:
         todo_html.append(f'      <p class="avertissement"><em>{_md_inline(avert)}</em></p>')
+    avert_veille = veille_sans_production(state)
+    if avert_veille:
+        todo_html.append(
+            f'      <p class="avertissement"><em>{_md_inline(avert_veille)}</em></p>')
     for t in todos:
         todo_html.append(
             '      <div class="critical">\n'
