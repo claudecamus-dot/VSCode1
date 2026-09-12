@@ -28,7 +28,7 @@ chef d'orchestre « definition of done avant commit » mais **délègue** :
 - Revue de code adversariale → **`bmad-code-review`**.
 - Rétrospective de fin d'epic → **`bmad-retrospective`**.
 - Changement de cap en cours de sprint → **`bmad-correct-course`**.
-- Revue humaine guidée d'un gros diff → **`bmad-checkpoint-preview`**.
+- Revue humaine guidée d'un gros diff → **`bmad-walkthrough`**.
 - Perdu sur quel skill lancer → **`bmad-help`** (routeur BMAD).
 
 `revue-increment` garde la boucle courte et transverse (vérité terrain git,
