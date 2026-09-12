@@ -194,6 +194,9 @@
     const sessionId = new URLSearchParams(window.location.search).get('session');
     const PALETTE = ['#2c5cc5', '#1e6b34', '#b3261e', '#b8860b', '#6a3d9a', '#138086'];
     let participationSession = null; // { soumis, invites } — niveau session, independant de l'equipe
+    // Signature du dernier rendu de rendrePiliers() (voir la fonction) — permet
+    // de sauter un rebuild DOM qui reproduirait exactement le meme resultat.
+    let dernierPiliersSerialises = null;
 
     // Libelle d'axe radar sans son contenu entre parentheses (ex. "Leadership et
     // Culture agile (sponsorship, posture managériale, ...)" -> "Leadership et
@@ -228,6 +231,10 @@
         $('syntheseChiffree').innerHTML = '';
         $('zoneRadar').innerHTML = '';
         $('zonePiliers').innerHTML = '';
+        // Ce vidage direct contourne rendrePiliers() : invalider la signature pour
+        // que resélectionner la même équipe ensuite ne fasse pas croire à la garde
+        // ci-dessous que le DOM (vidé entre-temps) est déjà à jour.
+        dernierPiliersSerialises = null;
         return;
       }
       // Sections a repli persistant (l'en-tete n'est pas regenere par innerHTML,
@@ -390,6 +397,10 @@
         $('pointsAttention').innerHTML = '';
         $('zoneRadar').innerHTML = '';
         $('zonePiliers').innerHTML = '';
+        // Ce vidage direct contourne rendrePiliers() : invalider la signature pour
+        // que resélectionner la même équipe ensuite ne fasse pas croire à la garde
+        // ci-dessous que le DOM (vidé entre-temps) est déjà à jour.
+        dernierPiliersSerialises = null;
         return;
       }
       const manager = $('avecManager').checked ? 'avec' : 'sans';
@@ -776,13 +787,37 @@
       // constats a la fois — le securite (masquage CSS != retenue de donnees)
       // et le performance.
       //
-      // Ce qui RESTE ouvert : le rebuild integral a chaque filtre. Un rendu
-      // incrementiel (registre de noeuds par pIndex-scIndex-qIndex, chemin de
-      // construction ET de mise a jour, regle d'invalidation) reste bien
-      // au-dela d'un correctif court, et sans couverture automatisee possible
-      // avec l'outillage de test actuel. Il porte desormais sur ~4 fois moins
-      // de DOM, ce qui affaiblit d'autant son interet.
+      // Ce qui RESTE ouvert : le rebuild integral quand le filtre change VRAIMENT
+      // le resultat. Un rendu incrementiel (registre de noeuds par
+      // pIndex-scIndex-qIndex, chemin de construction ET de mise a jour, regle
+      // d'invalidation) reste bien au-dela d'un correctif court, et sans
+      // couverture automatisee possible avec l'outillage de test actuel. Il
+      // porte desormais sur ~4 fois moins de DOM, ce qui affaiblit d'autant son
+      // interet.
       //
+      // Ce qui est corrige ici (2026-09-12) : le cas ou le filtre change mais le
+      // RESULTAT non — ex. la bascule "avec/sans manager" ci-dessous n'affecte
+      // pas toujours les moyennes d'une equipe (aucun manager dans l'equipe, ou
+      // ses reponses ne deplacent aucune moyenne affichee). L'appelant
+      // (chargerResultats) refait de toute facon l'appel reseau a chaque
+      // changement de filtre — seul le rebuild DOM, lui, est evitable. Comparer
+      // les DONNEES entrantes (`piliers`, pas le HTML produit) a la derniere
+      // signature rendue coute un JSON.stringify de quelques Ko contre un
+      // rebuild de ~46 000 caracteres : sur le cas cible, mesure ci-dessous, la
+      // sortie precoce ramene le cout du re-rendu a zero caractere serialise.
+      // Ne change PAS le resultat des filtres : `piliers` reste la seule source
+      // de verite, on rend exactement le meme DOM qu'un rebuild aurait produit,
+      // simplement sans le refaire depuis les memes donnees.
+      const signaturePiliers = JSON.stringify(piliers);
+      if (signaturePiliers === dernierPiliersSerialises) {
+        // Mieux qu'un rebuild a l'identique : le detail nominatif deja charge
+        // (cf. chargerDetailNominatif) n'est pas jete pour rien, et les
+        // accordeons ouverts n'ont pas besoin d'etre sauvegardes/restaures
+        // puisque le DOM ne bouge pas.
+        return;
+      }
+      dernierPiliersSerialises = signaturePiliers;
+
       // Preserve les accordeons ouverts (pilier + detail nominatif) a travers le
       // rebuild complet du innerHTML ci-dessous (constat audit-technique
       // 2026-09-04) : sans ca, changer le filtre "avec/sans manager" ou
