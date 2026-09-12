@@ -752,8 +752,13 @@ app.put('/api/sessions/:id/commentaire', (req, res) => {
 // L'ecran en a besoin pour annoncer « voir le detail nominatif (N) » sans avoir
 // recu les N lignes, et le classement des « points forts » pour exiger au moins
 // 2 reponses avant de parler d'accord.
-function agregerResultats(sessionId, filtre, manager, options = {}) {
-  const nominatif = options.nominatif === true;
+// Selection des repondants ayant soumis, filtres par equipe/departement et par
+// exclusion manager. Extrait d'agregerResultats (finding perf 2026-09-12) pour
+// etre reutilise par le detail cible d'UNE question SANS reimplementer son
+// propre filtre derive : c'est ainsi qu'on obtiendrait deux verites sur « qui
+// compte dans cette equipe » (le meme risque que documente plus bas pour la
+// route de detail).
+function selectionnerRepondants(sessionId, filtre, manager) {
   let sql = 'SELECT * FROM repondants WHERE session_id = ? AND soumis_at IS NOT NULL';
   const params = [sessionId];
   if (filtre.equipe !== undefined) {
@@ -768,6 +773,12 @@ function agregerResultats(sessionId, filtre, manager, options = {}) {
   if (estManagerExclu(manager)) {
     repondants = repondants.filter((r) => !r.est_manager);
   }
+  return repondants;
+}
+
+function agregerResultats(sessionId, filtre, manager, options = {}) {
+  const nominatif = options.nominatif === true;
+  const repondants = selectionnerRepondants(sessionId, filtre, manager);
   const repondantIds = new Set(repondants.map((r) => r.id));
   // Fix N+1 (finding perf audit 2026-07-24) : UNE requete pour toutes les reponses
   // des repondants retenus (au lieu d'une par question, imbriquee dans les boucles
@@ -857,6 +868,22 @@ function agregerResultats(sessionId, filtre, manager, options = {}) {
 // elle est portee en amont par `barriereAuth()` (fail-closed integral), qui
 // protege tout ce qui n'est pas dans ROUTES_REPONDANT — et cette route n'y est
 // pas, volontairement. Le test verrouille ce 401, en casse melangee comprise.
+//
+// Fix perf (audit-technique, 2026-09-12) : cette route appelait auparavant
+// agregerResultats() sur l'INTEGRALITE du referentiel de la session (boucle
+// piliers -> sous-categories -> questions + 2 requetes SQL) pour n'en extraire
+// qu'une seule question, repete a chaque clic sur une question DIFFERENTE (le
+// cache client, bloc.dataset.charge, ne protege que la meme question
+// ree-ouverte). Le filtre repondants (equipe/departement/manager) reste
+// PARTAGE avec agregerResultats via selectionnerRepondants() — pour la meme
+// raison qu'avant : une garde qui reimplemente son propre filtre derive de
+// celui qu'elle est censee refleter, c'est comme ca qu'on obtient deux verites
+// sur « qui compte dans cette equipe ». Seule la partie couteuse et inutile
+// ici (construire l'arbre complet et les reponses de TOUTES les questions)
+// est evitee : la requete `reponses` est desormais bornee a la question
+// demandee, et l'appartenance au referentiel de la session se verifie par
+// `activeQuestionIds()` (la meme source que `referentielPourSession`) sans
+// construire les piliers/sous-categories.
 app.get('/api/sessions/:id/questions/:questionId/detail', (req, res) => {
   const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session inconnue.' });
@@ -864,31 +891,39 @@ app.get('/api/sessions/:id/questions/:questionId/detail', (req, res) => {
   const manager = req.query.manager;
   if (!equipe) return res.status(400).json({ error: "Le parametre 'equipe' est requis." });
 
-  // On repasse par agregerResultats plutot que par une requete dediee : le
-  // filtre equipe, l'exclusion des non-soumis et le filtre manager sont ainsi
-  // LE MEME code que l'agrege. Une garde qui reimplemente son propre filtre
-  // derive de celui qu'elle est censee refleter — c'est comme ca qu'on obtient
-  // deux verites sur « qui compte dans cette equipe ».
-  const { piliers } = agregerResultats(session.id, { equipe }, manager, { nominatif: true });
-  // Comparaison en CHAINE des deux cotes : `questions.id` est un INTEGER SQLite
-  // (donc un `number` en sortie de better-sqlite3) tandis qu'un parametre
-  // d'URL est toujours une `string`. Un `===` direct rendait 404 sur toutes les
-  // questions, y compris les valides — attrape par le test au premier passage.
-  const questionIdDemande = String(req.params.questionId);
-  for (const pilier of piliers) {
-    for (const sousCategorie of pilier.sousCategories) {
-      const question = sousCategorie.questions.find((q) => String(q.id) === questionIdDemande);
-      if (question) {
-        return res.json({
-          questionId: question.id,
-          equipe,
-          nbReponses: question.nbReponses,
-          reponses: question.reponses,
-        });
-      }
-    }
+  // `questions.id` est un INTEGER SQLite ; un parametre d'URL est toujours une
+  // `string`. On convertit explicitement (plutot que de compter sur l'affinite
+  // SQLite) : une valeur non entiere (ex. "question-qui-nexiste-pas") echoue
+  // ici, avant toute requete.
+  const questionId = Number(req.params.questionId);
+  if (!Number.isInteger(questionId) || !activeQuestionIds(session.id).has(questionId)) {
+    return res.status(404).json({ error: 'Question inconnue pour cette session.' });
   }
-  return res.status(404).json({ error: 'Question inconnue pour cette session.' });
+  const question = db.prepare('SELECT id, texte FROM questions WHERE id = ?').get(questionId);
+  if (!question) return res.status(404).json({ error: 'Question inconnue pour cette session.' });
+
+  const repondants = selectionnerRepondants(session.id, { equipe }, manager);
+  const repondantsParId = new Map(repondants.map((r) => [r.id, r]));
+  const repondantIds = [...repondantsParId.keys()];
+  let reponsesQuestion = [];
+  if (repondantIds.length > 0) {
+    const placeholders = repondantIds.map(() => '?').join(',');
+    reponsesQuestion = db
+      .prepare(`SELECT repondant_id, niveau FROM reponses WHERE question_id = ? AND repondant_id IN (${placeholders})`)
+      .all(questionId, ...repondantIds);
+  }
+  const niveauxQuestion = db.prepare('SELECT niveau, texte FROM niveaux WHERE question_id = ?').all(questionId);
+  const reponses = reponsesQuestion.map((r) => {
+    const repondant = repondantsParId.get(r.repondant_id);
+    const niveauInfo = niveauxQuestion.find((n) => n.niveau === r.niveau);
+    return {
+      nom: repondant.nom,
+      prenom: repondant.prenom,
+      niveau: r.niveau,
+      niveau_texte: niveauInfo ? niveauInfo.texte : null,
+    };
+  });
+  return res.json({ questionId: question.id, equipe, nbReponses: reponses.length, reponses });
 });
 
 app.get('/api/sessions/:id/resultats', (req, res) => {
