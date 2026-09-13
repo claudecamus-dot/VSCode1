@@ -438,6 +438,11 @@
         $('pointsAttention').innerHTML = msg;
         $('zoneRadar').innerHTML = msg;
         $('zonePiliers').innerHTML = msg;
+        // Ce vidage direct contourne rendrePiliers() : invalider la signature pour
+        // qu'une reprise reussie renvoyant les memes donnees ne sorte pas en avance
+        // de la garde ci-dessus et laisse le message d'erreur affiche (regression
+        // constatee par audit le 2026-09-13, harnais A/B contre HEAD~1).
+        dernierPiliersSerialises = null;
       }
     }
 
