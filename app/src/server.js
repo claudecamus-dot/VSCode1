@@ -1055,7 +1055,7 @@ function calculerComparaison(session, equipe, manager) {
   // affichee a l'ecran ET dans le PPT remis au client -- portait sur le mauvais
   // objectif, sans aucun signal (audit du 2026-09-13). Meme qualification que
   // `Classement.aplatirQuestions(piliers, (p, sc) => ...)` plus bas.
-  const cleObjectif = (nomPilier, nomObjectif) => `${nomPilier} ${nomObjectif}`;
+  const cleObjectif = (nomPilier, nomObjectif) => JSON.stringify([nomPilier, nomObjectif]);
   const ancienParPilier = new Map(ancien.piliers.map((p) => [p.nom, p]));
   const ancienParObjectif = new Map();
   for (const p of ancien.piliers) {
