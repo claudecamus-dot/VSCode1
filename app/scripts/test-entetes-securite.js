@@ -48,6 +48,16 @@ function directive(nom) {
 }
 
 // --- Etage 2 : la politique correspond-elle a ce que les pages FONT ? ---------
+// Origines externes (http/https) referencees en src=/href= par une page. Extrait
+// en fonction pour etre EPROUVE sur un temoin : cf. verifierCoherenceAvecLesPages.
+function originesExternesDe(html) {
+  const origines = new Set();
+  for (const url of html.match(/\b(?:src|href)\s*=\s*["']https?:\/\/[^"']+/gi) || []) {
+    origines.add(new URL(url.replace(/^[^"']*["']/, '')).origin);
+  }
+  return origines;
+}
+
 function verifierCoherenceAvecLesPages() {
   const pages = fs.readdirSync(DOSSIER_PAGES).filter((f) => f.endsWith('.html'));
   check(pages.length > 0, `des pages sont inspectees (${pages.length} trouvee(s) dans src/public/)`);
@@ -61,9 +71,7 @@ function verifierCoherenceAvecLesPages() {
     // <script> sans attribut src = bloc inline, celui que 'unsafe-inline' autorise.
     if (/<script(?![^>]*\ssrc=)[^>]*>[\s\S]*?<\/script>/i.test(html)) pagesAvecScriptInline += 1;
     if (/<style[^>]*>[\s\S]*?<\/style>/i.test(html) || /\sstyle="/i.test(html)) pagesAvecStyleInline += 1;
-    for (const url of html.match(/\b(?:src|href)\s*=\s*["']https?:\/\/[^"']+/gi) || []) {
-      originesExternes.add(new URL(url.replace(/^[^"']*["']/, '')).origin);
-    }
+    for (const origine of originesExternesDe(html)) originesExternes.add(origine);
   }
 
   const scriptSrc = directive('script-src');
@@ -95,7 +103,23 @@ function verifierCoherenceAvecLesPages() {
       `l'origine externe ${origine} referencee par une page est declaree dans la CSP`
     );
   }
-  check(true, `origines externes referencees par les pages : ${originesExternes.size}`);
+  // Garde-fou de la garde (meme motif que test-admin-ui.js:29-31) : la boucle
+  // ci-dessus itere aujourd'hui sur un ensemble VIDE, donc elle n'execute AUCUNE
+  // assertion — et la ligne qui suivait etait un `check(true, ...)` litteral, vert
+  // inconditionnellement, qui gonflait le compteur sans rien prouver
+  // (audit du 2026-09-13). Un ensemble vide doit signifier « aucune origine
+  // externe », jamais « l'extracteur ne detecte plus rien » : on l'eprouve donc
+  // sur un temoin qui, lui, EN CONTIENT.
+  const temoin = originesExternesDe(
+    '<script src="https://cdn.exemple.invalid/a.js"></script>'
+    + '<link rel="stylesheet" href=\'https://polices.exemple.invalid/b.css\'>'
+    + '<img src="/local.png">'
+  );
+  check(
+    temoin.has('https://cdn.exemple.invalid') && temoin.has('https://polices.exemple.invalid') && temoin.size === 2,
+    `l'extracteur d'origines externes en trouve bien quand il y en a, et ignore le same-origin (temoin : ${[...temoin].join(', ') || 'AUCUNE'})`
+  );
+  console.log(`  info origines externes reellement referencees par les ${pages.length} pages : ${originesExternes.size}`);
 }
 
 // --- Etage 3 : sous un VRAI navigateur ---------------------------------------
