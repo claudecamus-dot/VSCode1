@@ -86,8 +86,14 @@ function verifierIgnore(chemin, libelle, consequence) {
     // check-ignore sort 1 quand le chemin n'est PAS ignore ; 128 si hors depot git ;
     // ENOENT (git absent du PATH) laisse status a null/undefined, pas 128.
     const gitIndisponible = e.status === 128 || e.code === 'ENOENT';
-    check(gitIndisponible, gitIndisponible
-      ? `(git indisponible : couverture de ${libelle} non verifiee)`
+    // git indisponible = ce garde-fou est INOPERANT, pas satisfait. Il comptait
+    // ces deux verifications comme reussies et annoncait « TOUS LES TESTS
+    // PASSENT » sans avoir rien verifie (mesure du 2026-09-13 : hors PATH de git,
+    // sortie 0 et 2 `ok`). Le message etait honnete a la lecture, le CODE DE
+    // SORTIE ne l'etait pas — et c'est lui que lisent npm test et la CI. Un
+    // garde-fou de fuite de secrets doit echouer quand il ne peut pas conclure.
+    check(false, gitIndisponible
+      ? `GARDE-FOU INOPERANT : git indisponible, la couverture de ${libelle} n a PAS pu etre verifiee (${consequence})`
       : `${libelle} N EST PAS ignore par git : ${consequence}`);
   }
 }
