@@ -27,6 +27,12 @@ function annulerTransaction(err) {
     db.exec('ROLLBACK');
   } catch (errRollback) {
     if (err instanceof Error && err.cause === undefined) err.cause = errRollback;
+    // Rien ou quoi pendre la `cause` : une cause d'origine qui n'est pas une
+    // Error (un `throw 'chaine'` depuis un handler Express) faisait disparaitre
+    // l'echec du ROLLBACK SANS TRACE — ni log, ni cause, ni relance. On ne
+    // relance pas (ce serait ecraser la cause reelle, tout l'objet de cette
+    // fonction), mais on le journalise (audit du 2026-09-13).
+    else console.error('ROLLBACK en echec, non rattachable a la cause d\'origine :', errRollback);
   }
 }
 
@@ -43,8 +49,14 @@ function enTransaction(fn) {
     // definitivement validees, sans rollback possible, sans le moindre signal.
     // Le geste est naturel (deux des appelants sont des handlers `async`) : on le
     // refuse explicitement plutot que de rendre une garantie qui n'existe pas.
+    // Le ROLLBACK passe par le catch ci-dessous, jamais en direct ici : un
+    // `db.exec('ROLLBACK')` NU — le motif que ce module interdit precisement a
+    // referentiel.js — perdait le TypeError des qu'il levait (le cas documente
+    // plus haut : SQLite a deja annule seul). L'exception SQLite partait dans le
+    // catch, annulerTransaction retentait un ROLLBACK, et c'est « cannot
+    // rollback » qui remontait a l'appelant : le message explicatif, SEULE raison
+    // d'etre de la garde, etait perdu — pour un `async` oublie (audit 2026-09-13).
     if (resultat && typeof resultat.then === 'function') {
-      db.exec('ROLLBACK');
       throw new TypeError("enTransaction n'accepte pas de fonction asynchrone : le COMMIT partirait avant le travail.");
     }
     db.exec('COMMIT');

@@ -192,6 +192,65 @@ check(
   'la base reste utilisable apres ces trois annulations (aucune transaction laissee ouverte)'
 );
 
+// --- Le dernier ROLLBACK NU du module etait dans le module lui-meme -----------
+//
+// Audit-technique du 2026-09-13 : tx.js interdit le `db.exec('ROLLBACK')` nu a
+// referentiel.js (bloc ci-dessus) mais en gardait un, sur le refus de `fn`
+// asynchrone. S'il levait -- le cas que le module documente lui-meme : SQLite a
+// deja annule seul -- l'exception partait dans le catch, annulerTransaction
+// retentait un ROLLBACK, et c'est l'erreur SQLite qui etait relancee : le
+// TypeError explicatif, SEULE raison d'etre de la garde, etait perdu. Le
+// developpeur recevait « cannot rollback » pour un `async` oublie.
+console.log('\nfn asynchrone ET ROLLBACK qui echoue : le TypeError explicatif ne doit pas etre perdu :');
+const asyncRollbackKo = avecRollbackQuiEchoue(() => {
+  enTransaction(async () => {
+    db.prepare('INSERT INTO demo_tx (valeur) VALUES (?)').run('async-rollback-ko');
+  });
+});
+check(
+  asyncRollbackKo.erreur instanceof TypeError,
+  `AVANT LE CORRECTIF : l'erreur SQLite du ROLLBACK remontait a sa place (recu ${asyncRollbackKo.erreur && asyncRollbackKo.erreur.constructor.name} : ${asyncRollbackKo.erreur && asyncRollbackKo.erreur.message})`
+);
+check(
+  !!asyncRollbackKo.erreur && /asynchrone/i.test(String(asyncRollbackKo.erreur.message)),
+  "le message explique bien le vrai probleme (fn asynchrone), pas l'echec du rollback"
+);
+check(
+  !!asyncRollbackKo.erreur && asyncRollbackKo.erreur.cause instanceof Error && /cannot rollback/i.test(asyncRollbackKo.erreur.cause.message),
+  "l'echec du ROLLBACK est conserve en `cause`, pas perdu"
+);
+check(
+  asyncRollbackKo.rollbacksInterceptes === 1,
+  `un SEUL ROLLBACK tente, par annulerTransaction (le nu en faisait 2) -- recu ${asyncRollbackKo.rollbacksInterceptes}`
+);
+
+// Voisin de la meme ligne : un `throw 'chaine'` (un handler Express peut en
+// produire) n'est pas une Error, donc rien ne pouvait porter la `cause` : l'echec
+// du ROLLBACK etait TOTALEMENT avale -- ni log, ni cause, ni relance.
+console.log("Cause d'origine non-Error : l'echec du ROLLBACK est au moins JOURNALISE, plus avale :");
+const erreurOriginale = console.error;
+const journal = [];
+console.error = (...args) => { journal.push(args.map(String).join(' ')); };
+let erreurChaine;
+try {
+  const r = avecRollbackQuiEchoue(() => {
+    enTransaction(() => { throw 'echec simule non-Error'; });
+  });
+  erreurChaine = r.erreur;
+} finally {
+  console.error = erreurOriginale;
+}
+check(erreurChaine === 'echec simule non-Error', `la cause d'origine remonte telle quelle (recu ${JSON.stringify(erreurChaine)})`);
+check(
+  journal.some((l) => /cannot rollback/i.test(l)),
+  `AVANT LE CORRECTIF : l'echec du ROLLBACK disparaissait sans trace (journal : ${JSON.stringify(journal)})`
+);
+
+check(
+  (() => { try { enTransaction(() => db.prepare('INSERT INTO demo_tx (valeur) VALUES (?)').run('apres-async')); return true; } catch { return false; } })(),
+  'la base reste utilisable apres ces deux annulations supplementaires'
+);
+
 fs.rmSync(dossierCopie, { recursive: true, force: true });
 try { fs.rmSync(dbFile); } catch { /* nettoyage best-effort */ }
 
