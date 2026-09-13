@@ -1047,10 +1047,19 @@ function calculerComparaison(session, equipe, manager) {
   const ancien = agregerResultats(precedente.id, { equipe }, manager, { nominatif: false });
 
   // Alignement par nom : on ancre sur le referentiel de la session courante.
+  //
+  // La cle d'un objectif est (pilier, objectif), JAMAIS son nom seul : indexee
+  // sur `sc.nom` a travers tous les piliers, deux sous-categories homonymes dans
+  // deux piliers differents (cas banal : « Pilotage », « Qualite ») s'ecrasaient,
+  // le dernier gagnait, et l'axe `precedent` du radar -- puis la progression
+  // affichee a l'ecran ET dans le PPT remis au client -- portait sur le mauvais
+  // objectif, sans aucun signal (audit du 2026-09-13). Meme qualification que
+  // `Classement.aplatirQuestions(piliers, (p, sc) => ...)` plus bas.
+  const cleObjectif = (nomPilier, nomObjectif) => `${nomPilier} ${nomObjectif}`;
   const ancienParPilier = new Map(ancien.piliers.map((p) => [p.nom, p]));
   const ancienParObjectif = new Map();
   for (const p of ancien.piliers) {
-    for (const sc of p.sousCategories) ancienParObjectif.set(sc.nom, sc.moyenne);
+    for (const sc of p.sousCategories) ancienParObjectif.set(cleObjectif(p.nom, sc.nom), sc.moyenne);
   }
 
   // Axes du radar : un par objectif (sous-categorie) du referentiel courant,
@@ -1058,12 +1067,13 @@ function calculerComparaison(session, equipe, manager) {
   const axes = [];
   courant.piliers.forEach((pilier, pilierIndex) => {
     for (const sc of pilier.sousCategories) {
+      const cle = cleObjectif(pilier.nom, sc.nom);
       axes.push({
         label: sc.nom,
         pilier: pilier.nom,
         pilierIndex,
         courant: sc.moyenne,
-        precedent: ancienParObjectif.has(sc.nom) ? ancienParObjectif.get(sc.nom) : null,
+        precedent: ancienParObjectif.has(cle) ? ancienParObjectif.get(cle) : null,
       });
     }
   });
