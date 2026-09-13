@@ -520,6 +520,18 @@ app.put('/api/repondants/:id/piliers/:pilierId/reponses', (req, res) => {
     .all(pilierId);
   const questionIds = new Set(questions.map((q) => q.id).filter((id) => actives.has(id)));
 
+  // Perimetre VIDE (pilierId inexistant, ou pilier sans aucune question active
+  // dans cette session) : sans cette garde, un corps `{reponses: []}` satisfaisait
+  // le controle de completude ci-dessous (`0 !== 0` est faux), la boucle de
+  // validation ne s'executait pas, la transaction n'ecrivait rien -- et l'API
+  // repondait 200 { ok: true } en affirmant une sauvegarde qui n'avait pas eu
+  // lieu. C'est la meme classe de defaut que celle fermee pour le cas PARTIEL
+  // (commentaire ci-dessous) ; elle restait ouverte pour le cas VIDE (audit du
+  // 2026-09-13). Il n'y a rien a sauvegarder ici : la ressource n'existe pas.
+  if (questionIds.size === 0) {
+    return res.status(404).json({ error: 'Pilier inconnu ou hors du perimetre actif de cette session.' });
+  }
+
   const { reponses } = req.body || {};
   if (!Array.isArray(reponses)) {
     return res.status(400).json({ error: 'reponses doit etre un tableau de { question_id, niveau }.' });

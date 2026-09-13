@@ -175,6 +175,36 @@ async function main() {
       `aucune ligne ecrite apres les corps mal formes (recu ${apresMalFormes.reponses.length})`
     );
 
+    // Meme classe de defaut que les doublons ci-dessus, cas VIDE : avec un
+    // pilierId inexistant (ou un pilier sans aucune question active dans la
+    // session), `questionIds.size` vaut 0 ; un corps `{reponses: []}` satisfaisait
+    // le controle de completude (`0 !== 0` est faux), la boucle de validation ne
+    // s'executait pas, la transaction n'ecrivait rien -- et l'API repondait
+    // 200 { ok: true }, affirmant une sauvegarde qui n'avait pas eu lieu.
+    // Audit technique du 2026-09-13, dimension robustesse.
+    console.log('Pilier inexistant + reponses vides : ne JAMAIS acquitter une ecriture qui n ecrit rien :');
+    const pilierInconnu = await fetchMutant(`${base}/api/repondants/${repondantId}/piliers/999999/reponses`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reponses: [] }),
+    });
+    check(
+      pilierInconnu.status === 404,
+      `AVANT LE CORRECTIF : 200 { ok: true } sur une ecriture nulle -- 404 attendu (recu ${pilierInconnu.status})`
+    );
+    const corpsPilierInconnu = await pilierInconnu.json();
+    check(corpsPilierInconnu.ok !== true, `la reponse n acquitte pas une sauvegarde (recu ${JSON.stringify(corpsPilierInconnu)})`);
+
+    // Meme route, pilier REEL : un envoi vide reste un envoi incomplet -> 400,
+    // pas 404 (on ne confond pas « pilier inconnu » et « envoi incomplet »).
+    console.log('Pilier reel + reponses vides : 400 d incompletude, comportement inchange :');
+    const videSurPilierReel = await fetchMutant(`${base}/api/repondants/${repondantId}/piliers/${pilierId}/reponses`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reponses: [] }),
+    });
+    check(videSurPilierReel.status === 400, `PUT vide sur un pilier de 3 questions -> 400 (recu ${videSurPilierReel.status})`);
+
     console.log('Non-regression : le meme pilier, entierement valide, se sauvegarde normalement :');
     const nominal = await fetchMutant(`${base}/api/repondants/${repondantId}/piliers/${pilierId}/reponses`, {
       method: 'PUT',
