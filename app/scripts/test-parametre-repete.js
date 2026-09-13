@@ -116,6 +116,30 @@ async function main() {
     check(equipeRepetee.status !== 500, `AVANT LE CORRECTIF : node:sqlite levait "Unknown named parameter '0'" -> 500 ; recu ${equipeRepetee.status}`);
     check([200, 400, 404].includes(equipeRepetee.status), `statut attendu parmi 200/400/404 (recu ${equipeRepetee.status})`);
 
+    // --- Meme cause racine, AUTRE forme : le parseur `extended` d'Express 4 ne
+    // produit pas que des tableaux. `?equipe[x]=A` donne un OBJET, que
+    // `Array.isArray` ne voit pas : il ressortait tel quel de `unParam()` et
+    // partait en parametre lie a node:sqlite (« Provided value cannot be bound »)
+    // -> 500 au lieu du 400 que merite une saisie mal formee, sur les 5 routes qui
+    // lisent `equipe`/`departement`/`scope`. Et `?manager[x]=sans` desactivait en
+    // silence l'exclusion des managers : un controle de confidentialite qui tombe
+    // sans bruit. Audit technique du 2026-09-13.
+    console.log('equipe[x]=... (parametre OBJET) : 400 propre, jamais un 500 SQL :');
+    const equipeObjet = await fetch(`${base}/api/sessions/${sessionId}/resultats?equipe[x]=EquipeRepete`);
+    check(equipeObjet.status !== 500, `AVANT LE CORRECTIF : l'objet etait lie a SQLite -> 500 ; recu ${equipeObjet.status}`);
+    check(equipeObjet.status === 400, `un parametre objet vaut parametre absent -> 400 requis (recu ${equipeObjet.status})`);
+
+    console.log('scope[x]=... et departement[x]=... (export-ppt, meme forme) : jamais un 500 :');
+    const scopeObjet = await fetch(`${base}/api/sessions/${sessionId}/export-ppt?scope[x]=equipe&equipe=EquipeRepete`);
+    check(scopeObjet.status !== 500, `export-ppt avec scope objet : pas de 500 (recu ${scopeObjet.status})`);
+
+    console.log('manager[x]=sans (parametre OBJET) : l\'exclusion doit RESTER appliquee :');
+    const managerObjet = await fetch(`${base}/api/sessions/${sessionId}/resultats?equipe=EquipeRepete&manager[x]=sans`);
+    check(managerObjet.status === 200, `GET avec manager objet -> 200 (recu ${managerObjet.status})`);
+    const texteManagerObjet = JSON.stringify(await managerObjet.json());
+    check(!texteManagerObjet.includes(NOM_MANAGER), `AVANT LE CORRECTIF : le manager fuitait ici (objet !== 'sans') -- doit rester absent (${NOM_MANAGER})`);
+    check(texteManagerObjet.includes(NOM_NON_MANAGER), `le non-manager reste present (${NOM_NON_MANAGER})`);
+
     const apres = await fetch(`${base}/api/env`);
     check(apres.status === 200, `le serveur repond encore juste apres (recu ${apres.status})`);
   } catch (err) {

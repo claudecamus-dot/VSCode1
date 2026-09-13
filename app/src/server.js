@@ -618,8 +618,17 @@ app.post('/api/repondants/:id/soumission', (req, res) => {
 // named parameter '0' ») la ou une 400 s'imposait. Normalise en gardant la DERNIERE
 // valeur (convention la plus commune pour un parametre repete par erreur/proxy),
 // jamais un tableau brut — appliquee a chaque lecture de req.query ci-dessous.
+// Le parseur `extended` ne produit pas QUE des tableaux : `?equipe[x]=A` donne un
+// OBJET, invisible pour `Array.isArray`. Il ressortait donc tel quel et partait en
+// parametre lie a node:sqlite (« Provided value cannot be bound to SQLite
+// parameter ») -> filet terminal -> 500 la ou une 400 s'imposait, sur les 5 routes
+// qui lisent equipe/departement/scope (audit du 2026-09-13). Un objet n'est pas une
+// valeur de parametre valide : on le traite comme une valeur ABSENTE, ce que chaque
+// appelant sanctionne deja par son « parametre requis » -> 400.
 function unParam(valeur) {
-  return Array.isArray(valeur) ? valeur[valeur.length - 1] : valeur;
+  if (Array.isArray(valeur)) return valeur[valeur.length - 1];
+  if (valeur !== null && typeof valeur === 'object') return undefined;
+  return valeur;
 }
 
 // Filtre manager='sans' partage (finding risque_technique audit 2026-07-24 : motif
@@ -634,7 +643,19 @@ function estManagerExclu(manager) {
   // Un filtre de confidentialite doit echouer vers le PLUS restrictif : si UNE
   // SEULE valeur demande l'exclusion, elle s'applique (chasse aux cas limites,
   // audit du 2026-09-02, corrige le 2026-09-03).
-  return Array.isArray(manager) ? manager.includes('sans') : manager === 'sans';
+  //
+  // Le durcissement ci-dessus ne couvrait que la forme TABLEAU du meme parseur :
+  // `?manager[x]=sans` produit un OBJET, `Array.isArray` est faux, la comparaison
+  // a 'sans' echoue et l'exclusion tombait SANS BRUIT (audit du 2026-09-13). La
+  // recherche est donc recursive sur toutes les formes que le parseur peut rendre
+  // (chaine, tableau, objet, imbriques) : une seule occurrence de 'sans' suffit.
+  return contientSans(manager);
+}
+
+function contientSans(valeur) {
+  if (valeur === 'sans') return true;
+  if (valeur === null || typeof valeur !== 'object') return false;
+  return Object.values(valeur).some(contientSans);
 }
 
 // Effectifs groupes par equipe/departement (finding risque_technique audit 2026-07-24 :
