@@ -21,7 +21,7 @@ const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
-const { portLibre, attendreServeur, attendreMort, nettoyer, USER, PASS, basic } = require('./test-helpers-serveur');
+const { portLibre, attendreServeur, attendreMort, nettoyer, fetchMutant, USER, PASS, basic } = require('./test-helpers-serveur');
 
 const { estRepondant } = require('../src/auth');
 
@@ -40,11 +40,29 @@ function check(condition, message) {
   }
 }
 
-async function avecServeur(envSupp, corps) {
+function niveaux() {
+  return [0, 1, 2, 3].map((n) => ({ niveau: n, texte: `niveau ${n}`, valeur_numerique: n }));
+}
+
+async function avecServeur(envSupp, corps, { seed = false } = {}) {
   const port = await portLibre();
   const base = `http://127.0.0.1:${port}`;
   const dossierTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'auth-casse-'));
   const dbPath = path.join(dossierTmp, 'casse.db');
+  if (seed) {
+    // Seed direct (meme pattern que test-fenetre-saisie.js) : la creation de
+    // session (POST /api/sessions, correctif organigramme ci-dessous) exige un
+    // referentiel non vide. `require('../src/db')` est mis en cache par Node
+    // sur le CHEMIN DU MODULE (pas sur DB_PATH) : a n'appeler qu'une fois par
+    // processus, jamais dans les deux appels a avecServeur() de ce fichier.
+    process.env.DB_PATH = dbPath;
+    const dbSeed = require('../src/db');
+    const { reconcileReferentiel } = require('../src/referentiel');
+    reconcileReferentiel([
+      { nom: 'Pilier X', ordre: 0, sousCategories: [{ nom: 'Objectif Y', ordre: 0, questions: [{ texte: 'Q1', niveaux: niveaux() }] }] },
+    ]);
+    dbSeed.close();
+  }
   const serveur = spawn(process.execPath, [CHEMIN_SERVEUR], {
     env: {
       ...process.env,
@@ -128,6 +146,15 @@ const PROTEGES = [
   ['GET', '/API/repondants/valeurs'],
   ['POST', '/api/roles'],
   ['DELETE', `/api/sessions/${UUID}`],
+  // Correctif securite (arbitrage 2026-09-16, US10.5 invalidee, finding
+  // « exposition d'organigramme ») : ces 3 routes GLOBALES agregaient
+  // departements/equipes/roles de TOUTES les sessions sans aucun identifiant
+  // de session dans l'URL -- fermees desormais, remplacees par les variantes
+  // session-scopees de la liste OUVERTS ci-dessous.
+  ['GET', '/api/departements'],
+  ['GET', '/api/equipes'],
+  ['GET', '/api/roles'],
+  ['GET', '/API/departements'],
 ];
 
 console.log('Casse et fail-closed : ce qui doit exiger les identifiants :');
@@ -146,11 +173,11 @@ const OUVERTS = [
   ['GET', '/esc.js'],
   ['GET', '/favicon.ico'],
   ['GET', '/api/env'],
-  ['GET', '/api/roles'],
-  ['GET', '/api/departements'],
-  ['GET', '/api/equipes'],
   ['GET', '/api/texte-intro-defaut'],
   ['GET', `/api/sessions/${UUID}`],
+  ['GET', `/api/sessions/${UUID}/roles`],
+  ['GET', `/api/sessions/${UUID}/departements-suggestions`],
+  ['GET', `/api/sessions/${UUID}/equipes-suggestions`],
   ['GET', `/api/sessions/${UUID}/referentiel`],
   ['POST', `/api/sessions/${UUID}/repondants`],
   ['GET', `/api/repondants/${UUID}`],
@@ -221,7 +248,67 @@ async function main() {
     // Les routes d'administration de meme forme restent fermees.
     const valeurs = await fetch(`${base}/api/repondants/valeurs`);
     check(valeurs.status === 401, `GET /api/repondants/valeurs -> 401 (recu ${valeurs.status})`);
-  });
+
+    // --- 4. Correctif organigramme (arbitrage 2026-09-16, US10.5 invalidee) ---
+    // Les 3 anciennes routes GLOBALES sont desormais fermees comme le reste de
+    // la surface animateur...
+    for (const chemin of ['/api/departements', '/api/equipes', '/api/roles']) {
+      const r = await fetch(`${base}${chemin}`);
+      check(r.status === 401, `ancienne route globale GET ${chemin} -> 401 (recu ${r.status})`);
+    }
+
+    const entetesAuth = { Authorization: basic(USER, PASS) };
+    async function creerSession() {
+      const r = await fetchMutant(`${base}/api/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...entetesAuth },
+        body: JSON.stringify({
+          ouverture_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+          fermeture_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        }),
+      });
+      const { id } = await r.json();
+      return id;
+    }
+
+    // ... remplacees par des variantes session-scopees, ouvertes sans
+    // identifiants, dont la DONNEE elle-meme est cloisonnee par session : le
+    // departement d'un repondant de la session A ne doit JAMAIS apparaitre
+    // dans les suggestions de la session B (c'est precisement la fuite
+    // cross-client que le finding decrivait).
+    const sessionA = await creerSession();
+    const sessionB = await creerSession();
+    const inscription = await fetchMutant(`${base}/api/sessions/${sessionA}/repondants`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: 'organigramme-zzz@exemple.invalid',
+        nom: 'Zzz', prenom: 'Yyy',
+        departement: 'DepartementSecretClientA',
+        equipe: 'EquipeSecreteClientA',
+        role: 'Role secret client A',
+        est_manager: false, dans_equipe: true,
+      }),
+    });
+    check(inscription.status === 200, `inscription repondant session A -> 200 (recu ${inscription.status})`);
+
+    const deptA = await (await fetch(`${base}/api/sessions/${sessionA}/departements-suggestions`)).json();
+    check(deptA.includes('DepartementSecretClientA'), 'la session A voit son propre departement en suggestion');
+    const deptB = await (await fetch(`${base}/api/sessions/${sessionB}/departements-suggestions`)).json();
+    check(!deptB.includes('DepartementSecretClientA'), 'la session B NE VOIT PAS le departement de la session A (cloisonnement)');
+
+    const equipeA = await (await fetch(`${base}/api/sessions/${sessionA}/equipes-suggestions`)).json();
+    check(equipeA.includes('EquipeSecreteClientA'), "la session A voit sa propre equipe en suggestion");
+    const equipeB = await (await fetch(`${base}/api/sessions/${sessionB}/equipes-suggestions`)).json();
+    check(!equipeB.includes('EquipeSecreteClientA'), "la session B NE VOIT PAS l'equipe de la session A (cloisonnement)");
+
+    // roles : sans colonne session_id (catalogue partage par construction, cf.
+    // commentaire server.js), la route exige au moins une session VALIDE.
+    const rolesA = await fetch(`${base}/api/sessions/${sessionA}/roles`);
+    check(rolesA.status === 200, `GET roles session-scopee -> 200 (recu ${rolesA.status})`);
+    const rolesInconnu = await fetch(`${base}/api/sessions/${UUID}/roles`);
+    check(rolesInconnu.status === 404, `GET roles sur une session inconnue -> 404 (recu ${rolesInconnu.status})`);
+  }, { seed: true });
 
   // --- 3. Refus de demarrer en PROD sans identifiants ------------------------
   console.log('Demarrage en PROD :');

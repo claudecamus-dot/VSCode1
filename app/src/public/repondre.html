@@ -191,9 +191,9 @@
       // celui qu'ouvrent toutes les personnes invitees, pas seulement
       // l'animateur.
       const [roles, departements, equipes] = await Promise.all([
-        fetch('/api/roles').then((r) => r.json()),
-        fetch('/api/departements').then((r) => r.json()),
-        fetch('/api/equipes').then((r) => r.json()),
+        fetch(`/api/sessions/${sessionId}/roles`).then((r) => r.json()),
+        fetch(`/api/sessions/${sessionId}/departements-suggestions`).then((r) => r.json()),
+        fetch(`/api/sessions/${sessionId}/equipes-suggestions`).then((r) => r.json()),
       ]);
 
       const selectRole = $('role');

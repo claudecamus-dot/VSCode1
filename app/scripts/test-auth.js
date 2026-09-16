@@ -13,15 +13,35 @@ const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
-const { portLibre, attendreServeur, attendreMort, nettoyer, USER, PASS, basic } = require('./test-helpers-serveur');
+const { portLibre, attendreServeur, attendreMort, nettoyer, fetchMutant, USER, PASS, basic } = require('./test-helpers-serveur');
 
 const DELAI_DEMARRAGE_MS = 15000;
 
-async function avecServeur(envSupp, corps) {
+function niveaux() {
+  return [0, 1, 2, 3].map((n) => ({ niveau: n, texte: `niveau ${n}`, valeur_numerique: n }));
+}
+
+async function avecServeur(envSupp, corps, { seed = false } = {}) {
   const port = await portLibre();
   const base = `http://127.0.0.1:${port}`;
   const dossierTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'auth-http-'));
   const dbPath = path.join(dossierTmp, 'auth.db');
+  if (seed) {
+    // Seed direct (meme pattern que test-fenetre-saisie.js) : la creation de
+    // session (POST /api/sessions) exige un referentiel non vide ; necessaire
+    // pour le scenario departements/equipes/roles session-scopes ci-dessous,
+    // qui cree une vraie session. `require('../src/db')` ouvre une connexion
+    // mise en cache par Node sur le CHEMIN DU MODULE (pas sur DB_PATH) : ne
+    // JAMAIS appeler ce bloc plus d'une fois par processus, un second appel
+    // reutiliserait la connexion (deja fermee) du premier DB_PATH.
+    process.env.DB_PATH = dbPath;
+    const dbSeed = require('../src/db');
+    const { reconcileReferentiel } = require('../src/referentiel');
+    reconcileReferentiel([
+      { nom: 'Pilier X', ordre: 0, sousCategories: [{ nom: 'Objectif Y', ordre: 0, questions: [{ texte: 'Q1', niveaux: niveaux() }] }] },
+    ]);
+    dbSeed.close();
+  }
   const serveur = spawn(
     process.execPath,
     [path.join(__dirname, '..', 'src', 'server.js')],
@@ -69,13 +89,39 @@ async function main() {
     assert.equal(adminOk.status, 200, 'admin.html doit etre 200 avec les bons identifiants');
 
     // Parcours REPONDANT : ouvert SANS identifiants (US10.5).
-    for (const route of ['/api/env', '/api/roles', '/api/departements', '/api/equipes', '/api/texte-intro-defaut']) {
+    for (const route of ['/api/env', '/api/texte-intro-defaut']) {
       const r = await fetch(`${base}${route}`);
       assert.equal(r.status, 200, `route repondant ${route} doit rester ouverte (US10.5), recu ${r.status}`);
     }
     const repondrePage = await fetch(`${base}/repondre.html`);
     assert.equal(repondrePage.status, 200, 'repondre.html doit rester ouverte sans identifiants');
-  });
+
+    // Correctif securite (arbitrage 2026-09-16, US10.5 invalidee sur ces 3
+    // routes precises) : departements/equipes/roles ne sont plus des routes
+    // GLOBALES sans contexte -- elles exigent desormais un identifiant de
+    // session dans l'URL, meme sans compte (le parcours repondant les utilise
+    // toujours sans identifiants Basic Auth).
+    const creation = await fetchMutant(`${base}/api/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: basic(USER, PASS) },
+      body: JSON.stringify({
+        ouverture_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+        fermeture_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      }),
+    });
+    assert.equal(creation.status, 200, 'creation de session (animateur authentifie)');
+    const { id: sessionId } = await creation.json();
+    for (const route of [`/api/sessions/${sessionId}/roles`, `/api/sessions/${sessionId}/departements-suggestions`, `/api/sessions/${sessionId}/equipes-suggestions`]) {
+      const r = await fetch(`${base}${route}`);
+      assert.equal(r.status, 200, `route repondant session-scopee ${route} doit rester ouverte (US10.5), recu ${r.status}`);
+    }
+    // Les anciennes routes globales, elles, sont desormais fermees (US10.5
+    // invalidee : elles agregaient TOUTES les sessions, cross-client).
+    for (const route of ['/api/departements', '/api/equipes', '/api/roles']) {
+      const r = await fetch(`${base}${route}`);
+      assert.equal(r.status, 401, `ancienne route globale ${route} doit desormais exiger des identifiants (recu ${r.status})`);
+    }
+  }, { seed: true });
 
   // --- 3 : barriere INACTIVE (controle : comportement inchange) ---
   await avecServeur({ AUTH_USER: '', AUTH_PASS: '' }, async (base) => {

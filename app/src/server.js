@@ -200,12 +200,48 @@ app.delete('/api/roles/:nom', (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/departements', (req, res) => {
-  res.json(db.prepare('SELECT DISTINCT departement FROM repondants ORDER BY departement').all().map((r) => r.departement));
+// CORRECTIF SECURITE (arbitrage utilisateur du 2026-09-16, US10.5 invalidee —
+// finding « exposition d'organigramme » de la salle atelier-dev). Ces deux
+// routes etaient GLOBALES (`SELECT DISTINCT ... FROM repondants` sans filtre)
+// et ouvertes sans identifiants ni identifiant de session dans l'URL : n'importe
+// qui, sans jamais avoir recu de lien de session, lisait la liste agregee des
+// departements/equipes de TOUTES les sessions jamais creees sur l'instance —
+// donc de tous les clients passes par l'outil. Remplacees par des routes
+// session-scopees, gardees par `chargerSession`, qui ne renvoient que les
+// valeurs deja saisies DANS cette session : suggestions d'auto-completion pour
+// le formulaire d'identification (src/public/repondre.html), plus jamais
+// l'annuaire complet de l'instance. Une session neuve (aucun repondant encore
+// enregistre) renvoie une liste vide : le champ reste une saisie libre, ce
+// n'est qu'une aide, pas une contrainte (voir ROUTES_REPONDANT, auth.js).
+app.get('/api/sessions/:id/departements-suggestions', chargerSession, (req, res) => {
+  const valeurs = db
+    .prepare('SELECT DISTINCT departement FROM repondants WHERE session_id = ? ORDER BY departement')
+    .all(req.session.id)
+    .map((r) => r.departement);
+  res.json(valeurs);
 });
 
-app.get('/api/equipes', (req, res) => {
-  res.json(db.prepare('SELECT DISTINCT equipe FROM repondants ORDER BY equipe').all().map((r) => r.equipe));
+app.get('/api/sessions/:id/equipes-suggestions', chargerSession, (req, res) => {
+  const valeurs = db
+    .prepare('SELECT DISTINCT equipe FROM repondants WHERE session_id = ? ORDER BY equipe')
+    .all(req.session.id)
+    .map((r) => r.equipe);
+  res.json(valeurs);
+});
+
+// Catalogue de roles (US3.x) : par construction PARTAGE entre toutes les
+// sessions (table `roles`, sans colonne session_id) — un admin le configure
+// une fois, generique, pas par client. Sur re-verification (R1) ce n'est donc
+// pas une donnee d'organigramme au meme titre que departements/equipes
+// ci-dessus (aucune refonte de schema pour ce correctif, disproportionnee vis-
+// a-vis du finding). Le vrai defaut corrige ici : la route GLOBALE
+// `GET /api/roles` etait atteignable SANS AUCUN CONTEXTE, avant meme d'avoir
+// recu un lien de session. Elle reste utilisee par l'admin (admin.html,
+// protege par la barriere Basic Auth, credentials deja en cache navigateur) ;
+// le parcours repondant passe desormais par cette variante session-scopee, qui
+// exige au moins une session VALIDE dans l'URL avant de repondre.
+app.get('/api/sessions/:id/roles', chargerSession, (req, res) => {
+  res.json(db.prepare('SELECT nom FROM roles ORDER BY nom').all().map((r) => r.nom));
 });
 
 // --- Fusion des doublons residuels d'equipe/departement (US3.4bis) ---
@@ -300,17 +336,33 @@ app.post('/api/sessions', (req, res) => {
   res.json({ id, lien: `/repondre.html?session=${id}`, questions_actives: actives.length });
 });
 
-app.get('/api/sessions/:id', (req, res) => {
+// Préambule commun à toute route ':id' de session : charge la session ou répond
+// 404. Extrait le 2026-09-14 (finding risque_technique, audit du 2026-09-13) : le
+// même bloc était copié 16 fois à l'identique — seul obstacle structurel cité aux
+// correctifs de sécurité qui doivent poser une garde au niveau session (statut,
+// mode démo/réel, autorisation) : une garde posée ici s'applique désormais aux 16
+// routes d'un coup, jamais à 15 sur 16 par oubli. Correctif minimal : chaque site
+// d'appel ne change que ces deux lignes contre le middleware `chargerSession` +
+// `const session = req.session;` — corps de chaque handler inchangé. Exception
+// assumée : `POST /api/sessions/:id/repondants` reste inline (voir plus bas) —
+// son garde-fou `refuserSiImportEnCours` doit s'exécuter AVANT le chargement de
+// session, un middleware générique inverserait cet ordre.
+function chargerSession(req, res, next) {
   const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session inconnue.' });
+  req.session = session;
+  next();
+}
+
+app.get('/api/sessions/:id', chargerSession, (req, res) => {
+  const session = req.session;
   // On renvoie toujours un texte d'accueil effectif (surcharge de session ou defaut).
   res.json({ ...session, texte_intro: session.texte_intro || TEXTE_INTRO_DEFAUT, statut: sessionStatus(session) });
 });
 
 // Référentiel restreint au périmètre de la session (piliers/questions actifs).
-app.get('/api/sessions/:id/referentiel', (req, res) => {
-  const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
-  if (!session) return res.status(404).json({ error: 'Session inconnue.' });
+app.get('/api/sessions/:id/referentiel', chargerSession, (req, res) => {
+  const session = req.session;
   res.json(referentielPourSession(session.id));
 });
 
@@ -326,10 +378,9 @@ app.get('/api/sessions/:id/referentiel', (req, res) => {
 // 400 pour ce qui est vraiment un fichier illisible : sans lui, une panne de base
 // serait annoncee a l'animateur comme un mauvais format, et il referait son
 // fichier au lieu d'appeler l'exploitant.
-app.post('/api/sessions/:id/invites', upload.single('fichier'), async (req, res, next) => {
+app.post('/api/sessions/:id/invites', upload.single('fichier'), chargerSession, async (req, res, next) => {
   try {
-    const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
-    if (!session) return res.status(404).json({ error: 'Session inconnue.' });
+    const session = req.session;
     if (!req.file) return res.status(400).json({ error: 'Fichier manquant (champ "fichier").' });
     let invites;
     try {
@@ -350,16 +401,14 @@ app.post('/api/sessions/:id/invites', upload.single('fichier'), async (req, res,
   }
 });
 
-app.get('/api/sessions/:id/invites', (req, res) => {
-  const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
-  if (!session) return res.status(404).json({ error: 'Session inconnue.' });
+app.get('/api/sessions/:id/invites', chargerSession, (req, res) => {
+  const session = req.session;
   res.json(getInvites(session.id));
 });
 
 // Invites n'ayant pas encore soumis : cible du rappel (US2.5).
-app.get('/api/sessions/:id/invites/non-repondants', (req, res) => {
-  const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
-  if (!session) return res.status(404).json({ error: 'Session inconnue.' });
+app.get('/api/sessions/:id/invites/non-repondants', chargerSession, (req, res) => {
+  const session = req.session;
   res.json(getNonRepondants(session.id));
 });
 
@@ -686,18 +735,16 @@ function agregerEffectifPar(sessionId, colonne, manager) {
   return db.prepare(sql).all(...params);
 }
 
-app.get('/api/sessions/:id/equipes', (req, res) => {
-  const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
-  if (!session) return res.status(404).json({ error: 'Session inconnue.' });
+app.get('/api/sessions/:id/equipes', chargerSession, (req, res) => {
+  const session = req.session;
   const equipes = agregerEffectifPar(session.id, 'equipe', req.query.manager)
     .map((r) => ({ equipe: r.cle, effectif: r.effectif }));
   res.json(equipes);
 });
 
 // Departements presents dans la session (repondants ayant soumis), avec effectif.
-app.get('/api/sessions/:id/departements', (req, res) => {
-  const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
-  if (!session) return res.status(404).json({ error: 'Session inconnue.' });
+app.get('/api/sessions/:id/departements', chargerSession, (req, res) => {
+  const session = req.session;
   const departements = agregerEffectifPar(session.id, 'departement', req.query.manager)
     .map((r) => ({ departement: r.cle, effectif: r.effectif }));
   res.json(departements);
@@ -705,9 +752,8 @@ app.get('/api/sessions/:id/departements', (req, res) => {
 
 // Taux de reponse de la session (US6.2), independant du filtre equipe :
 // questionnaires soumis rapportes au nombre d'invites (US2.5).
-app.get('/api/sessions/:id/participation', (req, res) => {
-  const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
-  if (!session) return res.status(404).json({ error: 'Session inconnue.' });
+app.get('/api/sessions/:id/participation', chargerSession, (req, res) => {
+  const session = req.session;
   const soumis = db
     .prepare('SELECT COUNT(*) AS n FROM repondants WHERE session_id = ? AND soumis_at IS NOT NULL')
     .get(session.id).n;
@@ -726,18 +772,16 @@ app.get('/api/sessions/:id/participation', (req, res) => {
 // le cas. 5000 caracteres : tres au-dela d'un commentaire de restitution reel
 // (quelques lignes par equipe) et tres en deca de ce qui deforme l'export.
 const LONGUEUR_MAX_COMMENTAIRE = 5000;
-app.get('/api/sessions/:id/commentaire', (req, res) => {
-  const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
-  if (!session) return res.status(404).json({ error: 'Session inconnue.' });
+app.get('/api/sessions/:id/commentaire', chargerSession, (req, res) => {
+  const session = req.session;
   const equipe = unParam(req.query.equipe);
   if (!equipe) return res.status(400).json({ error: "Le parametre 'equipe' est requis." });
   const ligne = db.prepare('SELECT texte FROM commentaires WHERE session_id = ? AND equipe = ?').get(session.id, equipe);
   res.json({ equipe, texte: ligne ? ligne.texte : '' });
 });
 
-app.put('/api/sessions/:id/commentaire', (req, res) => {
-  const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
-  if (!session) return res.status(404).json({ error: 'Session inconnue.' });
+app.put('/api/sessions/:id/commentaire', chargerSession, (req, res) => {
+  const session = req.session;
   const { equipe, texte } = req.body || {};
   if (!equipe || typeof equipe !== 'string') return res.status(400).json({ error: "Le champ 'equipe' est requis." });
   if (texte !== undefined && typeof texte !== 'string') {
@@ -917,9 +961,8 @@ function agregerResultats(sessionId, filtre, manager, options = {}) {
 // demandee, et l'appartenance au referentiel de la session se verifie par
 // `activeQuestionIds()` (la meme source que `referentielPourSession`) sans
 // construire les piliers/sous-categories.
-app.get('/api/sessions/:id/questions/:questionId/detail', (req, res) => {
-  const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
-  if (!session) return res.status(404).json({ error: 'Session inconnue.' });
+app.get('/api/sessions/:id/questions/:questionId/detail', chargerSession, (req, res) => {
+  const session = req.session;
   const equipe = unParam(req.query.equipe);
   const manager = req.query.manager;
   if (!equipe) return res.status(400).json({ error: "Le parametre 'equipe' est requis." });
@@ -959,9 +1002,8 @@ app.get('/api/sessions/:id/questions/:questionId/detail', (req, res) => {
   return res.json({ questionId: question.id, equipe, nbReponses: reponses.length, reponses });
 });
 
-app.get('/api/sessions/:id/resultats', (req, res) => {
-  const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
-  if (!session) return res.status(404).json({ error: 'Session inconnue.' });
+app.get('/api/sessions/:id/resultats', chargerSession, (req, res) => {
+  const session = req.session;
   const equipe = unParam(req.query.equipe);
   const manager = req.query.manager;
   if (!equipe) return res.status(400).json({ error: "Le parametre 'equipe' est requis." });
@@ -993,9 +1035,8 @@ app.get('/api/sessions/:id/resultats', (req, res) => {
 
 // Radar consolide d'un departement (toutes ses equipes) + liste des equipes
 // pour le zoom (US7.2/US7.3).
-app.get('/api/sessions/:id/consolidation', (req, res) => {
-  const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
-  if (!session) return res.status(404).json({ error: 'Session inconnue.' });
+app.get('/api/sessions/:id/consolidation', chargerSession, (req, res) => {
+  const session = req.session;
   const departement = unParam(req.query.departement);
   const manager = req.query.manager;
   if (!departement) return res.status(400).json({ error: "Le parametre 'departement' est requis." });
@@ -1100,9 +1141,8 @@ function calculerComparaison(session, equipe, manager) {
   };
 }
 
-app.get('/api/sessions/:id/comparaison', (req, res) => {
-  const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
-  if (!session) return res.status(404).json({ error: 'Session inconnue.' });
+app.get('/api/sessions/:id/comparaison', chargerSession, (req, res) => {
+  const session = req.session;
   const equipe = unParam(req.query.equipe);
   const manager = req.query.manager;
   if (!equipe) return res.status(400).json({ error: "Le parametre 'equipe' est requis." });
@@ -1207,9 +1247,8 @@ function nomFichierSur(nom) {
 //  - scope=departement  -> couverture + 2 slides du departement + 2 slides par
 //                          equipe du departement (bouton vue pilotage).
 // Radar = image SVG facon web ; genere via Python (python-pptx + template OCTO).
-app.get('/api/sessions/:id/export-ppt', (req, res) => {
-  const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
-  if (!session) return res.status(404).json({ error: 'Session inconnue.' });
+app.get('/api/sessions/:id/export-ppt', chargerSession, (req, res) => {
+  const session = req.session;
   const scope = unParam(req.query.scope);
   const equipe = unParam(req.query.equipe);
   const departement = unParam(req.query.departement);

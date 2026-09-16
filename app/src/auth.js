@@ -35,12 +35,25 @@ function egaliteConstante(a, b) {
 // Chaque entree = methode + expression sur req.path (sans query string).
 // Le `$` de fin est essentiel : il empeche p.ex. `/api/sessions/:id` d'ouvrir
 // aussi `/api/sessions/:id/resultats`.
+//
+// CORRECTIF SECURITE (arbitrage utilisateur du 2026-09-16, US10.5 invalidee) :
+// les 3 anciennes routes GLOBALES `/api/departements`, `/api/equipes`,
+// `/api/roles` etaient ouvertes SANS aucun identifiant de session dans l'URL —
+// n'importe qui pouvait donc lire, sans jamais avoir recu de lien de session,
+// la liste AGREGEE de tous les departements/equipes de TOUTES les sessions
+// jamais creees (donc de tous les clients passes par l'outil) : exposition
+// d'organigramme cross-client. Corrige en les remplacant par des routes
+// SESSION-SCOPEES (`/api/sessions/:id/...`), gardees par `chargerSession`
+// (server.js) : la donnee elle-meme (departements/equipes) est desormais
+// filtree sur la session, et meme le catalogue de roles (partage par
+// construction, sans colonne session_id — pas de refonte de schema pour ce
+// correctif) exige au moins l'existence d'une session valide avant de repondre.
 const ROUTES_REPONDANT = [
   { m: 'GET', re: /^\/api\/env$/ },
   { m: 'GET', re: /^\/api\/texte-intro-defaut$/ },
-  { m: 'GET', re: /^\/api\/roles$/ }, // le repondant choisit son role ; POST/DELETE restent proteges
-  { m: 'GET', re: /^\/api\/departements$/ },
-  { m: 'GET', re: /^\/api\/equipes$/ },
+  { m: 'GET', re: /^\/api\/sessions\/[^/]+\/roles$/ }, // le repondant choisit son role ; POST/DELETE restent proteges
+  { m: 'GET', re: /^\/api\/sessions\/[^/]+\/departements-suggestions$/ },
+  { m: 'GET', re: /^\/api\/sessions\/[^/]+\/equipes-suggestions$/ },
   { m: 'GET', re: /^\/api\/sessions\/[^/]+$/ }, // meta d'UNE session (pas la collection /api/sessions)
   { m: 'GET', re: /^\/api\/sessions\/[^/]+\/referentiel$/ },
   { m: 'POST', re: /^\/api\/sessions\/[^/]+\/repondants$/ }, // le repondant s'auto-enregistre (son nom/email)

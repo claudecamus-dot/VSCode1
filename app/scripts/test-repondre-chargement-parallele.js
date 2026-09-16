@@ -77,10 +77,15 @@ function fauxElement(id) {
 // Valeurs DISTINCTES par endpoint : si les trois reponses etaient recuperees
 // dans le mauvais ordre (destructuration decalee), les libelles atterriraient
 // dans le mauvais champ et les verifications de contenu ci-dessous crieraient.
+// Correctif securite (arbitrage 2026-09-16, US10.5 invalidee, finding
+// « exposition d'organigramme ») : repondre.html appelle desormais les
+// variantes SESSION-SCOPEES (plus les anciennes routes globales, qui
+// agregaient tous les clients). L'id de session simule est celui pose dans
+// window.location.search ci-dessous (?session=session-test-abc).
 const REPONSES = {
-  '/api/roles': ['Product Owner', 'Dev <b>senior</b>'],
-  '/api/departements': ['Departement Nord', 'Departement Sud'],
-  '/api/equipes': ['Equipe Alpha', 'Equipe Beta'],
+  '/api/sessions/session-test-abc/roles': ['Product Owner', 'Dev <b>senior</b>'],
+  '/api/sessions/session-test-abc/departements-suggestions': ['Departement Nord', 'Departement Sud'],
+  '/api/sessions/session-test-abc/equipes-suggestions': ['Equipe Alpha', 'Equipe Beta'],
 };
 
 function creerSandbox({ stockageLeve = false } = {}) {
@@ -120,9 +125,13 @@ function creerSandbox({ stockageLeve = false } = {}) {
     esc: (v) => String(v).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])),
     fetch: (chemin) => {
       appels.push(chemin);
-      // init() commence par la session elle-meme : reponse immediate, elle ne
-      // fait pas partie des 3 appels dont on mesure le parallelisme.
-      if (/^\/api\/sessions\//.test(chemin)) {
+      // init() commence par la session elle-meme (meta, sans sous-chemin) :
+      // reponse immediate, elle ne fait pas partie des 3 appels dont on mesure
+      // le parallelisme. Le `$` de fin est essentiel depuis le correctif
+      // organigramme du 2026-09-16 : les 3 appels mesures sont MAINTENANT
+      // eux-memes sous /api/sessions/<id>/..., une regex fourre-tout les
+      // confondrait avec la meta de session.
+      if (/^\/api\/sessions\/[^/]+$/.test(chemin)) {
         return Promise.resolve({ ok: true, json: () => Promise.resolve({ texte_intro: 'Bonjour', statut: 'ouverte' }) });
       }
       enVol.courant += 1;
