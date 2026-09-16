@@ -307,3 +307,60 @@ class TestFetchToRefuseCeQuIlNAPasDemande:
         assert not cible.exists(), (
             f"fichier partiel laisse sur disque "
             f"({cible.stat().st_size if cible.exists() else 0} octets)")
+
+
+# Decompression bomb sur le DECODE (pas le TELECHARGEMENT) : `stock_images` plafonne
+# les octets reçus, mais un PNG sous 25 Mo compressé peut décompresser en centaines
+# de Mo de pixels — Pillow ne fait qu'AVERTIR (`DecompressionBombWarning`) entre
+# `PIXELS_MAX` et son double, sans lever d'erreur. Absorbé depuis VSCode4 (audit
+# 2026-09-03, re-signalé 2026-09-13, OWASP ASI02) le 2026-09-16 via la salle
+# atelier-dev — testé ici pour le canon, pas seulement chez la cible qui l'a trouvé.
+class TestBombeDeDecompression:
+    """Les seuils sont abaissés par `monkeypatch` plutôt que de fabriquer une vraie
+    image de 40 Mpx — c'est le MÉCANISME qui est éprouvé (le plafond mord, et il
+    mord DÈS le premier multiple, pas seulement au second), pas la valeur."""
+
+    def test_une_image_au_dela_du_plafond_est_refusee_des_le_premier_multiple(
+            self, tmp_path, monkeypatch):
+        """LE cas qui passait : au-delà du plafond mais SOUS son double — la bande
+        où Pillow n'émet qu'un avertissement."""
+        import pytest as _pytest
+        from PIL import Image as _Image
+        src = str(tmp_path / "src.png")
+        _Image.new("RGB", (200, 100), (10, 20, 30)).save(src)   # 20 000 px
+        monkeypatch.setattr(FI, "PIXELS_MAX", 10_000)
+        with _pytest.raises(_Image.DecompressionBombWarning):
+            FI.open_image_bounded(src)
+
+    def test_une_image_tres_au_dela_leve_l_erreur_de_pillow(self, tmp_path, monkeypatch):
+        import pytest as _pytest
+        from PIL import Image as _Image
+        src = str(tmp_path / "src.png")
+        _Image.new("RGB", (200, 100), (10, 20, 30)).save(src)   # 20 000 px
+        monkeypatch.setattr(FI, "PIXELS_MAX", 5_000)
+        with _pytest.raises(_Image.DecompressionBombError):
+            FI.open_image_bounded(src)
+
+    def test_le_recadrage_refuse_aussi_et_n_ecrit_rien(self, tmp_path, monkeypatch):
+        """Le refus doit tomber dans le `try` du recadrage de l'appelant : le
+        candidat remonte en « REFUSÉ par un garde-fou », pas en panne réseau."""
+        import pytest as _pytest
+        from PIL import Image as _Image
+        src = str(tmp_path / "src.png")
+        _Image.new("RGB", (200, 100), (10, 20, 30)).save(src)
+        dst = str(tmp_path / "cache.png")
+        monkeypatch.setattr(FI, "PIXELS_MAX", 10_000)
+        with _pytest.raises(_Image.DecompressionBombWarning):
+            FI.cover_crop_to_aspect(src, dst, 1.0)
+        assert not os.path.exists(dst)
+
+    def test_une_image_normale_passe_et_l_etat_global_de_pillow_est_rendu(self, tmp_path):
+        """Contre-épreuve : sans elle, une garde qui refuserait TOUT passerait les
+        tests ci-dessus. Et le plafond ne doit pas FUIR — importer ce module ne
+        change pas la façon dont le reste du process lit ses images."""
+        from PIL import Image as _Image
+        avant = _Image.MAX_IMAGE_PIXELS
+        src = str(tmp_path / "src.png")
+        _Image.new("RGB", (200, 100), (10, 20, 30)).save(src)
+        assert FI.open_image_bounded(src).size == (200, 100)
+        assert _Image.MAX_IMAGE_PIXELS == avant
