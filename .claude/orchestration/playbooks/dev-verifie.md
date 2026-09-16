@@ -29,6 +29,23 @@ matche mais on garde la main → l'écrire dans le `notes` du run
 (`"resolution: inline <agent> — <raison>"`), jamais en silence. Déclencheurs par agent :
 tableau « Flotte projet » du catalogue.
 
+**Cadrage lourd obligatoire (arbitrage utilisateur 2026-09-16, propage depuis le hub)**
+: `bmad-product-brief`, `bmad-architecture`, `bmad-create-epics-and-stories` et
+`bmad-sprint-planning` sont des etapes **bloquantes** de la phase de cadrage, avant
+`implementation` -- voir leurs contrats ci-dessous (etapes `cadrage-brief`,
+`cadrage-architecture`, `cadrage-epics`, `gate-cadrage`). Deux risques reels, a ne pas
+laisser produire un blocage silencieux :
+- `bmad-create-epics-and-stories` exige `PRD.md` + `Architecture.md`. Ce playbook ne
+  produit pas de PRD complet (`cadrage-brief` rend un brief, pas un PRD) -- si `PRD.md`
+  manque a l'etape `cadrage-epics`, le contrat de cette etape impose un FAIL immediat vers
+  l'utilisateur (proposer `bmad-prd`), jamais une invention silencieuse du document.
+- L'architecture << step-file >> de ces skills s'arrete sur des menus interactifs a chaque
+  etape (constate le 2026-09-16 au hub : `bmad-code-review` a bloque un sous-agent pour la
+  meme raison, et `bmad-method install` s'est revele etre un TUI qui rend `exit 0` sans
+  rien ecrire hors d'un vrai terminal). Ces quatre etapes s'executent donc en **session
+  principale**, jamais deleguees a un sous-agent sans TTY : un sous-agent qui heurte un
+  menu interactif porte `etat: echec`, jamais un silence pris pour un succes.
+
 ```json
 {
   "nom": "dev-verifie",
@@ -50,6 +67,54 @@ tableau « Flotte projet » du catalogue.
       "contrat": {
         "type": "deterministe",
         "critere": "fichiers concernés lus, appelants des fonctions/champs partagés grep-és avant modification"
+      },
+      "checkpoint": false
+    },
+    {
+      "id": "cadrage-brief",
+      "agent": "skill bmad-product-brief",
+      "mode": "cascade",
+      "modele": "(session)",
+      "contrat": {
+        "type": "reel",
+        "regime": "propose (la skill ECRIT un fichier reel) : annoncer l'etape et attendre le feu vert avant de la lancer, § 2 quinquies de agent-orchestrator",
+        "critere": "brief produit (probleme, utilisateurs, contraintes) et relu par l'utilisateur avant de passer a `cadrage-architecture` ; exécuté en SESSION PRINCIPALE, jamais délégué à un sous-agent sans TTY (menus interactifs — voir note ci-dessus) — un blocage sur un menu est `etat: echec`, jamais un silence pris pour un succès"
+      },
+      "checkpoint": "annonce + feu vert avant lancement (écrit un fichier réel)"
+    },
+    {
+      "id": "cadrage-architecture",
+      "agent": "skill bmad-architecture",
+      "mode": "cascade",
+      "modele": "(session)",
+      "contrat": {
+        "type": "reel",
+        "regime": "propose (ecrit Architecture.md) : annoncer et attendre le feu vert",
+        "critere": "Architecture.md produit à partir du brief de `cadrage-brief` ; invariants d'architecture nommés, pas un paragraphe générique ; session principale, mêmes garde-fous menu interactif que `cadrage-brief`"
+      },
+      "checkpoint": "annonce + feu vert avant lancement (écrit un fichier réel)"
+    },
+    {
+      "id": "cadrage-epics",
+      "agent": "skill bmad-create-epics-and-stories",
+      "mode": "cascade",
+      "modele": "(session)",
+      "contrat": {
+        "type": "reel",
+        "regime": "propose (ecrit epics.md/stories) : annoncer et attendre le feu vert",
+        "critere": "epics.md produit, decoupe en stories verifiables ; PRÉREQUIS CONNU : cette skill exige `PRD.md` + `Architecture.md` en bloquant — `Architecture.md` vient de `cadrage-architecture`, mais ce playbook ne produit PAS de `PRD.md` complet (`cadrage-brief` rend un brief, pas un PRD). SI `PRD.md` manque au moment de lancer cette étape : FAIL immédiat vers l'utilisateur avec la proposition explicite de lancer `bmad-prd` d'abord — jamais de PRD inventé en silence, jamais d'attente sur un prompt que personne ne surveille"
+      },
+      "checkpoint": "annonce + feu vert avant lancement (écrit un fichier réel) ; FAIL nommé si PRD.md absent"
+    },
+    {
+      "id": "gate-cadrage",
+      "agent": "skill bmad-sprint-planning",
+      "mode": "cascade",
+      "modele": "(session)",
+      "contrat": {
+        "type": "reel",
+        "regime": "propose (peut ecrire sprint-status) : annoncer et attendre le feu vert",
+        "critere": "verdict PASS/CONCERNS/FAIL de la readiness gate de bmad-sprint-planning, lu sur `epics.md` produit par `cadrage-epics` — PASS : `implementation` démarre ; CONCERNS : lacunes nommées, présentées à l'utilisateur, confirmation attendue avant `implementation` ; FAIL (epics.md absent, ou une story sans critère d'acceptation vérifiable) : retour à l'étape en amont qui a échoué, jamais d'implementation sur une base FAIL. Le verdict doit pouvoir échouer réellement — un verdict qui ne connaît que PASS est un contrat décoratif, pas une gate"
       },
       "checkpoint": false
     },
