@@ -38,6 +38,19 @@ inspecté (skill `pptx-verify`, agent `ppt-designer`) — pratique déjà en pla
 Le dispositif vient du hub de supervision : **corriger là-bas puis régénérer
 l'export**, jamais localement — les copies locales divergent (leçon P1).
 
+## Discipline de gestion des tokens
+
+Le contexte est un cache actif facturé à chaque tour, pas une mémoire gratuite.
+
+- **Ne pas parcourir** `node_modules/`, `_bmad/`, `_bmad-output/`, `.claude/skills/bmad-*`
+  (46 skills installées) sauf demande explicite — grep ciblé plutôt qu'un dump récursif.
+- **Lire avant d'écrire**, grep les appelants avant de modifier une fonction/route partagée.
+- **Sous-agent pour toute sortie volumineuse** (exploration, logs longs) plutôt que
+  polluer le contexte principal.
+- **`/compact` dès ~40 %** de fenêtre utilisée si la session doit continuer longtemps.
+- **`/clear` (pas une 3e rustine) après deux corrections ratées consécutives** sur le
+  même problème — repartir à froid avec un meilleur prompt bat l'insistance.
+
 ## Règles de travail
 
 - Propose → arbitre → applique : aucun correctif auto-appliqué sans arbitrage humain.
