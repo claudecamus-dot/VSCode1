@@ -3,9 +3,9 @@
     "source": "hub de supervision VScode5, .claude/veille/veille.json",
     "projection": "entrees dont projets_concernes nomme VSCode1",
     "ne_pas_editer": "Fichier GENERE, en lecture seule : une correction faite ici sera ecrasee a la prochaine propagation. La veille s'ecrit AU HUB, ou elle est lue (section 3 du wiki) et arbitree. Une veille lancee depuis ce depot doit y etre remontee.",
-    "date": "2026-09-09"
+    "date": "2026-09-18"
   },
-  "derniere_veille": "2026-09-08T00:00:00",
+  "derniere_veille": "2026-09-16T00:00:00",
   "entrees": [
     {
       "titre": "VoltAgent/awesome-claude-code-subagents — 154+ sous-agents en 10 catégories",
@@ -109,6 +109,60 @@
       "regle_proposee": "Mesurable a froid par scan de .claude/orchestration/runs.jsonl : compter la proportion de runs 'resultat: succes' dont le champ 'notes' ne contient AUCUN marqueur de verification (ex. regex sur 'pytest', 'py -m', 'mesure', 'rendu regarde', 'ouvert', numero de commit) — un ratio eleve de succes sans marqueur est un signal de faux-succes potentiel, a l'image du 'confident closing sans etat verifie' du papier.",
       "action_corrective": "Ajouter au scan_projets.py (ou a un script dedie) un compteur 'succes sans marqueur de verification dans les notes' sur runs.jsonl, affiche a cote des ratios de reprise deja publies dans CLAUDE.md (section R6) — donnee a discuter, pas un gate automatique.",
       "date": "2026-09-08",
+      "statut": "adopte"
+    },
+    {
+      "titre": "Doc officielle « Security » de Claude Code — modèle de permissions, sandboxing bash, stockage des credentials",
+      "url": "https://code.claude.com/docs/en/security",
+      "type": "pratique",
+      "source_referentiel": "Anthropic — Claude Code docs / Security (mode manuel en lecture seule par défaut, commandes bash suspectes toujours soumises à approbation même si allowlistées, clés API stockées dans le Keychain macOS / permissions fichier sur Windows-Linux, mise en garde explicite contre WebDAV sur Windows).",
+      "projets_concernes": [
+        "VSCode",
+        "VSCode1",
+        "VSCode2",
+        "VSCode3",
+        "VSCode4",
+        "VScode5"
+      ],
+      "pertinence": "Veille demandée par l'utilisateur (réflexion sur un futur agent sécurité/cyber). Le hub a déjà des deny rules alignées sur une pratique OpenAI (guardrails en couches, adoptée 2026-07-24) mais aucune entrée ne confronte la flotte à la checklist OFFICIELLE Claude Code elle-même — mode de permission par défaut, restrictions bash/sandbox, stockage des credentials. Constat local : grep sur criteres-pratiques.md ne montre que deny rules + .env gitigné mesurés, rien sur le mode de permission (manuel/auto/bypass) ni sur le sandboxing bash par projet. Écart de MESURE, pas forcément de pratique : peut déjà être satisfait sans être vérifié.",
+      "regle_proposee": "Critère scan (dimension sécurité) : par projet, mode de permission déclaré (`defaultMode`) et présence des restrictions bash/sandbox de la checklist officielle, en complément des deny rules déjà mesurées — mesurable à froid par lecture de `.claude/settings.json`.",
+      "action_corrective": "ADOPTE ET APPLIQUE 2026-09-13 : sous-agent `agent-securite` créé (arbitrage utilisateur « Créer tel que proposé »), sa méthode (.claude/skills/agent-securite/SKILL.md, étape 4) comprend explicitement la confrontation de `.claude/settings.json` à cette checklist officielle (mode de permission, sandbox bash, deny rules) comme première étape. Propagé aux 5 dépôts (commits scopés).",
+      "date": "2026-09-12",
+      "statut": "adopte"
+    },
+    {
+      "titre": "/security-review (anthropics/claude-code-security-review) — déjà référencé dans audit-technique, jamais utilisé en balayage systématique flotte",
+      "url": "https://github.com/anthropics/claude-code-security-review",
+      "type": "outil",
+      "projets_concernes": [
+        "VSCode",
+        "VSCode1",
+        "VSCode2",
+        "VSCode3",
+        "VSCode4",
+        "VScode5"
+      ],
+      "pertinence": "DÉJÀ EN PLACE PARTIELLEMENT, à ne pas re-proposer en l'état : `audit-technique/SKILL.md` référence déjà `/security-review` deux fois (l.45-46 « réutiliser l'existant avant de ré-analyser à la main », l.84 « lancer `/security-review` sur le diff courant si pertinent »). Ce qui manque réellement, et que cette veille rend visible par contraste : (1) c'est une commande NATIVE Claude Code (livrée avec le CLI lui-même, indépendante de la fraîcheur du dépôt GitHub qui n'héberge que l'action CI associée — vérifié à la source : 6208 étoiles, dépôt GitHub dernier push 2026-02-11, mais la commande slash fait partie du produit) — pas un outil tiers à installer ; (2) elle n'est mobilisée qu'AU MOMENT d'un audit-technique complet (facturé, sur demande), jamais comme étape systématique d'un playbook `evolution-flotte` qui modifie du code applicatif sans déclencher d'audit complet ; (3) aucune trace de son usage hors du hub (grep limité à 2 fichiers du hub) — rien ne dit si elle est mobilisée sur les 5 autres projets qui ont leur propre pratique de revue.",
+      "regle_proposee": "Non mesurable à froid par le scan (commande interactive, pas un fichier de configuration) — qualifiable en revue : un playbook qui commit du code applicatif modifié (`evolution-flotte`, `dev-verifie`) pourrait mentionner `/security-review` comme étape optionnelle avant la revue en contexte frais déjà adoptée, quand le diff touche des entrées utilisateur, des secrets ou des permissions.",
+      "action_corrective": "ADOPTE PARTIELLEMENT 2026-09-13 : `agent-securite` en fait l'un de ses outils de base (skill § Méthode, réutilisation avant analyse manuelle). L'ajout d'une étape optionnelle aux playbooks `evolution-flotte`/`dev-verifie` reste à étudier séparément — écarté de ce cycle, pas refusé.",
+      "date": "2026-09-12",
+      "statut": "adopte"
+    },
+    {
+      "titre": "trailofbits/skills — patterns réels d'audit à la demande (dépendances, historique git, workflows CI) publiés par un cabinet de sécurité reconnu",
+      "url": "https://github.com/trailofbits/skills",
+      "type": "framework",
+      "projets_concernes": [
+        "VSCode",
+        "VSCode1",
+        "VSCode2",
+        "VSCode4",
+        "VScode5"
+      ],
+      "pertinence": "Source crédible et vivante, vérifiée à l'API GitHub : 7052 étoiles, dernier push 2026-09-09 (3 jours avant ce cycle de veille), publiée par Trail of Bits (cabinet d'audit de sécurité reconnu, pas un auteur anonyme). Fournit des patterns RÉELS et PUBLICS de ce qu'un sous-agent Claude Code peut audit à la demande : `supply-chain-risk-auditor` (dépendances npm/PyPI/Go : avisories, upstreams abandonnés, scripts d'installation) ; `differential-review` (revue de sécurité d'un diff avec analyse de l'HISTORIQUE GIT, pas seulement l'état courant) ; `agentic-actions-auditor` (audit des workflows GitHub Actions pour les vulnérabilités spécifiques aux agents IA). Constat local : 5 des 6 projets de la flotte ont un `.github/workflows/ci.yml` (VSCode, VSCode1, VSCode2, VSCode4, VScode5 — vérifié par recherche de fichiers ; VSCode3 n'en a pas) et aucun n'a jamais été audité pour ce registre de risque (grep sans résultat sur ces patterns dans le dispositif). Ces trois rôles délimitent PRÉCISÉMENT le périmètre réaliste d'un sous-agent sécurité invoqué ponctuellement — lecture de code/config/historique git, PAS de surveillance réseau ou process temps réel.",
+      "regle_proposee": "aucune règle de scan à froid — pattern à ÉTUDIER pour inspirer la conception d'un futur sous-agent maison, jamais à cloner ni exécuter (mandat de la veille : observer, ne jamais exécuter de code téléchargé).",
+      "action_corrective": "ADOPTE ET APPLIQUE 2026-09-13 : les 3 rôles (audit dépendances/supply chain, revue avec historique git, audit workflows CI) sont repris comme squelette des étapes 2-4 de la skill `agent-securite`, réécrits maison par canal — jamais d'import du dépôt tiers.",
+      "date": "2026-09-12",
       "statut": "adopte"
     }
   ]
