@@ -115,7 +115,13 @@ try {
     const ancien = ignorePar(`data/${copie.replace(/\.db$/, '')}`);
     console.log(`  info l'ancien nom (sans suffixe .db) serait ${ancien ? 'ignore' : 'VERSIONNE'} — c'est ce qui a motive le correctif`);
   } else {
-    console.log('  info git indisponible : verification du .gitignore sautee, seul le nom produit a ete verifie');
+    // Meme correctif que `test-env-sans-secret.js` (2026-09-13), jamais propage
+    // a ce fichier voisin : git indisponible = ce garde-fou est INOPERANT, pas
+    // satisfait. Il sortait en 0 avec un simple `info`, sans avoir rien
+    // verifie — et c'est le CODE DE SORTIE que lisent npm test et la CI. Ce
+    // verrou-ci protege le versionnement d'une copie de base de PRODUCTION :
+    // il doit echouer quand il ne peut pas conclure.
+    check(false, `GARDE-FOU INOPERANT : git indisponible, la couverture de « ${sousData} » n a PAS pu etre verifiee (une copie nominative de la base de production partirait dans l historique git)`);
   }
 } finally {
   try { fs.rmSync(dossierTmp, { recursive: true, force: true }); } catch { /* nettoyage best-effort */ }
