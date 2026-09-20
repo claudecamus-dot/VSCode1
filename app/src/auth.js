@@ -117,22 +117,41 @@ function barriereAuth(env = process.env) {
   const active = Boolean(user && pass);
 
   if (!active) {
-    // En PRODUCTION, l'absence d'identifiants n'est pas un choix : c'est un
-    // oubli de configuration qui laisse la surface PII ouverte sur le reseau.
-    // Un `console.warn` dans un journal que personne ne lit n'a jamais empeche
-    // un demarrage (constat du 2026-09-01 : `.env.prod` ne pose pas AUTH_*, et
-    // `.env.prod.local` — le canal des secrets — n'existe pas sur le disque).
-    // On refuse donc de demarrer, meme idiome que scripts/seed-demo.js qui
-    // refuse deja de semer la demo en PROD.
-    if ((env.APP_ENV || '') === 'PROD') {
+    // Sur un environnement qui peut porter des donnees reelles, l'absence
+    // d'identifiants n'est pas un choix : c'est un oubli de configuration qui
+    // laisse la surface PII ouverte sur le reseau. Un `console.warn` dans un
+    // journal que personne ne lit n'a jamais empeche un demarrage (constat du
+    // 2026-09-01 : `.env.prod` ne pose pas AUTH_*, et `.env.prod.local` — le
+    // canal des secrets — n'existe pas sur le disque). On refuse donc de
+    // demarrer, meme idiome que scripts/seed-demo.js.
+    //
+    // Environnements SANS donnees reelles, ou demarrer sans barriere est legitime :
+    // le poste de developpement, la CI et les serveurs ephemeres des scripts
+    // test-*.js (qui posent APP_ENV=test-xxx / smoke / verif-xxx). TOUT LE RESTE
+    // — y compris un APP_ENV absent, vide, PRE-PROD, ou une valeur inconnue — est
+    // considere comme portant potentiellement des donnees nominatives.
+    //
+    // CORRECTIF SECURITE 2026-09-20 (audit du 2026-09-19) : la version precedente
+    // n'echouait QUE sur la valeur litterale `APP_ENV=PROD`. Une recette/preprod
+    // avec des donnees reelles (`.env.preprod` pose APP_ENV=PRE-PROD et ne pose
+    // aucun AUTH_*) demarrait donc SANS aucune authentification, routes
+    // nominatives ouvertes, sur un simple `console.warn`. La garde etait adossee a
+    // une valeur d'enum, pas a la sensibilite des donnees : elle l'est desormais a
+    // une LISTE BLANCHE, defaut = refus de demarrer.
+    const ENV_SANS_DONNEES_REELLES = /^(?:dev|local|ci|test|smoke)$|^(?:test|smoke|verif)[-_]/i;
+    const sortieSecours = env.AUTH_NON_REQUISE === '1';
+
+    if (!ENV_SANS_DONNEES_REELLES.test(String(env.APP_ENV || '')) && !sortieSecours) {
       console.error(
-        '[securite] Refus de demarrer : APP_ENV=PROD sans AUTH_USER/AUTH_PASS. '
+        `[securite] Refus de demarrer : APP_ENV=${env.APP_ENV || '(absent)'} sans AUTH_USER/AUTH_PASS. `
           + "L'API expose des donnees nominatives ; posez les deux variables dans "
-          + '.env.prod.local (hors depot) avant de lancer la production.',
+          + '.env.<environnement>.local (hors depot) avant de lancer ce serveur. '
+          + 'Environnement de developpement ou de test : posez APP_ENV=DEV, ou '
+          + 'AUTH_NON_REQUISE=1 pour assumer explicitement une API PII ouverte.',
       );
       process.exit(1);
     }
-    // Hors PROD : no-op explicite, comportement inchange (dev, CI, tests). Un
+    // Environnement declare sans donnees reelles : no-op explicite, comportement inchange (dev, CI, tests). Un
     // avertissement unique au demarrage signale que la surface PII est ouverte.
     console.warn(
       '[securite] Barriere Basic Auth INACTIVE (AUTH_USER/AUTH_PASS non poses) : '

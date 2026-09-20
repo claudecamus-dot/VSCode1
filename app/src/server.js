@@ -17,6 +17,7 @@ const { estModeDemo } = require('./mode');
 const { barriereAuth } = require('./auth');
 const { verifierOrigine } = require('./csrf');
 const { entetesSecurite } = require('./entetes-securite');
+const { limiteDebit } = require('./debit');
 
 const app = express();
 // Routage sensible a la casse (defaut Express : desactive). Deuxieme ligne de
@@ -414,7 +415,14 @@ app.get('/api/sessions/:id/invites/non-repondants', chargerSession, (req, res) =
 
 // --- Identification du répondant (Epic 3) ---
 
-app.post('/api/sessions/:id/repondants', (req, res) => {
+// Limite de debit sur l'auto-enregistrement du repondant : cette route est
+// ouverte par lien de session et distingue « email deja vu » (409) de « email
+// inconnu » (201) — donc un oracle de participation nominative. Le bornage
+// supprime l'enumeration en masse (audit du 2026-09-19). Le libelle du 409
+// reste inchange : c'est un arbitrage produit, pas une decision technique.
+const debitRepondants = limiteDebit();
+
+app.post('/api/sessions/:id/repondants', debitRepondants, (req, res) => {
   if (refuserSiImportEnCours(res)) return;
   const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session inconnue.' });

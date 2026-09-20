@@ -330,6 +330,39 @@ async function main() {
     check(admin.status === 401, `en PROD la surface animateur est fermee sans identifiants (recu ${admin.status})`);
   });
 
+  // --- 4. Refus de demarrer sur TOUT environnement non declare sans donnees --
+  // Correctif du 2026-09-20 (audit securite du 2026-09-19) : la garde etait
+  // adossee a la valeur litterale `APP_ENV=PROD`. Une PRE-PROD portant des
+  // donnees reelles demarrait donc sans aucune barriere, sur un simple
+  // console.warn. Le defaut est desormais le REFUS ; seule une liste blanche
+  // d'environnements de dev/CI/test (ou AUTH_NON_REQUISE=1, assume) ouvre.
+  console.log('Demarrage sans identifiants, par environnement :');
+  for (const envSensible of ['PRE-PROD', 'RECETTE', '']) {
+    const r = await sortieDuServeur({ APP_ENV: envSensible });
+    check(
+      r.timeout === false && r.code !== 0 && r.code !== null,
+      `APP_ENV=${envSensible || '(vide)'} sans AUTH_* : refus de demarrer (code=${r.code}, timeout=${r.timeout})`,
+    );
+    check(
+      /Refus de demarrer/i.test(r.sortie),
+      `APP_ENV=${envSensible || '(vide)'} : le refus est explicite sur la sortie d'erreur`,
+    );
+  }
+  for (const envOuvert of ['DEV', 'CI', 'test-quelque-chose', 'smoke']) {
+    let demarre = false;
+    await avecServeur({ APP_ENV: envOuvert }, async (base) => {
+      demarre = (await fetch(`${base}/api/env`)).status === 200;
+    });
+    check(demarre, `APP_ENV=${envOuvert} sans AUTH_* : le serveur demarre toujours (dev/CI/test)`);
+  }
+  {
+    let demarre = false;
+    await avecServeur({ APP_ENV: 'PRE-PROD', AUTH_NON_REQUISE: '1' }, async (base) => {
+      demarre = (await fetch(`${base}/api/env`)).status === 200;
+    });
+    check(demarre, 'AUTH_NON_REQUISE=1 : sortie de secours explicite, le serveur demarre');
+  }
+
   console.log(echecs === 0 ? '\nTOUS LES TESTS PASSENT' : `\n${echecs} TEST(S) EN ECHEC`);
   process.exit(echecs === 0 ? 0 : 1);
 }

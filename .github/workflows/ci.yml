@@ -9,6 +9,12 @@ name: CI
 # test-export-ppt-si-dispo.js, qui skip proprement sans python-pptx) et
 # test-ppt-charte.py (étape dédiée ci-dessous, absent de `npm test`).
 
+# Jeton du workflow reduit a la lecture du contenu : ce workflow ne publie rien.
+# Sans ce bloc, GITHUB_TOKEN herite du defaut du depot, qui peut etre en
+# ecriture (audit securite du 2026-09-19, ASI09).
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main]
