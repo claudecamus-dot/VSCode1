@@ -315,7 +315,7 @@ navigateur Puppeteer, artefact de deploiement demarre reellement).
 - **Duplication de tests** (10+ occurrences signalees par la revue) — Le bloc
   serveur-de-test (~50 lignes : `portLibre`/`attendreServeur`/`attendreMort`/
   `nettoyer`) et les identifiants Basic Auth de test (`USER`/`PASS`/`basic()`)
-  extraits en `app/scripts/test-helpers-serveur.js`, 12 fichiers migres.
+  extraits en `app/scripts/helpers-serveur.js`, 12 fichiers migres.
   **Residu note** (finding reuse, non traite) : le niveau au-dessus — le motif
   complet "spawn serveur + DB temp + env + cleanup" (`avecServeur`) — reste
   duplique par variations mineures dans une dizaine de fichiers ; unification

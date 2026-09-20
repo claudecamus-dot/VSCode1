@@ -14,9 +14,22 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const puppeteer = require('puppeteer-core');
-const { portLibre, attendreServeur, attendreMort, nettoyer, fetchMutant } = require('./test-helpers-serveur');
+const { portLibre, attendreServeur, attendreMort, nettoyer, fetchMutant } = require('./helpers-serveur');
 
-const CHROME_PATH = process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
+// Recherche du navigateur parmi les emplacements usuels des trois OS, meme
+// idiome que scripts/test-entetes-securite.js : un chemin Windows en dur rendait
+// ce script inexecutable ailleurs que sur le poste de son auteur. CHROME_PATH,
+// quand elle est posee, fait AUTORITE et remplace la liste.
+const CANDIDATS_CHROME = process.env.CHROME_PATH ? [process.env.CHROME_PATH] : [
+  'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
+  '/usr/bin/google-chrome',
+  '/usr/bin/google-chrome-stable',
+  '/usr/bin/chromium-browser',
+  '/usr/bin/chromium',
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+];
+const CHROME_PATH = CANDIDATS_CHROME.find((c) => fs.existsSync(c)) || CANDIDATS_CHROME[0];
 const OUT_DIR = process.env.CAPTURES_OUT || path.join(__dirname, '..', '..', 'cadrage', 'captures', 'lien-repondant');
 
 let echecs = 0;

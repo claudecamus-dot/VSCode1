@@ -24,7 +24,7 @@ const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
-const { portLibre, attendreServeur, attendreMort, nettoyer, fetchMutant, USER, PASS, basic } = require('./test-helpers-serveur');
+const { portLibre, attendreServeur, attendreMort, nettoyer, fetchMutant, USER, PASS, basic } = require('./helpers-serveur');
 
 const DELAI_DEMARRAGE_MS = 15000;
 const CHEMIN_SERVEUR = path.join(__dirname, '..', 'src', 'server.js');

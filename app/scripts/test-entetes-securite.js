@@ -22,7 +22,7 @@ const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
-const { portLibre, attendreServeur, attendreMort, nettoyer, USER, PASS } = require('./test-helpers-serveur');
+const { portLibre, attendreServeur, attendreMort, nettoyer, USER, PASS } = require('./helpers-serveur');
 const { ENTETES, POLITIQUE_CSP } = require('../src/entetes-securite');
 
 const DELAI_DEMARRAGE_MS = 15000;
