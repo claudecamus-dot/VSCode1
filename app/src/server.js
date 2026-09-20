@@ -106,7 +106,41 @@ function activeQuestionIds(sessionId) {
 // Référentiel restreint aux questions actives de la session : on élague les
 // sous-catégories puis les piliers qui se retrouveraient vides, pour que le
 // répondant ne voie que ce qui le concerne.
+// Cache a PORTEE EXPLICITE du referentiel par session (constat perf de l'audit
+// du 2026-09-19 : ~3N+3 agregations completes pour N equipes a l'export
+// departement, chacune rechargeant l'integralite du referentiel).
+// referentielPourSession coute 5 requetes SQL par appel (1 a 2 pour
+// activeQuestionIds + 4 pour getReferentiel) plus un map/filter complet, alors
+// que le referentiel d'une session est INVARIANT pendant une requete.
+//
+// Volontairement PAS un cache global memoise avec invalidation sur ecriture :
+// ce serait une source de perimetre perime (import destructif, edition du
+// referentiel, cadrage de session), et un correctif de perf a deja cause une
+// regression sur ce projet (commit 3603f8a). Ici la portee est ouverte et
+// fermee autour d'un chemin ou AUCUNE ecriture ne peut survenir : le serveur
+// est synchrone et mono-thread, et la construction des blocs ne fait que lire.
+// Hors de cette portee, cacheReferentiel vaut null et le comportement est
+// STRICTEMENT inchange.
+let cacheReferentiel = null;
+
+function avecCacheReferentiel(fn) {
+  const racine = cacheReferentiel === null; // supporte l'imbrication sans vider trop tot
+  if (racine) cacheReferentiel = new Map();
+  try {
+    return fn();
+  } finally {
+    if (racine) cacheReferentiel = null;
+  }
+}
+
 function referentielPourSession(sessionId) {
+  if (cacheReferentiel && cacheReferentiel.has(sessionId)) return cacheReferentiel.get(sessionId);
+  const calcule = referentielPourSessionSansCache(sessionId);
+  if (cacheReferentiel) cacheReferentiel.set(sessionId, calcule);
+  return calcule;
+}
+
+function referentielPourSessionSansCache(sessionId) {
   const actives = activeQuestionIds(sessionId);
   return getReferentiel({ includeArchived: true })
     .map((pilier) => ({
@@ -1262,7 +1296,7 @@ function nomFichierSur(nom) {
 //  - scope=departement  -> couverture + 2 slides du departement + 2 slides par
 //                          equipe du departement (bouton vue pilotage).
 // Radar = image SVG facon web ; genere via Python (python-pptx + template OCTO).
-app.get('/api/sessions/:id/export-ppt', chargerSession, (req, res) => {
+app.get('/api/sessions/:id/export-ppt', chargerSession, (req, res) => avecCacheReferentiel(() => {
   const session = req.session;
   const scope = unParam(req.query.scope);
   const equipe = unParam(req.query.equipe);
@@ -1370,7 +1404,7 @@ app.get('/api/sessions/:id/export-ppt', chargerSession, (req, res) => {
       }
     });
   });
-});
+}));
 
 // --- Filet d'erreur terminal ---
 
