@@ -1120,6 +1120,22 @@ def construire(data, template_path, out_path):
     if problemes:
         sys.stderr.write("ATTENTION geometrie :\n" + "\n".join(problemes) + "\n")
 
+    # Second filet, chaine ici depuis l'audit du 2026-09-19 : verifier_geometrie
+    # ne voit que les BORDS des formes, jamais le texte qui deborde DEDANS. Ce
+    # controle-la existait dans pptx_deck.py mais n'etait appele que par la suite
+    # de test (test-export-ppt.py), elle-meme atteinte au travers du pont
+    # test-export-ppt-si-dispo.js qui SKIP sans python-pptx : un texte hors de sa
+    # boite traversait donc la generation de PRODUCTION sans aucun controle.
+    # AVERTISSEMENT, jamais un echec : l'estimateur est PESSIMISTE par contrat
+    # (cf. docstring de verifier_debordements_texte), donc un constat est un
+    # candidat a trier au rendu reel, pas une preuve de deck casse — rendre
+    # l'export bloquant casserait une generation aujourd'hui acceptee a l'oeil.
+    debords = D.verifier_debordements_texte(prs)
+    if debords:
+        sys.stderr.write(
+            f"ATTENTION texte ({len(debords)} boite(s) limite(s), a trier au rendu reel) :\n"
+            + "\n".join(debords) + "\n")
+
     prs.save(out_path)
     return prs, problemes
 
