@@ -109,6 +109,51 @@ async function main() {
       auDela.every((s) => !/deja|inconnu|identifie/i.test(s.corps)),
       'le corps du 429 ne dit rien de l\'email soumis (pas un oracle de repli)',
     );
+
+    // L'ENUMERATION REELLE porte sur des emails DEJA CONNUS : c'est la reponse
+    // 409 (« deja identifie ») qui renseigne l'attaquant, pas le 201. Le bloc
+    // ci-dessus n'envoie que des emails neufs — il prouve donc que la CREATION
+    // est bornee, pas que l'ORACLE l'est. Verifie ici : un meme email connu,
+    // interroge en rafale, doit lui aussi tomber sous le quota. (Sans cette
+    // sonde, une exemption du type « ne pas penaliser celui qui revient »
+    // rouvrait l'annuaire a debit machine sans faire rougir un seul test.)
+    // Nouvelle session : la cle du seau est (ip, session), donc quota neuf.
+    const creation2 = await fetchMutant(`${base}/api/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ouverture_at: new Date(Date.now() - 3600_000).toISOString(),
+        fermeture_at: new Date(Date.now() + 3600_000).toISOString(),
+      }),
+    });
+    const session2 = await creation2.json();
+    check(creation2.status === 200 || creation2.status === 201, `2e session creee (recu ${creation2.status})`);
+
+    console.log("\nInterrogation en rafale sur un email DEJA CONNU (le vrai oracle) :");
+    const cible = corpsRepondant('cible');
+    const statutsConnu = [];
+    for (let i = 0; i < MAX + 2; i += 1) {
+      const r = await fetchMutant(`${base}/api/sessions/${session2.id}/repondants`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cible),
+      });
+      statutsConnu.push({ code: r.status, corps: await r.text() });
+    }
+    const reponsesOracle = statutsConnu.slice(1, MAX);
+    const auDelaConnu = statutsConnu.slice(MAX);
+    check(
+      statutsConnu[0].code === 200 || statutsConnu[0].code === 201,
+      `le 1er envoi enregistre bien l'email cible (recu ${statutsConnu[0].code})`,
+    );
+    check(
+      reponsesOracle.every((s) => s.code === 409),
+      `les envois suivants, sous quota, exposent bien l'oracle (409) : ${reponsesOracle.map((s) => s.code).join(', ')}`,
+    );
+    check(
+      auDelaConnu.every((s) => s.code === 429),
+      `au-dela du quota, l'oracle sur email connu est ferme aussi : ${auDelaConnu.map((s) => s.code).join(', ')}`,
+    );
   } catch (err) {
     console.error('Sortie du serveur pendant le test :\n' + sortie);
     throw err;
