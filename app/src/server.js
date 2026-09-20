@@ -276,6 +276,13 @@ app.post('/api/repondants/fusion', (req, res) => {
 // --- Sessions (Epic 2) ---
 
 app.post('/api/sessions', (req, res) => {
+  // Fenetre d'import destructif (audit robustesse du 2026-09-19) : cette route
+  // etait la seule mutante sans cette garde. Elle materialise le perimetre de
+  // la session dans `session_questions`, que l'import « remplacer » en cours
+  // efface par cascade — et le repli d'activeQuestionIds() confond alors
+  // « session jamais cadree » et « perimetre DETRUIT », donc elargit le
+  // questionnaire en silence.
+  if (refuserSiImportEnCours(res)) return;
   const { ouverture_at, fermeture_at, questions_actives, texte_intro } = req.body || {};
   if (!ouverture_at || !fermeture_at) {
     return res.status(400).json({ error: 'ouverture_at et fermeture_at sont requis (ISO 8601).' });

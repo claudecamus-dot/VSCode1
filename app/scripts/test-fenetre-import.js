@@ -144,6 +144,24 @@ async function main() {
     });
     check(inscriptionBloquee.status === 503, `POST inscription (nouveau repondant) PENDANT la fenetre -> 503 (recu ${inscriptionBloquee.status})`);
 
+    // Creation de SESSION pendant la fenetre (audit robustesse du 2026-09-19).
+    // POST /api/sessions etait la seule route mutante sans
+    // refuserSiImportEnCours : la session creee materialise son perimetre dans
+    // session_questions, que le REMPLACER en cours efface ensuite par cascade.
+    // activeQuestionIds() retombe alors sur son repli « aucune ligne = tout le
+    // referentiel », confondant session jamais cadree et perimetre DETRUIT : le
+    // questionnaire s'elargit en silence.
+    const creationBloquee = await fetchMutant(`${base}/api/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ouverture_at: new Date(Date.now() - 3600_000).toISOString(),
+        fermeture_at: new Date(Date.now() + 3600_000).toISOString(),
+      }),
+    });
+    check(creationBloquee.status === 503, `POST /api/sessions PENDANT la fenetre -> 503 (recu ${creationBloquee.status})`);
+
+
     const resultatImport = await importRemplacer;
     check(resultatImport.status === 200, `import remplacer -> 200 une fois termine (recu ${resultatImport.status})`);
     const corpsImport = await resultatImport.json();
