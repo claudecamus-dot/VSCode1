@@ -300,9 +300,18 @@ def trouvailles_en_attente():
 def _ascii(texte):
     """Plie un texte en ASCII strict (accents decomposes puis ignores) — la
     console cp1252 leve UnicodeDecodeError sur tout caractere hors table, et un
-    titre de veille porte accents et tirets cadratins."""
-    return unicodedata.normalize("NFKD", texte or "").encode(
+    titre de veille porte accents et tirets cadratins.
+
+    Neutralise aussi les caracteres de controle (retour a la ligne compris) :
+    un titre de veille ou de finding est un texte tiers reinjecte tel quel en
+    contexte au SessionStart (audit securite VScode5, finding ASI01/ASI04,
+    2026-09-20) — sans ce filtre, un retour a la ligne suffit a faire sortir
+    une charge en colonne 0, hors du prefixe qui identifie une ligne du hook.
+    La troncature (60-70 car.) qui suit cet appel n'est plus la seule garde.
+    """
+    plie = unicodedata.normalize("NFKD", texte or "").encode(
         "ascii", "ignore").decode("ascii")
+    return "".join(c if c.isprintable() and c not in "\r\n\t" else " " for c in plie)
 
 
 def ligne_decisions_audit(repertoire=None):
