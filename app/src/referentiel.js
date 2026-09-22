@@ -170,7 +170,6 @@ function reconcileReferentielInTx(piliers) {
     }
 
     // --- Entrees disparues de la nouvelle grille ---
-    const aDesReponses = db.prepare('SELECT 1 FROM reponses WHERE question_id = ? LIMIT 1');
     // Une question peut n'avoir AUCUNE reponse et rester indispensable : celles
     // qu'une session a inscrites a son perimetre (US1.3bis). `session_questions`
     // est en ON DELETE CASCADE (db.js) et `PRAGMA foreign_keys = ON`, donc la
@@ -187,13 +186,29 @@ function reconcileReferentielInTx(piliers) {
     // `referentielPourSession` lit le referentiel avec `includeArchived: true`
     // puis filtre sur le perimetre, donc elle garde les questions ET la
     // formulation avec lesquelles elle a ete lancee.
-    const estCadree = db.prepare('SELECT 1 FROM session_questions WHERE question_id = ? LIMIT 1');
+    //
+    // Les lectures de qualification (a des reponses ? est cadree ?) etaient
+    // faites une requete par id disparu (motif N+1, mesure sur la reconciliation
+    // d'import). Regroupees ici en deux requetes `IN (...)`, meme style que les
+    // requetes groupees deja utilisees ailleurs (server.js, reponses/commentaires
+    // par lot) : un aller-retour DB au lieu d'un par entree disparue.
+    const questionsDisparues = idsQuestionsAvant.filter((id) => !vusQuestions.has(id));
+    const idsAvecReponses = new Set();
+    const idsCadrees = new Set();
+    if (questionsDisparues.length > 0) {
+      const placeholders = questionsDisparues.map(() => '?').join(',');
+      db.prepare(`SELECT DISTINCT question_id FROM reponses WHERE question_id IN (${placeholders})`)
+        .all(...questionsDisparues)
+        .forEach((r) => idsAvecReponses.add(Number(r.question_id)));
+      db.prepare(`SELECT DISTINCT question_id FROM session_questions WHERE question_id IN (${placeholders})`)
+        .all(...questionsDisparues)
+        .forEach((r) => idsCadrees.add(Number(r.question_id)));
+    }
     const archiveQuestion = db.prepare('UPDATE questions SET archive = 1 WHERE id = ?');
     const deleteQuestion = db.prepare('DELETE FROM questions WHERE id = ?');
     let archivees = 0;
-    for (const id of idsQuestionsAvant) {
-      if (vusQuestions.has(id)) continue;
-      if (aDesReponses.get(id) || estCadree.get(id)) {
+    for (const id of questionsDisparues) {
+      if (idsAvecReponses.has(id) || idsCadrees.has(id)) {
         archiveQuestion.run(id);
         archivees += 1;
       } else {
@@ -203,21 +218,38 @@ function reconcileReferentielInTx(piliers) {
 
     // Un objectif/pilier disparu n'est supprime que s'il ne contient plus rien ;
     // sinon il est archive pour rester rattachable aux anciennes sessions.
-    const compteQuestions = db.prepare('SELECT COUNT(*) AS n FROM questions WHERE sous_categorie_id = ?');
+    // Meme regroupement : un COUNT groupe par parent au lieu d'un COUNT par id.
+    const scDisparues = idsScAvant.filter((id) => !vusSc.has(id));
+    const comptesQuestionsParSc = new Map();
+    if (scDisparues.length > 0) {
+      const placeholders = scDisparues.map(() => '?').join(',');
+      db.prepare(
+        `SELECT sous_categorie_id, COUNT(*) AS n FROM questions WHERE sous_categorie_id IN (${placeholders}) GROUP BY sous_categorie_id`
+      )
+        .all(...scDisparues)
+        .forEach((r) => comptesQuestionsParSc.set(Number(r.sous_categorie_id), r.n));
+    }
     const archiveSc = db.prepare('UPDATE sous_categories SET archive = 1 WHERE id = ?');
     const deleteSc = db.prepare('DELETE FROM sous_categories WHERE id = ?');
-    for (const id of idsScAvant) {
-      if (vusSc.has(id)) continue;
-      if (compteQuestions.get(id).n > 0) archiveSc.run(id);
+    for (const id of scDisparues) {
+      if ((comptesQuestionsParSc.get(id) || 0) > 0) archiveSc.run(id);
       else deleteSc.run(id);
     }
 
-    const compteSc = db.prepare('SELECT COUNT(*) AS n FROM sous_categories WHERE pilier_id = ?');
+    const piliersDisparus = idsPiliersAvant.filter((id) => !vusPiliers.has(id));
+    const comptesScParPilier = new Map();
+    if (piliersDisparus.length > 0) {
+      const placeholders = piliersDisparus.map(() => '?').join(',');
+      db.prepare(
+        `SELECT pilier_id, COUNT(*) AS n FROM sous_categories WHERE pilier_id IN (${placeholders}) GROUP BY pilier_id`
+      )
+        .all(...piliersDisparus)
+        .forEach((r) => comptesScParPilier.set(Number(r.pilier_id), r.n));
+    }
     const archivePilier = db.prepare('UPDATE piliers SET archive = 1 WHERE id = ?');
     const deletePilier = db.prepare('DELETE FROM piliers WHERE id = ?');
-    for (const id of idsPiliersAvant) {
-      if (vusPiliers.has(id)) continue;
-      if (compteSc.get(id).n > 0) archivePilier.run(id);
+    for (const id of piliersDisparus) {
+      if ((comptesScParPilier.get(id) || 0) > 0) archivePilier.run(id);
       else deletePilier.run(id);
     }
 
