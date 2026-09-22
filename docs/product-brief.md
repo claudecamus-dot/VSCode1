@@ -37,15 +37,17 @@ sans imposer de compte au répondant (le lien de session suffit).
   filtre avec/sans managers pour lire l'écart de perception.
 - Restituer sur le template corporate : export PPT branché dans `npm test`
   avec test du livrable réel.
-- Douleur restante — **risque produit daté** : l'espace animateur et l'API
-  exposent des données nominatives **sans authentification**. Décision actée
-  dans `cadrage/epics-us.md` (Epic 10) : implémenter l'Epic complet
-  (US10.1-10.6) comme chantier produit, pas de barrière provisoire (Basic
-  Auth et jeton d'API écartés) — arbitrage du 2026-07-25 tracé au hub de
-  supervision (cible `securite:VSCode1-api-pii`). **Échéance 2026-08-08** :
-  trancher compte local vs SSO/OIDC et planifier le chantier. Tant que
-  l'Epic 10 n'est pas livré, tout déploiement au-delà du poste de
-  l'animateur étend l'exposition des PII.
+- Douleur réduite — **barrière intérimaire posée, Epic 10 clos sur ce
+  périmètre** : l'espace animateur et l'API exposent des données nominatives,
+  protégées depuis le 2026-07-30 par une barrière HTTP Basic Auth env-gated
+  fail-closed (`app/src/auth.js`, durcie le 2026-09-16). Arbitrage du
+  2026-09-03 (`cadrage/epics-us.md`, cible `arbitrages:revue-mvp-2026-09-01`) :
+  cette barrière est déclarée périmètre final du MVP pour l'Epic 10 ; US10.3
+  (rôle lecture seule) et US10.4 (cycle de vie des comptes) sont
+  déprioritisées, pas abandonnées. Ceci reste une mesure de réduction de
+  risque, pas l'authentification produit complète (pas de comptes ni de rôle
+  lecture-seule) — et ne couvre ni TLS ni la mise en service au-delà du poste
+  de l'animateur.
 
 ## Proposition de valeur
 

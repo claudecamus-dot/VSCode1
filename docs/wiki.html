@@ -398,8 +398,8 @@
 
       <h2 id="points-critiques">Points critiques</h2>
       <div class="critical">
-        <p><strong>Aucune authentification n'est en place.</strong> L'espace animateur et les routes API associées sont accessibles à quiconque possède l'URL — Epic 10 ("Authentification et gestion des accès") est explicitement non implémenté à ce stade.
-        <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">onboarder · 2026-07-07 · app/README.md:183-184 ; cadrage/epics-us.md:92-94</span></p>
+        <p><strong>Barrière HTTP Basic Auth intérimaire, pas l'authentification produit complète.</strong> Depuis le 2026-09-03, l'Epic 10 est clos comme périmètre final du MVP sur la base d'une barrière env-gated fail-closed (<code>app/src/auth.js</code>, durcie le 2026-09-16) : US10.1 (authentification animateur) et une partie de US10.6 sont couvertes ; US10.3 (rôle lecture seule) et US10.4 (cycle de vie des comptes) restent déprioritisées, pas l'authentification elle-même.
+        <span class="tag tag-confirme">CONFIRMÉ</span><span class="fact-label">app/src/auth.js:1-20 ; cadrage/epics-us.md:111</span></p>
       </div>
 
       <div class="decision-grid">
@@ -965,7 +965,7 @@
         <div class="decision-row"><span class="decision-tag">export</span><p>Export PPT en deux étapes : Puppeteer (Chrome headless) rasterise le radar SVG en PNG, puis un script Python (python-pptx) construit le .pptx. Un seul lancement de navigateur pour tous les radars d'un export. <span class="tag tag-confirme">CONFIRMÉ</span></p></div>
         <div class="decision-row"><span class="decision-tag">agrégation</span><p>Recalcul des agrégats à la demande (pas de table précalculée) — cohérent avec l'exigence de temps réel, mais réagrège l'ensemble des réponses à chaque requête. <span class="tag tag-deduit">DÉDUIT</span></p></div>
         <div class="decision-row"><span class="decision-tag">comparaison</span><p>La session précédente d'une équipe est retrouvée par égalité de chaîne sur <code>equipe</code> (pas un identifiant stable) — dépend de la cohérence apportée par la saisie tolérante. <span class="tag tag-confirme">CONFIRMÉ</span></p></div>
-        <div class="decision-row"><span class="decision-tag">sécurité</span><p>Aucune authentification à ce stade (Epic 10 non implémenté) — aucun middleware d'authentification observé sur l'ensemble de <code>server.js</code>. <span class="tag tag-confirme">CONFIRMÉ</span></p></div>
+        <div class="decision-row"><span class="decision-tag">sécurité</span><p>Barrière HTTP Basic Auth env-gated fail-closed (<code>app/src/auth.js</code>, câblée dans <code>server.js</code>, durcie le 2026-09-16) — Epic 10 clos le 2026-09-03 comme périmètre final du MVP sur ce socle (US10.3/US10.4 déprioritisées). <span class="tag tag-confirme">CONFIRMÉ</span></p></div>
         <div class="decision-row"><span class="decision-tag">environnements</span><p>3 environnements isolés en parallèle sur le même poste (DEV/PRE-PROD/PROD), port et base SQLite propres, chargés via <code>node --env-file</code>. <span class="tag tag-confirme">CONFIRMÉ</span></p></div>
       </div>
 

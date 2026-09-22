@@ -59,11 +59,14 @@ passage obligés pour toute évolution :
 
 <div class="critical">
 
-**Aucune authentification n'est en place.** L'espace animateur (import du
-référentiel, création de session, consultation des résultats, export PPT) et
-les routes API associées sont accessibles à quiconque possède l'URL — Epic 10
-("Authentification et gestion des accès") est explicitement non implémenté à
-ce stade. `CONFIRMÉ` — onboarder · 2026-07-07 · app/README.md:183-184 ; cadrage/epics-us.md:92-94
+**Barrière HTTP Basic Auth intérimaire, pas l'authentification produit complète.**
+L'espace animateur (import du référentiel, création de session, consultation
+des résultats, export PPT) et les routes API sont protégés par une barrière
+env-gated fail-closed (`app/src/auth.js`, durcie le 2026-09-16). L'Epic 10 a
+été clos le 2026-09-03 comme périmètre final du MVP sur ce socle : US10.1
+(authentification animateur) et une partie de US10.6 sont couvertes ; US10.3
+(rôle lecture seule) et US10.4 (cycle de vie des comptes) restent
+déprioritisées pour ce MVP, pas abandonnées. `CONFIRMÉ` — app/src/auth.js:1-20 ; cadrage/epics-us.md:111
 
 </div>
 
@@ -128,9 +131,9 @@ texte pour cette source Markdown.
 | Epic 5 — Agrégation et consultation des résultats | 4/4 | Livré |
 | Epic 6 — Analyse et restitution | 5/5 | Livré |
 | Epic 7 — Consolidation multi-équipes (hors MVP initial, livré en avance) | 3/3 | Livré |
-| Epic 8 — Packaging et déploiement | 0/6 | Réflexion |
-| Epic 9 — Environnements DEV / PRE-PROD / PROD | 0/5 | Réflexion |
-| Epic 10 — Authentification et gestion des accès | 0/6 | Réflexion |
+| Epic 8 — Packaging et déploiement | 0/6 (US8.1 tourne réellement, non reflété par `.roadmap/roadmap.json`) | En cours |
+| Epic 9 — Environnements DEV / PRE-PROD / PROD | 0/5 (US9.1 tourne réellement, non reflété par `.roadmap/roadmap.json`) | En cours |
+| Epic 10 — Authentification et gestion des accès | US10.1 + partie US10.6 | Clos le 2026-09-03 comme périmètre final du MVP (US10.3/US10.4 déprioritisées) |
 | Epic 11 — Gestion de plusieurs clients (organisations) | 0/6 | Réflexion |
 
 `DÉDUIT` — onboarder · 2026-07-07 · calcul (US livrées / US totales) par Epic

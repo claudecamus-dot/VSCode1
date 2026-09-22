@@ -107,10 +107,13 @@ framework de migration dédié). `CONFIRMÉ` — onboarder · 2026-07-07 · app/
   identifiant d'équipe stable) — dépend donc entièrement de la cohérence
   apportée par la saisie tolérante (`normalisation.js`) et la fusion manuelle
   de doublons. `CONFIRMÉ` — onboarder · 2026-07-07 · app/src/server.js:638-649
-- **Aucune authentification à ce stade** (Epic 10 non implémenté) : ne pas
-  supposer de contrôle d'accès dans le code existant — toute route `/api/*`
-  lue lors de l'exploration est accessible sans vérification d'identité.
-  `CONFIRMÉ` — onboarder · 2026-07-07 · app/README.md:183-184, absence de middleware d'authentification observée sur l'ensemble de app/src/server.js
+- **Barrière HTTP Basic Auth intérimaire (Epic 10 clos le 2026-09-03 comme
+  périmètre final du MVP sur ce socle)** : `app/src/auth.js` (câblée dans
+  `server.js`, durcie le 2026-09-16) protège en fail-closed toute route
+  `/api/*` et les pages animateur dès que `AUTH_USER`/`AUTH_PASS` sont posés ;
+  le parcours répondant reste ouvert par liste blanche (US10.5). US10.3 (rôle
+  lecture seule) et US10.4 (cycle de vie des comptes) restent déprioritisées
+  pour ce MVP. `CONFIRMÉ` — app/src/auth.js:1-20 ; cadrage/epics-us.md:111
 - **3 environnements isolés en parallèle sur le même poste** (DEV/PRE-PROD/PROD),
   chacun avec son port et sa propre base SQLite, chargés via `node --env-file`.
   `CONFIRMÉ` — onboarder · 2026-07-07 · app/README.md:68-84

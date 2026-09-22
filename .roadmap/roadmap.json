@@ -1,6 +1,6 @@
 {
   "title": "Questionnaire de maturite agile/produit",
-  "subtitle": "MVP complet (US1.1-6.5) + Epic 7 (consolidation multi-equipes) livres ; export PPT scope par ecran (equipe / departement, radar facon web). Backlog au stade reflexion : Epic 8 (packaging & deploiement), Epic 9 (environnements DEV/PRE-PROD/PROD sur ce PC), Epic 10 (authentification) et Epic 11 (multi-clients).",
+  "subtitle": "MVP complet (US1.1-6.5) + Epic 7 (consolidation multi-equipes) livres ; export PPT scope par ecran (equipe / departement, radar facon web). Epic 10 (authentification) clos le 2026-09-03 comme perimetre final du MVP (barriere HTTP Basic Auth env-gated, app/src/auth.js ; US10.3/US10.4 deprioritisees). Epic 8 (packaging) et Epic 9 (environnements) partiellement avances en pratique (US8.1 build:artifact, US9.1 .env.dev/.env.preprod/.env.prod), non reflete par le detail ci-dessous. Epic 11 (multi-clients) reste au stade reflexion.",
   "items": [
     { "phase": "reflexion", "title": "Analyse de la grille existante", "description": "Lecture de la grille Excel V3.2 : 4 piliers, ~50 questions a 4 niveaux de maturite.", "status": "done" },
     { "phase": "reflexion", "title": "Personas", "description": "Modeliser les profils cibles (repondant, animateur/coach, management/RH) et leurs besoins.", "status": "done" },
