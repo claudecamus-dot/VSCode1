@@ -111,7 +111,9 @@
       "Read(//tmp/**)",
       "Read(//c/Users/claude.camus/AppData/Local/Temp/pwtest/**)",
       "Read(//c/Users/claude.camus/Downloads/**)",
-      "Read(//c/Users/claude.camus/.claude/skills/roadmap-keeper/assets/**)"
+      "Read(//c/Users/claude.camus/.claude/skills/roadmap-keeper/assets/**)",
+      "Bash(npm test *)",
+      "Bash(where soffice *)"
     ],
     "deny": [
       "Read(./.env)",
