@@ -37,6 +37,13 @@ async function parseXlsx(buffer) {
   return lignes;
 }
 
+// Borne de cardinalite : multer limite deja la TAILLE du fichier (10 Mo), mais rien
+// ne bornait le NOMBRE de lignes/emails qu'un import peut injecter (audit VSCode1,
+// dimension performance, residu voisin du N+1 de reconciliation corrige separement
+// le 2026-09-22). 20000 couvre tres largement un annuaire d'entreprise ; un fichier
+// qui en depasse est presque surement une erreur d'export (feuille entiere collee).
+const MAX_INVITES = 20000;
+
 async function importInvitesFromBuffer(buffer, nomFichier) {
   const estXlsx = /\.xlsx$/i.test(nomFichier || '');
   const lignesBrutes = estXlsx ? await parseXlsx(buffer) : parseCsv(buffer);
@@ -49,6 +56,9 @@ async function importInvitesFromBuffer(buffer, nomFichier) {
     if (vues.has(email)) continue;
     vues.add(email);
     invites.push({ email, nom: ligne.nom || null });
+    if (invites.length > MAX_INVITES) {
+      throw new Error(`Fichier d'invites trop volumineux : plus de ${MAX_INVITES} emails valides detectes (limite de cardinalite, colonne A = email).`);
+    }
   }
 
   if (invites.length === 0) {
@@ -94,4 +104,4 @@ function getNonRepondants(sessionId) {
   return invites.filter((invite) => !repondus.has(invite.email.trim().toLowerCase()));
 }
 
-module.exports = { importInvitesFromBuffer, replaceInvites, getInvites, getNonRepondants, looksLikeEmail };
+module.exports = { importInvitesFromBuffer, replaceInvites, getInvites, getNonRepondants, looksLikeEmail, MAX_INVITES };
