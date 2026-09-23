@@ -1,0 +1,5 @@
+# Seuls appsscript.json, *.gs et *.html partent au push.
+**/**
+!appsscript.json
+!**/*.gs
+!**/*.html
