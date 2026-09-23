@@ -1,6 +1,6 @@
 ---
 name: deck-design-library
-description: Bibliothèque de patterns de design de slides extraite de decks OCTO réels — 90 représentations cataloguées par SITUATION à travers 4 fichiers par genre de deck (soutenance/restitution, proposition commerciale, formation technique, formation méthode/atelier), avec composition précise (formes, tailles, couleurs, typo) réutilisable en python-pptx. À consulter AVANT de dessiner une nouvelle slide ou d'améliorer une slide existante — quand on se demande « quelle forme donner à ce contenu ? », quand une slide est un mur de texte/de cartes sans idée directrice, ou pour varier des représentations trop uniformes.
+description: Bibliothèque de patterns de design de slides extraite de decks OCTO réels — 117 représentations cataloguées par SITUATION à travers 5 fichiers par genre de deck (soutenance/restitution, proposition commerciale, formation technique, formation méthode/atelier, tribune de communauté), avec composition précise (formes, tailles, couleurs, typo) réutilisable en python-pptx. À consulter AVANT de dessiner une nouvelle slide ou d'améliorer une slide existante — quand on se demande « quelle forme donner à ce contenu ? », quand une slide est un mur de texte/de cartes sans idée directrice, ou pour varier des représentations trop uniformes.
 ---
 
 # deck-design-library — quelle représentation pour quelle situation
@@ -58,6 +58,15 @@ deck), `swot-matrix`/`priority-matrix` (patterns déjà spécialisés).
 | Bibliothèque dense d'outils/méthodes | Toolkit map en bandes dégradées à onglets (19) |
 | Prix / proposition financière | Fiche « ticket/coupon » (21) |
 | Avantage commercial / bonus | Médaillon rosette dédié (22) |
+| Série longue de principes / règles | Liste numérotée goutte + onglet mot-clé (po 30) ; Grille d'engagements cochés (po 31) |
+| Comparer 2 approches sur N critères qualitatifs | Petits multiples de courbes (po 33) |
+| Expliquer un flux / un board | Kanban en post-its désaxés (po 34) |
+| Acronyme / leviers autour d'un objectif | Donut segmenté (po 36) ; Couronne à ergots (po 38) |
+| Même mécanique à plusieurs niveaux | Bandeaux de niveaux empilés + flèches (po 40) |
+| Classement / palmarès | Top N à barres-onglets et médailles (tribune 10) |
+| Bilan annuel par canal / plan de com | Couloirs de pilules codées (tribune 9) ; Frise d'allocation annuelle (tribune 5) |
+| Annoncer un événement / une campagne | Affiche à panneau sombre (tribune 14) ; Carte-annonce composite (tribune 7) |
+| Présenter qui parle / l'équipe porteuse | Split-screen à voile duotone (tribune 1) ; Portraits en goutte à rubans (tribune 4) |
 
 ## Quel catalogue pour quel genre de deck
 
@@ -66,7 +75,8 @@ deck), `swot-matrix`/`priority-matrix` (patterns déjà spécialisés).
 | Soutenance de transformation (client, anonymisé) | `references/catalogue-restitution.md` | 22 | Restituer, diagnostiquer, chiffrer, présenter une équipe, planifier |
 | Proposition commerciale (transfo mode produit) | `references/catalogue-transformation-commerciale.md` | 14 | Convaincre un sponsor, cadrer une gouvernance, montrer un avant/après |
 | Formation technique (fondamentaux IA générative) | `references/catalogue-formation-ia-generative.md` | 25 | Expliquer un concept, annoter un schéma technique, dérouler un pipeline |
-| Formation méthode/atelier (devenir Product Owner) | `references/catalogue-formation-po.md` | 29 | Personas, story mapping, canvas d'atelier, artefacts Agile/Scrum |
+| Formation méthode/atelier (devenir Product Owner ; initiation agile, complément n°30-42 du 2026-09-23) | `references/catalogue-formation-po.md` | 42 | Personas, story mapping, canvas d'atelier, artefacts Agile/Scrum, listes de principes, kanban, mnémoniques, cascades de niveaux |
+| Tribune interne de communauté (ajoutée le 2026-09-23) | `references/catalogue-tribune-communaute.md` | 14 | Prise de parole d'équipe : présentateur, manifeste, trombinoscope dense, palmarès, plan de com en couloirs, allocation annuelle, annonce, affiche d'événement |
 
 Les 3 derniers fichiers ont été ajoutés le 2026-09-04 (source : 2 decks de formation
 + 1 deck de proposition commerciale fournis en PDF, plus une exploration graphique de
