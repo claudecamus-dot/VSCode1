@@ -334,3 +334,15 @@ Produit `dist/<nom>-<version>-<horodatage>.tgz` : archive autoportante (sources
 `package.json`/`package-lock.json`, `.env.example`, un `README-deploy.txt` avec
 la procédure minimale de démarrage). Ne nécessite aucun accès réseau pour être
 déployée (dépendances déjà copiées).
+
+## Déploiement conteneur
+
+`Dockerfile` à la racine de `app/` (image `node:22-slim`, requis par `engines.node
+>= 22` et par `node:sqlite`/`DatabaseSync`) : build de production (`npm ci
+--omit=dev`), exécution en utilisateur non-root, `DB_PATH=/data/app.db` sur un
+volume (`VOLUME /data`) pour un PaaS à disque persistant (Render, Fly.io — pas de
+`fly.toml`/`render.yaml` fourni ici). `PORT` est lu depuis l'environnement
+(repli 3000). Aucun secret dans l'image : `AUTH_USER`/`AUTH_PASS` (voir
+`src/auth.js`) sont à injecter à l'exécution via les variables d'environnement du
+PaaS, jamais au build. Pas de `HEALTHCHECK` : aucune route santé n'existe
+actuellement dans `src/server.js`.

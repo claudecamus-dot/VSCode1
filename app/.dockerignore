@@ -1,0 +1,17 @@
+node_modules
+npm-debug.log
+
+data/
+coverage/
+
+.env
+.env.*
+!.env.example
+
+.git
+.gitignore
+
+scripts/test-*.js
+
+*.log
+dev-server.pid
