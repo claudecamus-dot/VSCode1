@@ -107,7 +107,11 @@
       "Bash(py -m py_compile *)",
       "Bash(node -c *)",
       "Bash(npm test*)",
-      "Bash(npm run lint*)"
+      "Bash(npm run lint*)",
+      "Read(//tmp/**)",
+      "Read(//c/Users/claude.camus/AppData/Local/Temp/pwtest/**)",
+      "Read(//c/Users/claude.camus/Downloads/**)",
+      "Read(//c/Users/claude.camus/.claude/skills/roadmap-keeper/assets/**)"
     ],
     "deny": [
       "Read(./.env)",
