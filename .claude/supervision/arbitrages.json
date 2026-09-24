@@ -268,6 +268,17 @@
       ],
       "decision": "REFUSE (deja fait, constat) : build-artifact.js:57 execute npm ci --omit=dev --no-audit --no-fund pour generer un node_modules prod-only avant copie (ligne 7-9, 49-53 : commentaires exacts, plus de mention de 0 devDependency).",
       "preuve_application": "grep -n 'npm ci' app/scripts/build-artifact.js : ligne 57, execSync npm ci --omit=dev confirme."
+    },
+    {
+      "cible": "VSCode1:server-js-fin-de-ligne",
+      "date": "2026-09-24",
+      "titre": "server.js marque modifie sans changement de contenu (LF/CRLF), bruit de statut",
+      "categories": [
+        "pratique-dev"
+      ],
+      "decision": "ACCEPTE + APPLIQUE (confirmation utilisateur 2026-09-24) : git add --renormalize app/src/server.js, index realigne, fichier intact",
+      "preuve_application": "git status --porcelain -- app/src/server.js -> 0 ligne ; git diff --ignore-cr-at-eol --quiet -> 0",
+      "sans_commit": "contenu identique hors fins de ligne, rien a committer"
     }
   ]
 }
