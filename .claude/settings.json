@@ -34,6 +34,17 @@
             "statusMessage": "Convocation de salle : skills BMAD nommees ?"
           }
         ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard_stories_avant_dev.py\"",
+            "timeout": 10,
+            "statusMessage": "Implementation : user stories et criteres d'acceptance presents ?"
+          }
+        ]
       }
     ],
     "SessionStart": [
@@ -118,7 +129,15 @@
     "deny": [
       "Read(./.env)",
       "Read(./secrets/**)",
-      "Read(./config/credentials.json)"
+      "Read(./config/credentials.json)",
+      "Read(./.env.*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/secrets/**)",
+      "Read(**/credentials.json)",
+      "Bash(env)",
+      "Bash(git config:*)",
+      "PowerShell(Get-ChildItem Env:*)"
     ]
   }
 }
