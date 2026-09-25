@@ -1,5 +1,5 @@
 ---
-updated: 2026-09-23
+updated: 2026-09-25
 generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, étage 1)
 ---
 
@@ -8,7 +8,7 @@ generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, ét
 > ⚠️ **Page générée automatiquement** (hook SessionStart → `.claude/supervision/scan_transcripts.py`).
 > **Ne pas éditer à la main** — toute modification serait écrasée au prochain scan.
 
-Dernier scan : 2026-09-23T17:17:43+02:00 · **30 sessions** (transcripts) · **61** invocations de skills · **45** lancements de sous-agents.
+Dernier scan : 2026-09-25T09:58:54+02:00 · **30 sessions** (transcripts) · **61** invocations de skills · **45** lancements de sous-agents.
 
 ## Skills — usage réel
 
@@ -132,12 +132,13 @@ _Constats clos par décision humaine (`.claude/supervision/arbitrages.json`) —
 - **`flotte:23-items-cadres`** (2026-09-22) : REFUSE (deja fait, constat) : resultats.html:240-241 documente explicitement que l'etat replie/deplie des sections est preserve au travers des re-rendus innerHTML (attacherRepli ligne 291 gere le toggle sans dependre d'une reconstruction totale).
 - **`flotte:23-items-cadres`** (2026-09-22) : REFUSE (deja fait, constat) : resultats.html:263 Promise.all([chargerEquipes(), chargerParticipation()]) et ligne 411-412 Promise.all([fetch(resultats)...]) -- les fetches independants du chargement sont parallelises, motif deja utilise dans admin.html.
 - **`flotte:23-items-cadres`** (2026-09-22) : REFUSE (deja fait, constat) : build-artifact.js:57 execute npm ci --omit=dev --no-audit --no-fund pour generer un node_modules prod-only avant copie (ligne 7-9, 49-53 : commentaires exacts, plus de mention de 0 devDependency).
+- **`VSCode1:server-js-fin-de-ligne`** (2026-09-24) : ACCEPTE + APPLIQUE (confirmation utilisateur 2026-09-24) : git add --renormalize app/src/server.js, index realigne, fichier intact
 
 ## Diagnostic qualitatif (étage 2 — `agent-supervisor`)
 
 _Diagnostic à jour — rien à signaler, tous les constats précédents ont été arbitrés._
 
-_10 constat(s) de ce diagnostic écarté(s) par un arbitrage — pour en rouvrir un, demander au superviseur un `re_challenge` avec des données nouvelles :_
+_11 constat(s) de ce diagnostic écarté(s) par un arbitrage — pour en rouvrir un, demander au superviseur un `re_challenge` avec des données nouvelles :_
 
 - ~~Regle metier top-3/dispersion ecrite 2x (JS client+serveur) ; moyenne-non-null ecrite 3x (client/serveur/Python)~~ (`flotte:23-items-cadres`)
 - ~~Defense XSS esc() dupliquee 4x sans synchronisation, 1 seul test la couvre~~ (`flotte:23-items-cadres`)
@@ -149,6 +150,7 @@ _10 constat(s) de ce diagnostic écarté(s) par un arbitrage — pour en rouvrir
 - ~~5 requetes en serie evitables au chargement de l ecran resultats~~ (`flotte:23-items-cadres`)
 - ~~build-artifact.js copie node_modules entier (6951 fichiers) sur un commentaire faux (0 devDep)~~ (`flotte:23-items-cadres`)
 - ~~seed-demo.js : ~2400 ecritures hors transaction alors que tx.js:enTransaction existe~~ (`flotte:23-items-cadres`)
+- ~~server.js marque modifie sans changement de contenu (LF/CRLF), bruit de statut~~ (`VSCode1:server-js-fin-de-ligne`)
 
 ## Seuil de qualification — la mesure
 
