@@ -3,9 +3,9 @@
     "source": "hub de supervision VScode5, .claude/veille/veille.json",
     "projection": "entrees dont projets_concernes nomme VSCode1",
     "ne_pas_editer": "Fichier GENERE, en lecture seule : une correction faite ici sera ecrasee a la prochaine propagation. La veille s'ecrit AU HUB, ou elle est lue (section 3 du wiki) et arbitree. Une veille lancee depuis ce depot doit y etre remontee.",
-    "date": "2026-09-24"
+    "date": "2026-09-26"
   },
-  "derniere_veille": "2026-09-23T12:00:00",
+  "derniere_veille": "2026-09-26T09:14:19+02:00",
   "entrees": [
     {
       "titre": "microsoft/hve-core — skill PowerPoint python-pptx pilotée par YAML",
@@ -271,6 +271,91 @@
       "pertinence": "B4 - 'qui a ouvert la page ?'. Resultat mesure : le taux de succes d'un agent varie jusqu'a 9 points de pourcentage selon le LLM qui joue l'utilisateur, avec une mauvaise calibration systematique (sous-estimation sur les taches difficiles, surestimation sur les moyennes) et des ecarts selon le dialecte (AAVE vs SAE) s'aggravant avec l'age. Consequence directe ici : le sous-agent utilisateur-produit, dormant, ne doit PAS etre promu en validateur de fin d'increment - il fournirait une quittance dont ce papier chiffre l'infidelite. La validation utilisateur sans nom ne se repare pas en lui donnant le nom d'un agent. Recherche faite, AUCUN protocole publie ne rend un role utilisateur/QA obligatoire avec un nom identifiable en sortie : ISO 9241-11 reste invarifiable a froid, et la litterature user-simulator evalue des agents, elle ne signe pas des increments. B4 etait la case la plus faible de la grille et le reste. [adopte le 2026-09-19 : Regle NEGATIVE inscrite au referentiel ET contrainte dans le CANON (.claude/dispositif/canon/log_run.py) : est_identite_non_humaine() refuse toute identite s'annoncant non humaine (prefixe agent-, sous-agent, subagent, nom de modele). La porte 'mettre l'agent au plan', que l'ancienne garde laissait ouverte, est explicitement fermee dans le message de refus. Le canon corrige PUIS propage par sync_dispositif.py, jamais la copie editee a la main. utilisateur-produit n'a PAS ete cable comme validateur.]",
       "regle_proposee": "Inscrire au referentiel, cote negatif : une quittance de validation utilisateur produite par un agent simulant l'utilisateur NE VAUT PAS quittance - le nom en sortie doit etre celui d'une personne. Mesurable a froid : le champ de quittance des runs ne doit pas porter un nom de sous-agent.",
       "action_corrective": "Ne pas cabler utilisateur-produit comme validateur. Si la quittance nommee est cablee, contraindre le champ a un nom humain (liste fermee). Cout : ~30 min dans le script de journalisation."
+    },
+    {
+      "titre": "Twelve-Factor App — config strictement via variables d'environnement",
+      "url": "https://12factor.net/fr/config",
+      "type": "pratique",
+      "projets_concernes": [
+        "VSCode1",
+        "VSCode2"
+      ],
+      "pertinence": "criteres-pratiques.md ligne 120 constate des .env.dev/prod commit\\u00e9s sur VSCode1 (sans secret, mais le pattern meme viole le facteur III) ; aucun critere du referentiel ne verifie l'absence de config en dur dans le code source (hors secrets). [adopte le 2026-09-26 : Regle inscrite au referentiel criteres-pratiques.md en non outillee (grep a froid = faux positifs). Action NON appliquee : VSCode1 versionne .env.dev/.env.preprod/.env.prod a dessein (app/.gitignore l.15-29 : parametrage sans secret, secrets dans .env.*.local ignores, .env.example, garde-fou scripts/test-env-sans-secret.js dans npm test) ; constat criteres-pratiques.md l.120 requalifie (plus un ecart).]",
+      "date": "2026-09-26",
+      "statut": "adopte",
+      "source_referentiel": "The Twelve-Factor App, facteur III — Config",
+      "regle_proposee": "Absence de valeurs de config (URLs, ports, flags d'environnement) codees en dur dans les fichiers source hors tests, mesurable partiellement a froid par grep de motifs (localhost:, http://, chemins absolus) — a affiner, faux positifs probables",
+      "action_corrective": "Sur VSCode1, retirer les .env.dev/.env.prod du depot (gitignore + .env.example), verifier qu'aucune valeur n'y est sensible malgre le constat actuel"
+    },
+    {
+      "titre": "AGENTS.md — standard ouvert Linux Foundation pour les instructions d'agents de code",
+      "url": "https://agents.md/",
+      "type": "pratique",
+      "projets_concernes": [
+        "VSCode1",
+        "VSCode2",
+        "VSCode3",
+        "VSCode4",
+        "VScode5"
+      ],
+      "pertinence": "AGENTS.md est devenu un standard ouvert (issu d'Anthropic, repris par Claude Code/Codex/Cursor/VS Code) qui documente build/test/style/commit pour tout agent, pas seulement Claude Code ; la flotte n'a que des CLAUDE.md (verifie : seul VScode6-learning-sprintIA, hors flotte supervisee, a un AGENTS.md) — aucun projet supervise n'a de fichier interoperable si un autre outil agentic est utilise dessus. [adopte le 2026-09-26 : Regle outillee : agents_md_present() dans scan_projets.py, mesure affichee non imposee (Pratiques+rules). Aucun fichier cree (action = evaluer par projet). Mesure 2026-09-26 : 1/8 (VScode6-learning-sprintIA).]",
+      "date": "2026-09-26",
+      "statut": "adopte",
+      "source_referentiel": "AGENTS.md spec (agents.md, stewarding Linux Foundation, 2025-2026)",
+      "regle_proposee": "Presence d'un AGENTS.md a la racine (a cote ou en lieu de CLAUDE.md), mesurable a froid par test d'existence de fichier dans scan_projets.py",
+      "action_corrective": "Evaluer sur chaque projet de la flotte si dupliquer CLAUDE.md en AGENTS.md (ou l'inverse, un seul fichier source) apporte une valeur reelle avant d'imposer un nouveau fichier a maintenir en parallele"
+    },
+    {
+      "titre": "Google eng-practices — CL/diff petit et focalise, revue sous 1 jour ouvre",
+      "url": "https://google.github.io/eng-practices/review/developer/small-cls.html",
+      "type": "pratique",
+      "projets_concernes": [
+        "VSCode1",
+        "VSCode2",
+        "VSCode3",
+        "VSCode4"
+      ],
+      "pertinence": "Le referentiel a un critere 'Revue de code systematique avant merge/commit' (ligne 33, marque en place) mais aucun critere sur la TAILLE des changements revus ni un delai de revue ; un unique gros commit revu par un agent releveur ne respecte pas ce que Google documente comme condition d'efficacite de la revue (CLs petites, un seul sujet, tests inclus). [adopte le 2026-09-26 : Regle outillee : commits_hors_gabarit() (git log --numstat, 20 derniers commits, >400 lignes), affichee. Mesure : 1 a 3 commits hors gabarit sur 20 dans chacun des 8 depots. Etape decoupage-atomique ajoutee au playbook evolution-flotte (seuil 400, source Google Small CLs), kit regenere. conventions.md flotte deja faits : VSCode1 b8c2d6e, VSCode2 47aaed7, VSCode3 2a31808, VSCode4 a671774.]",
+      "date": "2026-09-26",
+      "statut": "adopte",
+      "source_referentiel": "Google Engineering Practices — eng-practices, Small CLs + The CL author's guide",
+      "regle_proposee": "Nombre de fichiers/lignes modifiees par commit sur les N derniers commits, mesurable a froid par git log --stat ; signaler les commits hors-gabarit (ex. > 400 lignes changees, plusieurs sujets non lies dans le message)",
+      "action_corrective": "Ajouter au playbook evolution-flotte une etape de decoupage des changements en commits atomiques avant revue, et documenter le seuil retenu dans conventions.md de chaque projet"
+    },
+    {
+      "titre": "SSDF/OWASP — verification outillee des dependances (SBOM, pip-audit/npm audit)",
+      "url": "https://csrc.nist.gov/projects/ssdf",
+      "type": "pratique",
+      "projets_concernes": [
+        "VSCode1",
+        "VSCode2",
+        "VSCode3",
+        "VSCode4"
+      ],
+      "pertinence": "criteres-pratiques.md ligne 128 marque deja 'Dependances sans vulnerabilite connue' en \\u2b1c non outille, et la ligne 131 note 'ecarts a outiller : pip-audit/npm audit' comme intention non realisee ; grep confirme aucune trace de pip-audit/npm audit/safety dans .github/workflows ni scripts/*.py du hub -- la trouvaille ne fait que confirmer un ecart deja identifie, avec sourcage provider (SSDF/OWASP Dependency-Check) pour l'etayer. [adopte le 2026-09-26 : Regle outillee : audit_dependances_ci() (pip-audit/npm audit/safety check dans .github/workflows/*.yml) ; critere criteres-pratiques.md l.128 passe de non mesure a proxy mesure (presence, pas absence de vulnerabilite). Mesure 4/8. Flotte : VSCode1 ea5e96e et VSCode4 e0a9b4e ajoutes non bloquants, VSCode2/VSCode3 deja ; VSCode4 Pillow 12.2.0->12.3.0 564d3cf (pip-audit 13 -> 0).]",
+      "date": "2026-09-26",
+      "statut": "adopte",
+      "source_referentiel": "NIST SP 800-218 SSDF + OWASP Dependency-Check/Dependency-Track",
+      "regle_proposee": "Presence d'une etape pip-audit (Python) ou npm audit (Node) dans un workflow CI, mesurable a froid par grep sur .github/workflows/*.yml",
+      "action_corrective": "Ajouter une etape pip-audit/npm audit aux workflows CI existants (5/6 projets en ont un, ligne 30 du referentiel) ; ne pas creer de nouveau workflow, etendre l'existant"
+    },
+    {
+      "titre": "Architecture Decision Records (Nygard) — journal des choix d'architecture",
+      "url": "https://adr.github.io/",
+      "type": "pratique",
+      "projets_concernes": [
+        "VSCode1",
+        "VSCode2",
+        "VSCode3",
+        "VSCode4",
+        "VScode5"
+      ],
+      "pertinence": "criteres-pratiques.md ligne 83 marque 'Explication (docs de conception, pourquoi des choix)' en \\u2705 partiel via 'docs/reflexions ici' sur le hub uniquement ; recherche find sur la flotte ne trouve aucun dossier adr/ ou docs/decisions -- seuls des dossiers de cadrage produit (VSCode1/cadrage, VSCode3/docs/cadrage-ppt) existent, pas un historique de decisions techniques dates/reversibles au format Nygard (titre/statut/contexte/decision/consequences). [adopte le 2026-09-26 : Regle outillee : adr_presents() (docs/adr/ ou docs/decisions/, fichiers portant statut/contexte/decision/consequences), mesure affichee. Aucune action generalisee (arbitrage projet par projet). Mesure : 0/8.]",
+      "date": "2026-09-26",
+      "statut": "adopte",
+      "source_referentiel": "Michael Nygard 2011 + adr.github.io (registre communautaire de templates)",
+      "regle_proposee": "Presence d'un dossier docs/adr/ ou docs/decisions/ avec au moins un fichier au format titre+statut+contexte+decision+consequences, mesurable a froid par recherche de motifs dans les titres Markdown (meme technique que diataxis_formes())",
+      "action_corrective": "Aucune action corrective generalisee proposee : a arbitrer projet par projet selon si des decisions d'architecture non tracees ont deja cause une reprise (a verifier dans diagnostic.json avant d'imposer le format)"
     }
   ]
 }
