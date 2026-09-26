@@ -93,3 +93,8 @@ impose. `CONFIRMÉ` — 2026-07-08 · app/eslint.config.js, .editorconfig, app/p
 - **Libellés en clair, sans abréviation cryptique** dans les livrables client
   (ex. "écart-type" et non "é-t") — règle explicitement documentée dans le
   skill projet. `CONFIRMÉ` — onboarder · 2026-07-07 · .claude/skills/restitution-ppt/SKILL.md:77-79
+
+## Taille des changements
+
+- **Un commit = un sujet.** Au-delà de **400 lignes changées**, ou dès qu'un changement mêle plusieurs sujets non liés, le découper avant revue.
+  — `CONFIRMÉ` · adoption veille · 2026-09-26 · [Google eng-practices, *Small CLs*](https://google.github.io/eng-practices/review/developer/small-cls.html)
