@@ -77,3 +77,11 @@ jobs:
       # Chrome/PowerPoint réel (cf. docstring du script).
       - name: PPT — charte graphique (python-pptx)
         run: python scripts/test-ppt-charte.py
+
+      # Audit des dependances (adoption veille SSDF/OWASP du 2026-09-26).
+      # NON bloquant au depart (continue-on-error) : on mesure avant de gater,
+      # meme logique que la couverture ci-dessus — gate eventuel une fois la
+      # mesure stabilisee.
+      - name: Audit des dependances (npm audit, informatif)
+        continue-on-error: true
+        run: npm audit --audit-level=high
