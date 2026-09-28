@@ -1,0 +1,6 @@
+{"ts": "2026-09-28T13:32:51+00:00", "hook": "guard_destructive_git", "motif": "delai", "delai_s": 5.0}
+{"ts": "2026-09-28T13:32:57+00:00", "hook": "guard_salle_skills", "motif": "delai", "delai_s": 5.0}
+{"ts": "2026-09-28T13:33:03+00:00", "hook": "guard_service", "motif": "delai", "delai_s": 5.0}
+{"ts": "2026-09-28T13:33:08+00:00", "hook": "guard_stories_avant_dev", "motif": "delai", "delai_s": 5.0}
+{"ts": "2026-09-28T13:33:43+00:00", "hook": "guard_destructive_git", "motif": "illisible", "delai_s": 5.0}
+{"ts": "2026-09-28T13:34:53+00:00", "hook": "guard_destructive_git", "motif": "illisible", "delai_s": 5.0}
