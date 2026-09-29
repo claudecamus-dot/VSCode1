@@ -13,8 +13,8 @@ d'office, stats plan-vs-réel par playbook/agent, `prudence` issu du diagnostic 
 `docs/wiki/technical/agents-supervision.md` (tableau de bord humain des mêmes données) et
 `.claude/orchestration/playbooks/` (workflows récurrents — format dans `playbooks/FORMAT.md`).
 
-<!-- SOCLE-PROVENANCE: socle : 37c1f51 du 2026-09-29 -->
-> **Socle généré** — tout ce qui suit `## Méthode` vient du hub de supervision (`37c1f51`, 2026-09-29) et sera **réécrit** à la prochaine propagation.
+<!-- SOCLE-PROVENANCE: socle : 3a353a8 du 2026-09-29 -->
+> **Socle généré** — tout ce qui suit `## Méthode` vient du hub de supervision (`3a353a8`, 2026-09-29) et sera **réécrit** à la prochaine propagation.
 > Le chapitre « Portée sur ce projet » ci-dessous, lui, n'est jamais réécrit : c'est le travail local.
 
 ## Portée sur ce projet (import du 2026-07-21 ; flotte arbitrée le 2026-07-21)
