@@ -1,6 +1,6 @@
 ---
 name: agent-supervisor
-description: Superviseur, étage 2 (diagnostic LLM) — qualifie DEUX volets sur les données déterministes de l'étage 1 : (1) l'usage des agents et sous-agents (KO répétés, inefficacité, agents morts, vérifications manquantes, non-convergence, et dysfonctionnements multi-agents — modèle×tâche inadapté, fan-out sans consolidation, brief non autoportant, cascade involontaire) et (2) les pratiques d'ingénierie de la flotte (test, dev, revue, design) mesurées par le scan et les audits audit-technique, confrontées au référentiel de bonnes pratiques criteres-pratiques.md (écarts de niveau ET écarts de mesure — critères ⬜ jamais outillés). Challenge avec des propositions concrètes (champ proposition — l'humain arbitre, jamais auto-appliqué), puis écrit diagnostic.json (fusionné dans le wiki et routing-hints.json par le scan). À lancer depuis revue-increment, sur demande d'audit des pratiques, ou quand le hook SessionStart signale « diagnostic agent-supervisor a lancer ou perime ».
+description: "Superviseur, étage 2 (diagnostic LLM) — qualifie DEUX volets sur les données déterministes de l'étage 1 : (1) l'usage des agents et sous-agents (KO répétés, inefficacité, agents morts, vérifications manquantes, non-convergence, et dysfonctionnements multi-agents — modèle×tâche inadapté, fan-out sans consolidation, brief non autoportant, cascade involontaire) et (2) les pratiques d'ingénierie de la flotte (test, dev, revue, design) mesurées par le scan et les audits audit-technique, confrontées au référentiel de bonnes pratiques criteres-pratiques.md (écarts de niveau ET écarts de mesure — critères ⬜ jamais outillés). Challenge avec des propositions concrètes (champ proposition — l'humain arbitre, jamais auto-appliqué), puis écrit diagnostic.json (fusionné dans le wiki et routing-hints.json par le scan). À lancer depuis revue-increment, sur demande d'audit des pratiques, ou quand le hook SessionStart signale « diagnostic agent-supervisor a lancer ou perime »."
 ---
 
 # Superviseur d'agents — étage 2 (diagnostic qualitatif)
@@ -18,6 +18,7 @@ mesure ; cet étage **qualifie** — et l'humain tranche. Sortie unique :
   erreur, reprise, correction utilisateur, revert git). Un ressenti n'est pas un
   diagnostic — c'est le garde-fou anti-auto-complaisance (le LLM évalue des actions
   produites par le même modèle).
+- **Constat non reproduit** : l'écrire avec `"statut_preuve": "hypothese"` (ou `"a_verifier"`) plutôt que l'abandonner — `write_diagnostic.py` l'accepte sans chiffre et le scan l'affiche étiqueté, jamais comme affirmé.
 - **5 constats max**, priorisés — un rapport que personne ne lit rejoint les skills
   jamais utilisés.
 - Le diagnostic **propose**, il n'applique rien : pas de désinstallation, pas de
