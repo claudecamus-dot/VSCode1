@@ -4,7 +4,7 @@
 # | garder : la signaler au hub, qui corrige le canon et re-synchronise.
 # | (Depuis le hub : « py .claude/dispositif/sync_dispositif.py » — ce script
 # |  n'est pas déployé, il n'existe pas dans ce dépôt.)
-# | Provenance canon : 5dbc54f du 2026-09-26 — permet, au prochain sync, de dire si
+# | Provenance canon : adbf517 du 2026-09-29 — permet, au prochain sync, de dire si
 # | une différence vient d'une édition locale ou d'une avance du canon (voir
 # | `determiner_cause` dans sync_dispositif.py au hub).
 # +---------------------------------------------------------------------------
@@ -1016,7 +1016,7 @@ def diagnostic_masques(diagnostic, arbitrages: list = None) -> list:
     et la cible : l'humain voit ce que sa décision passée continue de fermer, et peut
     demander un re-challenge."""
     return [
-        {"titre": _titre_court(f), "cible": f.get("cible") or "?"}
+        {"titre": _libelle_finding(f), "cible": f.get("cible") or "?"}
         for f in _findings(diagnostic)
         if _titre_court(f) and finding_arbitre(f, arbitrages, posterieur_a=_genere_le(diagnostic))
     ]
@@ -1040,6 +1040,24 @@ def _titre_court(finding: dict) -> str:
     """Titre sur UNE ligne : il est rendu dans une puce markdown et dans un `<li>`, où
     un saut de ligne casserait la mise en forme."""
     return " ".join((finding.get("titre") or "").split())
+
+
+# Statut de preuve d'un constat (schema write_diagnostic.py, 2026-09-29, trouvaille de
+# veille « Silence Is Endorsement ») : `mesure` (defaut, retro-compatible), `a_verifier`,
+# `hypothese`. Un constat non mesure DOIT se lire comme tel partout ou il est rendu :
+# sans l'etiquette, le lecteur voit un constat affirme — perte de statut mesuree le
+# 2026-09-29 (grep statut_preuve = 0 dans ce script et dans agents-supervision.md).
+STATUTS_PREUVE_LIBELLES = {"a_verifier": "À VÉRIFIER", "hypothese": "HYPOTHÈSE"}
+
+
+def _libelle_finding(finding: dict) -> str:
+    """Titre court PRÉFIXÉ de son statut de preuve quand il n'est pas `mesure`. Une valeur
+    inconnue est rendue telle quelle plutôt que tue : l'erreur sûre est de montrer le doute."""
+    titre = _titre_court(finding)
+    statut = str(finding.get("statut_preuve") or "mesure").strip() or "mesure"
+    if not titre or statut == "mesure":
+        return titre
+    return f"[{STATUTS_PREUVE_LIBELLES.get(statut, statut.upper())}] {titre}"
 
 
 def load_diagnostic() -> dict:
@@ -1080,7 +1098,7 @@ def diagnostic_todos(diagnostic, arbitrages: list = None) -> list:
     # `[:5]` = le plafond de la skill (« 5 constats max ») ; `write_diagnostic.py` le
     # refuse désormais à l'écriture, donc plus rien ne se perd ici en silence.
     for f in findings[:5]:
-        titre = _titre_court(f)
+        titre = _libelle_finding(f)
         if not titre:
             continue
         reco = (f.get("recommandation") or "").strip()
@@ -1417,25 +1435,62 @@ def _skill_doctor_perime(date_rapport: str, max_jours: int = None) -> bool:
         return True
     if date.tzinfo is None:
         date = date.astimezone()
-    return (dt.datetime.now().astimezone() - date) >= dt.timedelta(days=max_jours)
+    delta = dt.datetime.now().astimezone() - date
+    # Date FUTURE (horloge décalée, rapport édité) : sans cette garde, delta négatif
+    # rendait False à perpétuité — l'instantané corrompu blanchissait pour toujours
+    # (revue code-review-crew du 2026-09-26, constat Boundary/Dana).
+    if delta < dt.timedelta(0):
+        return True
+    return delta >= dt.timedelta(days=max_jours)
+
+
+def _racines_skills() -> list:
+    """Les endroits où Claude Code sert réellement des skills sur ce poste, hors dépôt :
+    les skills utilisateur (~/.claude/skills) et celles des plugins. Ne rend que les
+    dossiers existants.
+
+    Le dépôt n'est PAS dans cette liste : il est l'inventaire de RÉFÉRENCE (cf.
+    `_noms_fantomes`), les autres racines ne servent qu'à innocenter un nom."""
+    racines = [os.path.expanduser(os.path.join("~", ".claude", "skills"))]
+    racines += sorted(glob.glob(os.path.expanduser(
+        os.path.join("~", ".claude", "plugins", "*", "skills"))))
+    return [r for r in racines if os.path.isdir(r)]
 
 
 def _noms_fantomes(noms) -> set:
-    """Parmi `noms`, ceux sans `.claude/skills/<nom>/SKILL.md` sur le disque : un tel
-    nom ne se publie pas dans `jamais_utilises` (finding
-    scan_transcripts.py:jamais_utilises-faux-nom-synced, arbitré le 2026-09-26 :
-    « synced » y figurait alors qu'aucune skill de ce nom n'existe — chaque lecture
-    reproduisait le même diagnostic à faux frais).
+    """Parmi `noms`, ceux sans `<racine>/<nom>/SKILL.md` dans AUCUNE des racines de
+    skills du poste (finding scan_transcripts.py:jamais_utilises-faux-nom-synced,
+    arbitré le 2026-09-26, durci par la revue code-review-crew du même jour : la
+    première version ne regardait que le dépôt et publiait `skill-creator` — skill
+    utilisateur vivante sous ~/.claude/skills — comme reliquat à nettoyer).
 
-    Fail-open : si le dossier des skills lui-même est introuvable (déploiement
-    partiel, test sans dépôt), aucun nom n'est déclaré fantôme — on ne juge pas une
-    absence sans inventaire.
+    Le dépôt est l'inventaire de RÉFÉRENCE : c'est lui qui peut condamner un nom.
+    Les autres racines (`_racines_skills`) ne font qu'innocenter — sans cette
+    asymétrie, un dépôt dont le dossier de skills manque (canon chargé hors de son
+    arbre, déploiement partiel) faisait déclarer fantôme TOUT le catalogue, parce
+    que le ~/.claude du poste fournissait à lui seul un inventaire non vide
+    (mesuré le 2026-09-27 : `bmad-prd` sorti de `jamais_utilises` à tort,
+    test_les_hints_jamais_utilises_excluent_le_journal rouge).
+
+    Trois fail-open, tous justifiés par « on ne juge pas une absence sans
+    inventaire » :
+    - pas de dossier de skills dans le dépôt -> rien n'est fantôme ;
+    - dossier présent mais AUCUNE skill dedans (déploiement partiel) -> rien n'est
+      fantôme ; la première version déclarait alors TOUT fantôme et vidait
+      `jamais_utilises` en silence ;
+    - nom à espace de noms (`plugin:skill`) -> jamais fantôme : il n'est pas un
+      dossier plat, on ne peut pas le vérifier par ce chemin.
     """
-    racine = os.path.join(REPO, ".claude", "skills")
-    if not os.path.isdir(racine):
+    reference = os.path.join(REPO, ".claude", "skills")
+    if not os.path.isdir(reference):
         return set()
+    if not glob.glob(os.path.join(reference, "*", "SKILL.md")):
+        return set()
+    racines = [reference] + _racines_skills()
     return {n for n in noms
-            if not os.path.isfile(os.path.join(racine, n, "SKILL.md"))}
+            if ":" not in n
+            and not any(os.path.isfile(os.path.join(r, n, "SKILL.md"))
+                        for r in racines)}
 
 
 def build_routing_hints(state: dict, fam: dict, par_playbook: dict, par_agent: dict, diagnostic,
@@ -1497,7 +1552,7 @@ def build_routing_hints(state: dict, fam: dict, par_playbook: dict, par_agent: d
             # il n'applique pas.
             and not finding_arbitre(f, arbitrages, respecter_re_challenge=False)
         ):
-            prudence.append({"cible": f["cible"], "raison": _titre_court(f)})
+            prudence.append({"cible": f["cible"], "raison": _libelle_finding(f)})
     # Incrément C — prudence déterministe : échecs répétés dans le journal d'orchestration,
     # sans attendre le diagnostic LLM (dédupliqué sur les cibles déjà signalées).
     deja = {p["cible"] for p in prudence}
