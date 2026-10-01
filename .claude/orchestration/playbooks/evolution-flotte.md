@@ -21,6 +21,15 @@ faute de playbook qui matche.
    COMOP Node/PowerShell, pas python-pptx ; étape terminale = la `revue-increment`
    préexistante du projet, pas une copie).
 
+**Propager sous le classifieur d'auto-mode** (2026-09-30) : des commandes de propagation
+lancées depuis le hub vers les dépôts voisins ont été refusées (« Modify Shared
+Resources » — écriture hors du working directory). Deux voies, jamais un contournement
+par un autre outil (PowerShell au lieu de Bash, script jetable, reformulation) :
+(1) l'utilisateur autorise via `/permissions` > *Recently denied* > retry ;
+(2) lancer `sync_dispositif.py` / la propagation depuis une session ouverte DANS chaque
+cible, une cible à la fois. Mémoire du hub
+`feedback-classifieur-bloque-gouvernance-et-hors-perimetre`.
+
 ```json
 {
   "nom": "evolution-flotte",
@@ -127,7 +136,7 @@ faute de playbook qui matche.
 }
 ```
 
-<!-- SOCLE-PROVENANCE: socle : 3a353a8 du 2026-09-29 -->
-> **Socle généré** — tout ce qui PRÉCÈDE ce bandeau vient du hub de supervision (`3a353a8`, 2026-09-29) et sera **réécrit** à la prochaine propagation.
+<!-- SOCLE-PROVENANCE: socle : f3881b3 du 2026-10-01 -->
+> **Socle généré** — tout ce qui PRÉCÈDE ce bandeau vient du hub de supervision (`f3881b3`, 2026-10-01) et sera **réécrit** à la prochaine propagation.
 > Le chapitre « Portée sur ce projet » placé après ce bandeau, lui, n'est jamais réécrit : c'est le travail local.
 

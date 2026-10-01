@@ -13,8 +13,8 @@ d'office, stats plan-vs-réel par playbook/agent, `prudence` issu du diagnostic 
 `docs/wiki/technical/agents-supervision.md` (tableau de bord humain des mêmes données) et
 `.claude/orchestration/playbooks/` (workflows récurrents — format dans `playbooks/FORMAT.md`).
 
-<!-- SOCLE-PROVENANCE: socle : 3a353a8 du 2026-09-29 -->
-> **Socle généré** — tout ce qui suit `## Méthode` vient du hub de supervision (`3a353a8`, 2026-09-29) et sera **réécrit** à la prochaine propagation.
+<!-- SOCLE-PROVENANCE: socle : f3881b3 du 2026-10-01 -->
+> **Socle généré** — tout ce qui suit `## Méthode` vient du hub de supervision (`f3881b3`, 2026-10-01) et sera **réécrit** à la prochaine propagation.
 > Le chapitre « Portée sur ce projet » ci-dessous, lui, n'est jamais réécrit : c'est le travail local.
 
 ## Portée sur ce projet (import du 2026-07-21 ; flotte arbitrée le 2026-07-21)
@@ -281,6 +281,23 @@ description d'intention. Les gestes exacts :
   rendent un rapport, pas un commit, et restent jugés comme avant (sur la seule
   prétention de commit). C'est le `agent_type` du payload qui tranche, pas une
   heuristique sur le texte.
+
+  **Partir d'un gabarit versionné, jamais d'une page blanche** (2026-09-29). Les briefs
+  sont les prompts du hub : ils étaient réécrits à la main dans le scratchpad à chaque run,
+  puis perdus. Les formes récurrentes vivent dans `.claude/orchestration/prompts/`
+  (règles communes de N exécutants parallèles, lot d'exécutant, salle de revue en lecture,
+  propagation flotte, utilisateur simulé — index dans son `README.md`) et portent déjà les
+  clauses ci-dessus. Partir du gabarit, remplir les `{{placeholders}}`, n'écrire à la main
+  que la partie propre à la tâche ; un manque de brief constaté en run se corrige DANS le
+  gabarit (commit = révision). `tests/test_prompt_templates.py` échoue si un gabarit perd
+  une clause obligatoire.
+
+  **Tout commit cite sa demande** (2026-09-29, critère `tracabilite_demande_livrable` à
+  2/10 : 0,02 des commits citaient la demande servie). Le message se termine par un
+  trailer `Refs: <cible|story|run>` — la cible du finding (`VScode5:<slug>`), la story
+  BMAD (`story 1.2`) ou le run (`run <ts>`) réellement servi ; sans demande, on l'omet
+  plutôt que d'en inventer une. Le hook `warn_commit_sans_ref.py` le rappelle (jamais
+  bloquant) ; la consigne est à reporter dans le brief de tout exécutant qui committe.
 - **Arrière-plan** : `run_in_background: true` (défaut) rend la main immédiatement,
   la notification arrive à la fin — ne jamais écrire le résultat à sa place ; s'il
   faut le résultat pour continuer, `run_in_background: false` (synchrone).
@@ -1074,6 +1091,18 @@ tours** (« toujours KO », « pas traité »), la boucle ne converge pas : **ST
 (§ ligne ci-dessus) ET **demander à l'utilisateur de pointer le défaut précis** (numéro de
 slide/page, capture, écran) avant de retoucher quoi que ce soit. Re-deviner produit
 l'oscillation ; l'oracle, c'est l'utilisateur sur SON artefact.
+
+**Décision éditoriale rapportée = AVANT / APRÈS côte à côte** (2026-09-30). Tout compte
+rendu d'une décision éditoriale de l'utilisateur montre le texte AVANT et le texte APRÈS
+côte à côte, l'APRÈS **extrait de l'artefact que l'utilisateur ouvre réellement** (le
+`.docx` relu via python-docx, ou le HTML servi), avec son emplacement exact (onglet,
+section). *Pourquoi* : le 2026-09-30, une décision de l'utilisateur sur la note d'auteur
+de l'article 2 a été appliquée mais pas perçue — le rapport ne montrait ni l'avant ni
+l'après. Mémoire du hub `verifier-avec-l-oracle-utilisateur`.
+
+**Un rapport à l'utilisateur s'ouvre sur « À trancher »** (2026-09-30) : un bloc de
+**3 lignes au plus** listant ce qui attend sa décision (ou « rien »), avant tout le
+reste. *Pourquoi* : dans les rapports longs, les décisions en attente se perdaient.
 
 ### 5. Journaliser
 
