@@ -265,7 +265,7 @@ navigateur Puppeteer, artefact de deploiement demarre reellement).
   repondant, sans Basic Auth) le charge aussi.
 - **#3 Garde-fous CI non branches** — `ci.yml` : commentaire faux corrige
   (`package-lock.json` EST versionne) + `npm ci` au lieu de `npm install` ;
-  etape Python dediee ajoutee pour `test-ppt-charte.py` (geometrie/charte
+  etape Python dediee ajoutee pour `test-ppt-charte.py`, depuis remplacee par le pont `npm test` `test-ppt-charte-si-dispo.js` (geometrie/charte
   python-pptx pure, aucun rendu Chrome/PowerPoint reel — la decision « pas de
   rendu reel en CI » n'est pas remise en cause).
 - **#4 4 rendus de carte PPT quasi-dupliques + contradiction `_CARTE_H_FIXE`** —

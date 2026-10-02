@@ -55,8 +55,8 @@ jobs:
       # python-pptx seul (pas de Chrome/PowerPoint) : suffit à faire tourner
       # réellement test-export-ppt.py (géométrie, via test-export-ppt-si-dispo.js
       # dans `npm test`, sinon SKIP faute de python-pptx) et test-ppt-charte.py
-      # (charte graphique, via test-ppt-charte-si-dispo.js dans `npm test`) — les deux inspectent le modèle
-      # objet python-pptx, sans jamais produire de rendu visuel réel.
+      # (charte graphique, via test-ppt-charte-si-dispo.js dans `npm test`) — les deux
+      # inspectent le modèle objet python-pptx, sans jamais produire de rendu visuel réel.
       - name: Install python-pptx
         run: pip install python-pptx
 
@@ -66,8 +66,9 @@ jobs:
       # Couverture affichée (c8), sans seuil imposé : on mesure d'abord
       # (constat superviseur flotte 2026-07-23 — aucun projet ne mesurait
       # ce que ses tests couvrent). Gate éventuel plus tard.
-      # Inclut désormais test-export-ppt.py pour de vrai (python-pptx installé
-      # ci-dessus), plus l'exécution SKIP sur postes non outillés.
+      # Inclut test-export-ppt.py ET test-ppt-charte.py pour de vrai (python-pptx
+      # installé ci-dessus, via les ponts *-si-dispo.js). En CI (CI=true) un skip
+      # faute de python-pptx est un ÉCHEC, jamais un SKIP silencieux.
       - name: Run tests (with coverage)
         run: npm run test:cov
 
