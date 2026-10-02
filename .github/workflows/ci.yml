@@ -7,7 +7,7 @@ name: CI
 # géométrie et charte graphique du générateur — python-pptx pur, aucun rendu
 # visuel réel — tournent bien ici : test-export-ppt.py (via `npm test` →
 # test-export-ppt-si-dispo.js, qui skip proprement sans python-pptx) et
-# test-ppt-charte.py (étape dédiée ci-dessous, absent de `npm test`).
+# test-ppt-charte.py (via `npm test` → test-ppt-charte-si-dispo.js).
 
 # Jeton du workflow reduit a la lecture du contenu : ce workflow ne publie rien.
 # Sans ce bloc, GITHUB_TOKEN herite du defaut du depot, qui peut etre en
@@ -55,7 +55,7 @@ jobs:
       # python-pptx seul (pas de Chrome/PowerPoint) : suffit à faire tourner
       # réellement test-export-ppt.py (géométrie, via test-export-ppt-si-dispo.js
       # dans `npm test`, sinon SKIP faute de python-pptx) et test-ppt-charte.py
-      # (charte graphique, étape dédiée plus bas) — les deux inspectent le modèle
+      # (charte graphique, via test-ppt-charte-si-dispo.js dans `npm test`) — les deux inspectent le modèle
       # objet python-pptx, sans jamais produire de rendu visuel réel.
       - name: Install python-pptx
         run: pip install python-pptx
@@ -70,13 +70,6 @@ jobs:
       # ci-dessus), plus l'exécution SKIP sur postes non outillés.
       - name: Run tests (with coverage)
         run: npm run test:cov
-
-      # Charte graphique du PPT (police/couleurs/contraste/alignement) sur le
-      # vrai template OCTO — non branché dans `npm test` (app/README.md), ajouté
-      # ici en étape dédiée : ne nécessite que python-pptx, aucun rendu
-      # Chrome/PowerPoint réel (cf. docstring du script).
-      - name: PPT — charte graphique (python-pptx)
-        run: python scripts/test-ppt-charte.py
 
       # Audit des dependances (adoption veille SSDF/OWASP du 2026-09-26).
       # NON bloquant au depart (continue-on-error) : on mesure avant de gater,
