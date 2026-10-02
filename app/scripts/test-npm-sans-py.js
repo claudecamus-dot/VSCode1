@@ -8,8 +8,7 @@ const path = require('path');
 // Premier mot de chaque commande, après découpe sur && || ; | & ( ), retrait des
 // affectations VAR=val et des préfixes cross-env / npx.
 function premiersMots(cmd) {
-  return cmd.split(/&&|\|\||;|\||&|[()]|?
-/).map((seg) => {
+  return cmd.split(/&&|\|\||;|\||&|[()]|\r?\n/).map((seg) => {
     const mots = seg.trim().split(/\s+/).filter(Boolean);
     while (mots.length && (/^[A-Za-z_][A-Za-z0-9_]*=/.test(mots[0]) || /^(cross-env|npx)$/.test(mots[0]))) mots.shift();
     return mots[0] || '';
@@ -19,8 +18,7 @@ const appellePy = (cmd) => premiersMots(cmd).some((m) => /^py(\.exe)?$/i.test(m)
 
 if (process.argv[2] === '--self-test') {
   const mauvais = ['py x.py', 'a && py x', 'a || py x', 'a | py x', '(py x)', 'FOO=1 py x',
-    'cross-env A=1 py x', 'py.exe x', 'a && py', 'a; py x', 'a & py x', 'npx py x', 'a
-py x', '  py x'];
+    'cross-env A=1 py x', 'py.exe x', 'a && py', 'a; py x', 'a & py x', 'npx py x', 'a\npy x', '  py x'];
   const sains = ['node a.js && node b.js', 'node scripts/test-pytest.js', 'echo copy x', 'node py-bridge.js', 'py3 x', 'py.test x'];
   let ko = 0;
   for (const c of mauvais) if (!appellePy(c)) { console.error(`FAIL non détecté : ${c}`); ko++; }
