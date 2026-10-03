@@ -1,5 +1,5 @@
 ---
-updated: 2026-09-30
+updated: 2026-10-03
 generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, étage 1)
 ---
 
@@ -8,7 +8,7 @@ generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, ét
 > ⚠️ **Page générée automatiquement** (hook SessionStart → `.claude/supervision/scan_transcripts.py`).
 > **Ne pas éditer à la main** — toute modification serait écrasée au prochain scan.
 
-Dernier scan : 2026-09-30T08:37:57+02:00 · **31 sessions** (transcripts) · **61** invocations de skills · **45** lancements de sous-agents.
+Dernier scan : 2026-10-03T20:49:00+02:00 · **31 sessions** (transcripts) · **61** invocations de skills · **45** lancements de sous-agents.
 
 ## Skills — usage réel
 
@@ -82,11 +82,11 @@ _Consommés en lisant/exécutant leurs `scripts/`, ou via un sous-agent qui les 
 
 ## TODO agents (constats automatiques)
 
-⚠️ **Mesure incomplète** — 19 transcript(s) sur 31 absent(s) du disque. Un `n=0` ne veut plus dire « jamais invoquée » mais « on ne le voit plus » : les listes ci-dessous sous-estiment l'usage réel. Ne rien désinstaller sur cette base.
+⚠️ **Mesure incomplète** — 24 transcript(s) sur 31 absent(s) du disque. Un `n=0` ne veut plus dire « jamais invoquée » mais « on ne le voit plus » : les listes ci-dessous sous-estiment l'usage réel. Ne rien désinstaller sur cette base.
 
 1. **Désinstaller les shims BMAD dépréciés** (4) : `bmad-create-architecture` → `bmad-architecture`, `bmad-create-prd` → `bmad-prd`, `bmad-edit-prd` → `bmad-prd`, `bmad-validate-prd` → `bmad-prd` — dépréciés par BMAD dans leur propre `description`, chacun avec son remplaçant ; le seul élagage qui ne repose pas sur notre mesure d'usage.
 2. **Skills projet sans usage** : `agent-securite` — vérifier pertinence et déclencheurs.
-3. **Skills en sommeil (>30 j sans usage)** : `documentarian`, `onboarder`, `pptx-verify`, `roadmap-keeper`, `skill-creator`, `ui-designer`.
+3. **Skills en sommeil (>30 j sans usage)** : `auditor`, `auditor-subagent`, `bmad-code-review`, `bmad-review-adversarial-general`, `bmad-review-edge-case-hunter`, `bmad-revue`, `documentarian`, `onboarder`, `pptx-verify`, `qa-engineer`, `reviewer`, `roadmap-keeper`, `security-auditor`, `skill-creator`, `ui-designer`, `ux-designer`.
 
 ## Arbitrages enregistrés
 

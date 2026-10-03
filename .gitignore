@@ -30,3 +30,4 @@ _bmad-output/
 app/dev-server.pid
 app/dev-server.out.log
 app/dev-server.err.log
+.claude/settings.json.avant-migration
