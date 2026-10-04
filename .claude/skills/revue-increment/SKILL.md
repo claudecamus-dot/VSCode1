@@ -1,6 +1,6 @@
 ---
 name: revue-increment
-description: Boucle systématique de revue ET d'amélioration de fin d'incrément (ou de séance). Ne se contente pas de constater : elle applique les correctifs et re-vérifie. Passe en revue le code produit ET la FAÇON de travailler (vérité terrain via git, vérification RÉELLE et pas juste tests verts, cohérence, docs de suivi à jour, capitalisation mémoire), puis exécute les actions d'amélioration (`/code-review --fix`, `/simplify`, edits concrets) et re-vérifie. À lancer avant de considérer un incrément « livré », avant chaque commit de code, ou sur demande de rétrospective. Le hook SessionStart la rappelle à chaque session.
+description: "Boucle systématique de revue ET d'amélioration de fin d'incrément (ou de séance). Ne se contente pas de constater : elle applique les correctifs et re-vérifie. Passe en revue le code produit ET la FAÇON de travailler (vérité terrain via git, vérification RÉELLE et pas juste tests verts, cohérence, docs de suivi à jour, capitalisation mémoire), puis exécute les actions d'amélioration (`/code-review --fix`, `/simplify`, edits concrets) et re-vérifie. À lancer avant de considérer un incrément « livré », avant chaque commit de code, ou sur demande de rétrospective. Le hook SessionStart la rappelle à chaque session."
 ---
 
 # Revue-et-amélioration systématique d'incrément
