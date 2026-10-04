@@ -18,6 +18,7 @@ const { barriereAuth } = require('./auth');
 const { verifierOrigine } = require('./csrf');
 const { entetesSecurite } = require('./entetes-securite');
 const { limiteDebit } = require('./debit');
+const { corpsEchecPpt } = require('./erreur-ppt');
 
 const app = express();
 // Routage sensible a la casse (defaut Express : desactive). Deuxieme ligne de
@@ -41,6 +42,11 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 // terminal — sinon les seules reponses non protegees seraient precisement celles
 // que le navigateur affiche quand quelque chose va mal.
 app.use(entetesSecurite);
+// Sonde de vivacite (HEALTHCHECK Docker, audit 2026-10-04) : AVANT la barriere,
+// car l'orchestrateur n'a pas d'identifiants ; ne renvoie aucune donnee.
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
 app.use(barriereAuth());
 // Anti-CSRF (voir csrf.js) : Basic Auth ne protege pas des requetes rejouees
 // par le navigateur d'une victime depuis une page tierce. Place apres la
@@ -1368,11 +1374,9 @@ app.get('/api/sessions/:id/export-ppt', chargerSession, (req, res) => avecCacheR
   execFile(python, [script, jsonPath, outPath], { timeout: 120_000 }, (err, stdout, stderr) => {
     if (err) {
       nettoyer();
-      const expire = err.killed || err.signal === 'SIGTERM';
-      return res.status(500).json({
-        error: expire ? "La generation du PPT a depasse le delai de 2 minutes." : 'Echec de la generation du PPT.',
-        detail: String(stderr || err.message).slice(0, 500),
-      });
+      // Diagnostic cote serveur uniquement (audit 2026-10-04 : le stderr Python fuyait au client).
+      console.error('[export-ppt] echec python :', String(stderr || err.message).slice(0, 2000));
+      return res.status(500).json(corpsEchecPpt(err));
     }
     // Python peut sortir en 0 sans avoir ecrit son fichier : sans ce controle,
     // res.download echouait APRES l'envoi des en-tetes et la requete restait

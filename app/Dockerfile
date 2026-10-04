@@ -30,7 +30,9 @@ USER node
 ENV PORT=3000
 EXPOSE 3000
 
-# Pas de HEALTHCHECK : aucune route /health (ou equivalente) n'existe dans src/server.js
-# au 2026-09-23 (grep "health" : aucune correspondance).
+# /health (src/server.js) repond 200 sans authentification. node:22-slim n'a pas curl :
+# la sonde utilise fetch natif de Node.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["node", "src/server.js"]
