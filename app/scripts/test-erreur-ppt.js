@@ -17,4 +17,9 @@ assert.ok(!('detail' in corps), 'aucun champ detail');
 const expire = corpsEchecPpt(Object.assign(new Error('x'), { killed: true, signal: 'SIGTERM' }), '');
 assert.match(expire.error, /delai de 2 minutes/);
 
+// Garde statique : aucune reponse de la route d'export ne porte un champ `detail`
+// (err.message / stdout contiennent des chemins serveur).
+const source = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'src', 'server.js'), 'utf8');
+assert.ok(!/detail:\s*String\(/.test(source), 'server.js renvoie encore un champ detail issu de err/stdout');
+
 console.log('Erreur PPT sans fuite stderr OK');

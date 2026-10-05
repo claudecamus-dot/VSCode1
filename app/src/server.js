@@ -1365,7 +1365,8 @@ app.get('/api/sessions/:id/export-ppt', chargerSession, (req, res) => avecCacheR
     fs.writeFileSync(jsonPath, JSON.stringify(payload), 'utf-8');
   } catch (err) {
     nettoyer();
-    return res.status(500).json({ error: 'Preparation de l\'export impossible.', detail: String(err.message).slice(0, 500) });
+    console.error('[export-ppt] ecriture du JSON impossible :', String(err.message).slice(0, 2000));
+    return res.status(500).json({ error: 'Preparation de l\'export impossible.' });
   }
 
   // `timeout` : un python-pptx qui part en boucle, ou un interpreteur qui attend
@@ -1394,9 +1395,9 @@ app.get('/api/sessions/:id/export-ppt', chargerSession, (req, res) => avecCacheR
     }
     if (tailleProduite === 0) {
       nettoyer();
+      console.error('[export-ppt] sortie sans fichier, stdout :', String(stdout || '').slice(0, 2000));
       return res.status(500).json({
         error: "L'export s'est termine sans produire de fichier exploitable.",
-        detail: String(stdout || '').slice(0, 500),
       });
     }
     // Le nettoyage etait passe tel quel comme rappel de `download` : il ignorait
