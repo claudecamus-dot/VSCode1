@@ -105,10 +105,12 @@ function estRepondant(method, pathname) {
 // true si la requete est (ou doit etre tenue pour) en clair. Sans proxy ni
 // AUTH_EXIGE_TLS, une connexion directe n'annonce rien : on ne bloque pas.
 function protocoleEnClair(req, exigeTls) {
-  const xfp = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim().toLowerCase();
-  if (xfp === 'http') return true;
+  // Un proxy qui AJOUTE au lieu d'ecraser donne `https, http` : on lit toutes les valeurs.
+  const valeurs = String(req.headers['x-forwarded-proto'] || '')
+    .split(',').map((v) => v.trim().toLowerCase()).filter(Boolean);
+  if (valeurs.includes('http')) return true;
   if (!exigeTls) return false;
-  return !(xfp === 'https' || req.secure === true);
+  return !(req.secure === true || (valeurs.length > 0 && valeurs.every((v) => v === 'https')));
 }
 
 function refuser(res) {

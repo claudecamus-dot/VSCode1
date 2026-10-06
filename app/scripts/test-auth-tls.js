@@ -39,4 +39,14 @@ assert.equal(r.suite, true, 'AUTH_EXIGE_TLS=1 + req.secure : accepte');
 r = appeler(exige, { path: '/api/sessions/11111111-2222-3333-4444-555555555555/roles', headers: { 'x-forwarded-proto': 'http' } });
 assert.equal(r.statut === 403 || r.suite === true, true, 'chemin repondant : decision inchangee ou refus TLS, jamais 401');
 
+for (const xfp of ['https, http', 'HTTP', 'https,HTTP']) {
+  for (const mw of [defaut, exige]) {
+    r = appeler(mw, { headers: { authorization: credsOk, 'x-forwarded-proto': xfp } });
+    assert.equal(r.suite, false, `X-Forwarded-Proto "${xfp}" : refuse`);
+    assert.equal(r.statut, 403);
+  }
+}
+r = appeler(exige, { headers: { authorization: credsOk, 'x-forwarded-proto': 'https, https' } });
+assert.equal(r.suite, true, 'toutes valeurs https : accepte');
+
 console.log('Auth TLS OK');
