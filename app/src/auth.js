@@ -102,6 +102,15 @@ function estRepondant(method, pathname) {
   return ROUTES_REPONDANT.some((r) => r.m === method && r.re.test(chemin));
 }
 
+// true si la requete est (ou doit etre tenue pour) en clair. Sans proxy ni
+// AUTH_EXIGE_TLS, une connexion directe n'annonce rien : on ne bloque pas.
+function protocoleEnClair(req, exigeTls) {
+  const xfp = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim().toLowerCase();
+  if (xfp === 'http') return true;
+  if (!exigeTls) return false;
+  return !(xfp === 'https' || req.secure === true);
+}
+
 function refuser(res) {
   // Valeur d'en-tete HTTP : ASCII strict (pas de tiret cadratin ni d'accent,
   // sinon ERR_INVALID_CHAR). Le realm reste lisible cote navigateur.
@@ -161,8 +170,20 @@ function barriereAuth(env = process.env) {
     return (req, res, next) => next();
   }
 
+  const exigeTls = env.AUTH_EXIGE_TLS === '1';
+
   return function middlewareAuth(req, res, next) {
     if (estRepondant(req.method, req.path)) return next();
+
+    // Compromis D (securite, 2026-10-06) : Basic Auth ne chiffre rien (base64).
+    // Le TLS est termine par le PaaS, donc invisible ici ; on s'appuie sur
+    // X-Forwarded-Proto. Conditionnel pour ne pas casser le http://localhost
+    // du poste de dev : (a) un proxy qui annonce `http` est TOUJOURS refuse ;
+    // (b) AUTH_EXIGE_TLS=1 exige en plus une preuve de https (req.secure ou
+    // en-tete), a poser en production derriere le PaaS.
+    if (protocoleEnClair(req, exigeTls)) {
+      return res.status(403).json({ error: 'HTTPS requis pour l espace animateur (identifiants non chiffres en HTTP).' });
+    }
 
     const header = req.headers.authorization || '';
     if (!header.startsWith('Basic ')) return refuser(res);

@@ -19,6 +19,7 @@ const { verifierOrigine } = require('./csrf');
 const { entetesSecurite } = require('./entetes-securite');
 const { limiteDebit } = require('./debit');
 const { corpsEchecPpt } = require('./erreur-ppt');
+const { routesFusion } = require('./routes-fusion');
 
 const app = express();
 // Routage sensible a la casse (defaut Express : desactive). Deuxieme ligne de
@@ -285,33 +286,8 @@ app.get('/api/sessions/:id/roles', chargerSession, (req, res) => {
   res.json(db.prepare('SELECT nom FROM roles ORDER BY nom').all().map((r) => r.nom));
 });
 
-// --- Fusion des doublons residuels d'equipe/departement (US3.4bis) ---
-// Champs fusionnables : la valeur sert a construire un nom de colonne, donc on
-// la restreint a une liste blanche pour eviter toute injection SQL.
-const CHAMPS_FUSIONNABLES = { departement: 'departement', equipe: 'equipe' };
-
-app.get('/api/repondants/valeurs/:champ', (req, res) => {
-  const colonne = CHAMPS_FUSIONNABLES[req.params.champ];
-  if (!colonne) return res.status(400).json({ error: 'Champ inconnu (departement ou equipe).' });
-  const valeurs = db
-    .prepare(`SELECT ${colonne} AS valeur, COUNT(*) AS n FROM repondants GROUP BY ${colonne} ORDER BY ${colonne}`)
-    .all();
-  res.json(valeurs);
-});
-
-app.post('/api/repondants/fusion', (req, res) => {
-  if (refuserSiImportEnCours(res)) return;
-  const { champ, source, cible } = req.body || {};
-  const colonne = CHAMPS_FUSIONNABLES[champ];
-  if (!colonne) return res.status(400).json({ error: 'Champ inconnu (departement ou equipe).' });
-  if (!source || !cible || typeof source !== 'string' || typeof cible !== 'string') {
-    return res.status(400).json({ error: 'source et cible sont requis.' });
-  }
-  if (source === cible) return res.status(400).json({ error: 'La source et la cible doivent etre differentes.' });
-  // Reaffectation globale : un doublon peut s'etre glisse dans plusieurs sessions.
-  const info = db.prepare(`UPDATE repondants SET ${colonne} = ? WHERE ${colonne} = ?`).run(cible, source);
-  res.json({ ok: true, reaffectes: info.changes });
-});
+// --- Fusion des doublons residuels d'equipe/departement (US3.4bis) : src/routes-fusion.js ---
+app.use(routesFusion({ db, refuserSiImportEnCours }));
 
 // --- Sessions (Epic 2) ---
 
