@@ -4,7 +4,7 @@
 # | garder : la signaler au hub, qui corrige le canon et re-synchronise.
 # | (Depuis le hub : « py .claude/dispositif/sync_dispositif.py » — ce script
 # |  n'est pas déployé, il n'existe pas dans ce dépôt.)
-# | Provenance canon : cc3bb41 du 2026-10-06 — permet, au prochain sync, de dire si
+# | Provenance canon : ce8b4fad du 2026-10-07 — permet, au prochain sync, de dire si
 # | une différence vient d'une édition locale ou d'une avance du canon (voir
 # | `determiner_cause` dans sync_dispositif.py au hub).
 # +---------------------------------------------------------------------------
@@ -55,6 +55,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 import traceback
 
 SUP_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -107,7 +108,9 @@ SKILL_DOCTOR_MAX_JOURS = 7
 # jamais le passé déjà consommé par l'ancienne (cf. reset_si_detecteur_change).
 # v2 : détection des slash-commands <command-name> (ajoutée le 2026-07-23, restée
 #      sans effet rétroactif jusqu'au 2026-07-27).
-DETECTOR_VERSION = 2
+# v3 : mesures des sidechains de sous-agents (contrat de sortie n0, sur-declaration
+#      de verification n1) - lues dans <session>/subagents/agent-*.jsonl.
+DETECTOR_VERSION = 3
 PROVEN_MIN = 3  # invocations à partir desquelles un agent/skill est "éprouvé"
 DIAGNOSTIC_CADENCE_DAYS = 14  # au-delà : le diagnostic étage 2 est signalé "à relancer"
 DIAGNOSTIC_STALE_RUNS = 3  # runs d'orchestration non couverts qui périment aussi le diagnostic
@@ -293,6 +296,227 @@ def scan(state: dict) -> int:
         files_state[name] = {"offset": new_offset}
     state["last_scan"] = dt.datetime.now().astimezone().isoformat(timespec="seconds")
     return new_events
+
+# --- Sidechains de sous-agents : contrat de sortie (n0) et sur-declaration (n1) ----
+# Emplacements (verifies sur un transcript reel, 2026-10-06) : <projet>/<session>/
+# subagents/agent-<id>.jsonl (+ .meta.json {agentType, toolUseId}). 1re ligne = le
+# brief (message.content en str), lignes `assistant` = message.content[] avec blocs
+# `text` / `tool_use`. Le scan ne conserve QUE des comptes et des identifiants.
+def brief_exige_bloc(brief: str) -> bool:
+    """Un brief n'entre dans n0 que s'il EXIGE LUI-MEME le bloc (STATUT : et NON FERM),
+    pas parce qu'il porte BUDGET : (marqueur anterieur au contrat a 5 slots)."""
+    h = brief.upper().replace("É", "E")
+    return "STATUT :" in h and "NON FERM" in h
+SLOTS_SORTIE = ("STATUT", "COMMIT", "FAITS INFIRM", "INFORMATION INSUFFISANTE", "NON FERM")
+FENETRE_BLOC_SORTIE = 1500  # le bloc doit CLORE le rendu : on ne cherche qu'en queue
+CLAIM_VERIF_RE = re.compile(
+    r"\b(?:test[ée]s?|pytest\s+(?:vert|ok)|v[ée]rifi[ée]s?|commit\s+fait)\b", re.I)
+OUTILS_PREUVE = ("Bash", "PowerShell", "Read")
+LISTE_MAX = 50
+
+
+PREUVE_RE = re.compile(rb'"name"\s*:\s*"(?:Bash|PowerShell|Read)"')
+TAIL_OCTETS = 64 * 1024          # le rendu final se lit en QUEUE de fichier
+TAIL_MAX = 4 * 1024 * 1024       # elargissement maximal si le dernier message est enorme
+SIDECHAIN_BUDGET_S = 20.0        # au-dela : on cesse d'analyser les NOUVEAUX fichiers
+
+
+def _texte_blocs(content) -> str:
+    """Texte d'un content[] ou str ; tout ce qui n'est pas str est ignore."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "".join(b["text"] for b in content
+                       if isinstance(b, dict) and b.get("type") == "text"
+                       and isinstance(b.get("text"), str))
+    return ""
+
+
+def _contenu(obj):
+    msg = obj.get("message") if isinstance(obj, dict) else None
+    return msg.get("content") if isinstance(msg, dict) else None
+
+
+def _premiere_ligne(fh) -> str:
+    brief = ""
+    for raw in fh:
+        try:
+            obj = json.loads(raw.decode("utf-8", "replace"))
+        except ValueError:
+            continue
+        if isinstance(obj, dict) and obj.get("type") == "user":
+            brief = _texte_blocs(_contenu(obj))
+            break
+    return brief
+
+
+def _rendu_en_queue(fh, taille: int):
+    """(rendu, ts) du dernier message assistant portant du texte, lu depuis la fin."""
+    fenetre = TAIL_OCTETS
+    while True:
+        debut = max(0, taille - fenetre)
+        fh.seek(debut)
+        blob = fh.read()
+        lignes = blob.split(b"\n")
+        if debut > 0:
+            lignes = lignes[1:]  # 1re ligne probablement tronquee
+        rendu, ts = "", ""
+        for raw in reversed(lignes):
+            if b'"assistant"' not in raw:
+                continue
+            try:
+                obj = json.loads(raw.decode("utf-8", "replace"))
+            except ValueError:
+                continue
+            if not (isinstance(obj, dict) and obj.get("type") == "assistant"):
+                continue
+            texte = _texte_blocs(_contenu(obj))
+            if texte.strip():
+                rendu = texte
+                ts = obj.get("timestamp") if isinstance(obj.get("timestamp"), str) else ""
+                break
+        if rendu or debut == 0 or fenetre >= TAIL_MAX:
+            return rendu, ts
+        fenetre *= 2
+
+
+def _a_un_outil_de_preuve(path: str) -> bool:
+    """Lecture octets par blocs (pas de JSON) : cherche un tool_use Bash/PowerShell/Read."""
+    reste = b""
+    with open(path, "rb") as fh:
+        while True:
+            bloc = fh.read(1 << 20)
+            if not bloc:
+                return False
+            if PREUVE_RE.search(reste + bloc):
+                return True
+            reste = bloc[-64:]
+
+
+def analyser_sidechain(path: str, type_agent=None) -> dict:
+    """Entree de cache d'UN sidechain : comptes et identifiants, jamais de texte.
+    Toute forme inattendue (JSON profond, champs non str...) -> {"x": 1}, jamais une
+    exception."""
+    ident = os.path.basename(path)[len("agent-"):-len(".jsonl")]
+    res = {"a": "(inconnu)", "t": "", "i": ident, "e": 0, "r": 0, "c": 0, "v": 0, "p": 0, "x": 0}
+    try:
+        with open(path, "rb") as fh:  # UNE ouverture : open() domine le cout (mesure)
+            brief = _premiere_ligne(fh)
+            rendu, ts = _rendu_en_queue(fh, os.fstat(fh.fileno()).st_size)
+        res["t"] = ts
+        res["e"] = int(brief_exige_bloc(brief))
+        res["r"] = int(bool(rendu.strip()))
+        if res["r"]:
+            res["c"] = int(rendu_conforme(rendu))
+            res["v"] = int(bool(CLAIM_VERIF_RE.search(rendu)))
+            if res["v"]:
+                res["p"] = int(_a_un_outil_de_preuve(path))
+    except Exception:  # noqa: BLE001 - un fichier hostile ne doit jamais arreter le scan
+        res.update({"e": 0, "r": 0, "c": 0, "v": 0, "p": 0, "x": 1})
+    if res["e"] or res["v"]:  # le type n'est utile qu'aux entrees listables
+        res["a"] = type_agent or _type_agent(path)
+    return res
+
+
+def rendu_conforme(rendu: str) -> bool:
+    """Les 5 slots, dans l'ordre, en queue du rendu (accents/casse tolerants)."""
+    queue = rendu[-FENETRE_BLOC_SORTIE:].upper().replace("É", "E")
+    pos = 0
+    for slot in SLOTS_SORTIE:
+        i = queue.find(slot, pos)
+        if i < 0:
+            return False
+        pos = i + len(slot)
+    return True
+
+
+def _type_agent(f: str) -> str:
+    try:
+        with open(f[:-len(".jsonl")] + ".meta.json", encoding="utf-8") as fh:
+            meta = json.load(fh)
+        if isinstance(meta, dict) and isinstance(meta.get("agentType"), str):
+            return meta["agentType"]
+    except Exception:  # noqa: BLE001
+        pass
+    return "(inconnu)"
+
+
+def mesure_sidechains(tdir: str, cache: dict = None, budget_s: float = None) -> dict:
+    """n0 + n1. Jamais de texte du brief ou du rendu dans le resultat. Sans aucun
+    sidechain atteignable : mesurable=False + raison, JAMAIS un 0 qui passerait pour
+    un bon score. `cache` (dans le state) : {chemin: {"k": [mtime_ns, taille], "r": entree}} ;
+    seuls les fichiers nouveaux/modifies sont analyses, dans la limite de `budget_s`
+    (au-dela : mesure `partielle`, le reste sera repris au scan suivant)."""
+    cache = {} if cache is None else cache
+    budget_s = SIDECHAIN_BUDGET_S if budget_s is None else budget_s
+    fichiers = sorted(glob.glob(os.path.join(tdir, "*", "subagents", "agent-*.jsonl")))
+    if not fichiers:
+        raison = "aucun <session>/subagents/agent-*.jsonl sous " + os.path.basename(tdir)
+        return {"n0": {"mesurable": False, "raison": raison},
+                "n1": {"mesurable": False, "raison": raison}}
+    debut = time.monotonic()
+    restants = 0
+    cles = set()
+    for f in fichiers:
+        cle = os.path.relpath(f, tdir)
+        cles.add(cle)
+        try:
+            st = os.stat(f)
+        except OSError:
+            continue
+        empreinte = [st.st_mtime_ns, st.st_size]
+        if cle in cache and cache[cle].get("k") == empreinte:
+            continue
+        if time.monotonic() - debut > budget_s:
+            restants += 1
+            continue
+        cache[cle] = {"k": empreinte, "r": analyser_sidechain(f)}
+    for cle in [c for c in cache if c not in cles]:
+        del cache[cle]
+    n0 = {"mesurable": True, "total": 0, "conformes": 0, "non_conformes": [], "sans_rendu": 0}
+    n1 = {"mesurable": True, "declarants": 0, "sans_outil": []}
+    illisibles = 0
+    for cle in sorted(cache):
+        r = cache[cle]["r"]
+        ref = {"agent": r["a"], "ts": r["t"], "id": r["i"]}
+        if r["x"]:
+            illisibles += 1
+            continue
+        if r["e"]:
+            if not r["r"]:
+                n0["sans_rendu"] += 1
+            else:
+                n0["total"] += 1
+                if r["c"]:
+                    n0["conformes"] += 1
+                else:
+                    n0["non_conformes"].append(ref)
+        if r["v"]:
+            n1["declarants"] += 1
+            if not r["p"]:
+                n1["sans_outil"].append(ref)
+    n0["ratio"] = round(n0["conformes"] / n0["total"], 3) if n0["total"] else None
+    n1["ratio_sans_outil"] = (round(len(n1["sans_outil"]) / n1["declarants"], 3)
+                              if n1["declarants"] else None)
+    for bloc, cle in ((n0, "non_conformes"), (n1, "sans_outil")):
+        bloc[cle + "_total"] = len(bloc[cle])
+        bloc[cle] = bloc[cle][:LISTE_MAX]
+    for bloc in (n0, n1):
+        bloc["illisibles"] = illisibles
+        bloc["partielle"] = restants > 0
+        bloc["restants"] = restants
+    return {"n0": n0, "n1": n1}
+
+
+def resume_sidechains(m: dict) -> str:
+    n0, n1 = m.get("n0") or {}, m.get("n1") or {}
+    if not n0.get("mesurable"):
+        return (" (contrat de sortie / sur-declaration : non mesurable - "
+                + str(n0.get("raison")) + ")")
+    partielle = " ; mesure PARTIELLE" if n0.get("partielle") else ""
+    return (f" (contrat de sortie : {n0['conformes']}/{n0['total']} conformes ; "
+            f"sur-declaration : {n1['sans_outil_total']}/{n1['declarants']} "
+            f"sans outil de preuve{partielle})")
 
 
 def scan_journal_usage(state: dict) -> int:
@@ -2448,6 +2672,13 @@ def main(argv) -> int:
     # scan() donc sur le state['files'] à jour du passage courant, avant save_state
     # pour que le constat soit persisté avec le reste de l'état.
     state["mesure_incomplete"] = mesure_incomplete(state)
+    try:  # jamais bloquant : save_state() doit toujours s'executer
+        state["sidechains"] = mesure_sidechains(
+            transcript_dir(), state.setdefault("sidechain_cache", {}))
+    except Exception as exc:  # noqa: BLE001
+        raison = "erreur " + type(exc).__name__
+        state["sidechains"] = {"n0": {"mesurable": False, "raison": raison},
+                               "n1": {"mesurable": False, "raison": raison}}
     save_state(state)
     fam = installed_skills()
     runs = load_jsonl(RUNS_PATH)
@@ -2511,6 +2742,7 @@ def main(argv) -> int:
     if mesure.get("journal_usage_muet"):
         detail += (" (journal d'usage present mais illisible : le 3e canal ne mesure "
                     "plus rien depuis un scan indetermine)")
+    detail += resume_sidechains(state.get("sidechains") or {})
     if html_ok is False:
         detail += " (wiki.html sans marqueurs TODO-AGENTS-HTML : bloc HTML non mis a jour)"
     if not diag_a_jour:

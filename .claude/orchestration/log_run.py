@@ -4,7 +4,7 @@
 # | garder : la signaler au hub, qui corrige le canon et re-synchronise.
 # | (Depuis le hub : « py .claude/dispositif/sync_dispositif.py » — ce script
 # |  n'est pas déployé, il n'existe pas dans ce dépôt.)
-# | Provenance canon : cc3bb41 du 2026-10-06 — permet, au prochain sync, de dire si
+# | Provenance canon : ce8b4fad du 2026-10-07 — permet, au prochain sync, de dire si
 # | une différence vient d'une édition locale ou d'une avance du canon (voir
 # | `determiner_cause` dans sync_dispositif.py au hub).
 # +---------------------------------------------------------------------------
@@ -449,6 +449,7 @@ def solder(argv) -> int:
 # `optimiseur.py` (cellule playbook x gabarit x topologie), jamais le journal lui-meme.
 TOPOLOGIES = ("agent-seul", "fan-out", "salle", "workflow", "cascade")
 BRAS = ("temoin", "variante", "topologie-reduite")
+MODES_SALLE = ("classique", "neuronale")   # absent = classique ; seulement si topologie == "salle"
 CHAMPS_ENTIERS_OPT = ("tokens", "duree_s", "budget_tokens")
 # Lot 2 (2026-10-03) : entiers >= 0 stricts (pas de float, pas de bool, pas de null).
 CHAMPS_ENTIERS_STRICTS = ("branches_lancees", "duree_branche_max_s")
@@ -533,6 +534,13 @@ def verifier_gabarit_topologie(run: dict) -> str | None:
     if "bras" in run and run["bras"] not in BRAS:
         return (f"log_run REFUS : bras invalide : {run['bras']!r}.\n"
                 f"  Attendu : {' | '.join(BRAS)} - ou champ absent.")
+    if "mode_salle" in run:
+        if run.get("topologie") != "salle":
+            return ("log_run REFUS : mode_salle n'est autorise que si topologie == "
+                    "\"salle\".\n  Retirer mode_salle ou poser topologie=salle.")
+        if run["mode_salle"] not in MODES_SALLE:
+            return (f"log_run REFUS : mode_salle invalide : {run['mode_salle']!r}.\n"
+                    f"  Attendu : {' | '.join(MODES_SALLE)} - ou champ absent.")
     if "tache_id" in run and not (isinstance(run["tache_id"], str)
                                   and run["tache_id"].strip()):
         return (f"log_run REFUS : tache_id invalide : {run['tache_id']!r}.\n"
