@@ -72,7 +72,7 @@ sous-agents.
 }
 ```
 
-<!-- SOCLE-PROVENANCE: socle : 191f3121 du 2026-10-07 -->
-> **Socle généré** — tout ce qui PRÉCÈDE ce bandeau vient du hub de supervision (`191f3121`, 2026-10-07) et sera **réécrit** à la prochaine propagation.
+<!-- SOCLE-PROVENANCE: socle : e5276048 du 2026-10-07 -->
+> **Socle généré** — tout ce qui PRÉCÈDE ce bandeau vient du hub de supervision (`e5276048`, 2026-10-07) et sera **réécrit** à la prochaine propagation.
 > Le chapitre « Portée sur ce projet » placé après ce bandeau, lui, n'est jamais réécrit : c'est le travail local.
 
