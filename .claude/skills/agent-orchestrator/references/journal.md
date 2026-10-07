@@ -69,6 +69,7 @@ les valeurs permises (`verifier_gabarit_topologie`). Ils alimentent
 | `gabarit` | nom de fichier de `prompts/*.md` sans extension, ou `null` | Gabarit de brief utilisé |
 | `topologie` | `agent-seul` \| `fan-out` \| `salle` \| `workflow` \| `cascade` | Forme du pilotage |
 | `bras` | `temoin` \| `variante` \| `topologie-reduite` | Rôle dans une comparaison appariée ; `topologie-reduite` se compare à `variante` (le bras multi-agent) sur le même `tache_id` |
+| `mode_salle` | `classique` \| `neuronale` | Mode de la salle ; OPTIONNEL (absent = classique), autorisé seulement si `topologie` = `salle` (refus sinon). `optimiseur.py --salles` ventile par mode |
 | `tache_id` | chaîne non vide | Identifiant commun aux deux bras d'une paire |
 | `tokens`, `duree_s`, `budget_tokens` | nombre ≥ 0 ou `null` | Coût, durée, budget égal des deux bras |
 | `famille` | chaîne non vide | Famille de tâches : un candidat n'est `gagnant` que s'il gagne sur ≥ 2 familles, sinon `donnees-insuffisantes` (« une seule famille ») |

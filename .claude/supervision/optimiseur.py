@@ -545,6 +545,18 @@ def _voix_de(run):
     return out
 
 
+def _par_mode(salles):
+    """Ventilation par `mode_salle` (absent ou invalide = classique), ratios inchanges."""
+    out = {m: {"salles": 0, "desaccords": 0, "tour2_joues": 0} for m in ("classique", "neuronale")}
+    for r in salles:
+        m = r.get("mode_salle") if r.get("mode_salle") == "neuronale" else "classique"
+        out[m]["salles"] += 1
+        if isinstance(r.get("tour2"), bool):
+            out[m]["desaccords"] += 1
+            out[m]["tour2_joues"] += 1 if r["tour2"] else 0
+    return out
+
+
 def indicateurs_salles(runs, n_dernieres=DERNIERES_SALLES, seances_min=SEANCES_LENTILLE_A_ZERO):
     """Mesure des salles : tour 2 joue, trouvailles retenues par lentille.
 
@@ -572,7 +584,7 @@ def indicateurs_salles(runs, n_dernieres=DERNIERES_SALLES, seances_min=SEANCES_L
             "fenetre": len(fenetre), "retenues_par_lentille": retenues_fenetre,
             "lentilles_a_zero": sorted(n for n, k in seances.items()
                                        if k >= seances_min and retenues_tot[n] == 0),
-            "seances_min": seances_min}
+            "seances_min": seances_min, "par_mode": _par_mode(salles)}
 
 
 def rapport_salles(ind):
@@ -588,6 +600,8 @@ def rapport_salles(ind):
         lg.append(f"  {n}: {k}")
     if not ind["retenues_par_lentille"]:
         lg.append("  (aucune voix journalisee)")
+    for m, v in ind.get("par_mode", {}).items():
+        lg.append(f"mode {m} : {v['salles']} salle(s) ; tour 2 joue {v['tour2_joues']}/{v['desaccords']}")
     lg.append(f"lentilles a 0 retenue sur >= {ind['seances_min']} seances : "
               + (", ".join(ind["lentilles_a_zero"]) or "aucune"))
     return "\n".join(lg)
