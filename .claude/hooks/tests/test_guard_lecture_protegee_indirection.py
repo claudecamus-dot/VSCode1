@@ -231,4 +231,5 @@ class TestLesDeuxVoletsNInterferentPas:
         assert not _bloque(cmd)
 
     def test_quotes_desequilibrees_font_fail_open(self):
-        assert guard._blocked_reason('git push --force "') is None
+        assert "non analysable" in guard._blocked_reason('git push --force "')
+        assert guard._blocked_reason('echo "') is None

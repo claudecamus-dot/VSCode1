@@ -73,8 +73,10 @@ def test_force_as_quoted_message_data_allowed():
     assert H._blocked_reason('git commit -m "docs: git push --force expliqué"') is None
 
 
-def test_unbalanced_quotes_fail_open():
-    assert H._blocked_reason('git push --force "oops') is None
+def test_unbalanced_quotes_no_longer_let_destructive_through():
+    # Hub SEC lot 2026-10-04: unparsable command gets a conservative lexical analysis.
+    assert "non analysable" in H._blocked_reason('git push --force "oops')
+    assert H._blocked_reason('echo "') is None
 
 
 # --- _segments : bornes de commande ---
