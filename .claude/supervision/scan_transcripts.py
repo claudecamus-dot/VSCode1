@@ -4,7 +4,7 @@
 # | garder : la signaler au hub, qui corrige le canon et re-synchronise.
 # | (Depuis le hub : « py .claude/dispositif/sync_dispositif.py » — ce script
 # |  n'est pas déployé, il n'existe pas dans ce dépôt.)
-# | Provenance canon : ce8b4fad du 2026-10-07 — permet, au prochain sync, de dire si
+# | Provenance canon : ad5e2784 du 2026-10-08 — permet, au prochain sync, de dire si
 # | une différence vient d'une édition locale ou d'une avance du canon (voir
 # | `determiner_cause` dans sync_dispositif.py au hub).
 # +---------------------------------------------------------------------------
@@ -110,7 +110,7 @@ SKILL_DOCTOR_MAX_JOURS = 7
 #      sans effet rétroactif jusqu'au 2026-07-27).
 # v3 : mesures des sidechains de sous-agents (contrat de sortie n0, sur-declaration
 #      de verification n1) - lues dans <session>/subagents/agent-*.jsonl.
-DETECTOR_VERSION = 3
+DETECTOR_VERSION = 4
 PROVEN_MIN = 3  # invocations à partir desquelles un agent/skill est "éprouvé"
 DIAGNOSTIC_CADENCE_DAYS = 14  # au-delà : le diagnostic étage 2 est signalé "à relancer"
 DIAGNOSTIC_STALE_RUNS = 3  # runs d'orchestration non couverts qui périment aussi le diagnostic
@@ -332,6 +332,20 @@ def _texte_blocs(content) -> str:
     return ""
 
 
+def _handback(content):
+    """Message du tool_use SubagentHandback : c'est le VRAI rendu d'un sous-agent
+    (60 cas sur 60 mesures, 2026-10-07) ; les blocs `text` n'en sont que la reflexion."""
+    if isinstance(content, list):
+        for b in content:
+            if (isinstance(b, dict) and b.get("type") == "tool_use"
+                    and b.get("name") == "SubagentHandback"):
+                inp = b.get("input")
+                m = inp.get("message") if isinstance(inp, dict) else None
+                if isinstance(m, str) and m.strip():
+                    return m
+    return ""
+
+
 def _contenu(obj):
     msg = obj.get("message") if isinstance(obj, dict) else None
     return msg.get("content") if isinstance(msg, dict) else None
@@ -370,7 +384,7 @@ def _rendu_en_queue(fh, taille: int):
                 continue
             if not (isinstance(obj, dict) and obj.get("type") == "assistant"):
                 continue
-            texte = _texte_blocs(_contenu(obj))
+            texte = _handback(_contenu(obj)) or _texte_blocs(_contenu(obj))
             if texte.strip():
                 rendu = texte
                 ts = obj.get("timestamp") if isinstance(obj.get("timestamp"), str) else ""
@@ -378,6 +392,57 @@ def _rendu_en_queue(fh, taille: int):
         if rendu or debut == 0 or fenetre >= TAIL_MAX:
             return rendu, ts
         fenetre *= 2
+
+
+SURDECL_VERIF_RE = CLAIM_VERIF_RE
+SURDECL_TESTS_RE = re.compile(r"\b\d+\s+passed\b|\btests?\s+(?:verts?|pass[ée]s?)\b", re.I)
+# « commit <sha> » (citation) n'est PAS une affirmation : seuls ces tours comptent.
+SURDECL_COMMIT_RE = re.compile(r"\b(?:committed|commit[ée]s?|commit\s+fait)\b", re.I)
+CMD_PYTEST_RE = re.compile(r"pytest", re.I)
+CMD_GIT_COMMIT_RE = re.compile(r"\bgit\b[^\n]*\bcommit\b")
+
+
+def _outils_et_commandes(path: str):
+    """(nombre de tool_use hors SubagentHandback, commandes Bash/PowerShell concatenees)."""
+    n, cmds = 0, []
+    with open(path, "rb") as fh:
+        for raw in fh:
+            if b"tool_use" not in raw:
+                continue
+            try:
+                obj = json.loads(raw.decode("utf-8", "replace"))
+            except ValueError:
+                continue
+            c = _contenu(obj)
+            if not isinstance(c, list):
+                continue
+            for b in c:
+                if isinstance(b, dict) and b.get("type") == "tool_use" \
+                        and b.get("name") != "SubagentHandback":
+                    n += 1
+                    inp = b.get("input")
+                    if b.get("name") in ("Bash", "PowerShell") and isinstance(inp, dict) \
+                            and isinstance(inp.get("command"), str):
+                        cmds.append(inp["command"])
+    return n, "\n".join(cmds)
+
+
+def surdeclaration_restreinte(rendu: str, path: str) -> int:
+    """1 si le rendu affirme (a) une verification sans AUCUN outil, (b) des tests verts sans
+    pytest, (c) un commit fait sans `git commit`. Compteur seulement, jamais bloquant."""
+    verif = bool(SURDECL_VERIF_RE.search(rendu))
+    tests = bool(SURDECL_TESTS_RE.search(rendu))
+    commit = bool(SURDECL_COMMIT_RE.search(rendu))
+    if not (verif or tests or commit):
+        return 0
+    n, cmds = _outils_et_commandes(path)
+    if verif and n == 0:
+        return 1
+    if tests and not CMD_PYTEST_RE.search(cmds):
+        return 1
+    if commit and not CMD_GIT_COMMIT_RE.search(cmds):
+        return 1
+    return 0
 
 
 def _a_un_outil_de_preuve(path: str) -> bool:
@@ -398,7 +463,7 @@ def analyser_sidechain(path: str, type_agent=None) -> dict:
     Toute forme inattendue (JSON profond, champs non str...) -> {"x": 1}, jamais une
     exception."""
     ident = os.path.basename(path)[len("agent-"):-len(".jsonl")]
-    res = {"a": "(inconnu)", "t": "", "i": ident, "e": 0, "r": 0, "c": 0, "v": 0, "p": 0, "x": 0}
+    res = {"a": "(inconnu)", "t": "", "i": ident, "e": 0, "r": 0, "c": 0, "v": 0, "p": 0, "s": 0, "x": 0}
     try:
         with open(path, "rb") as fh:  # UNE ouverture : open() domine le cout (mesure)
             brief = _premiere_ligne(fh)
@@ -407,12 +472,13 @@ def analyser_sidechain(path: str, type_agent=None) -> dict:
         res["e"] = int(brief_exige_bloc(brief))
         res["r"] = int(bool(rendu.strip()))
         if res["r"]:
+            res["s"] = surdeclaration_restreinte(rendu, path)
             res["c"] = int(rendu_conforme(rendu))
             res["v"] = int(bool(CLAIM_VERIF_RE.search(rendu)))
             if res["v"]:
                 res["p"] = int(_a_un_outil_de_preuve(path))
     except Exception:  # noqa: BLE001 - un fichier hostile ne doit jamais arreter le scan
-        res.update({"e": 0, "r": 0, "c": 0, "v": 0, "p": 0, "x": 1})
+        res.update({"e": 0, "r": 0, "c": 0, "v": 0, "p": 0, "s": 0, "x": 1})
     if res["e"] or res["v"]:  # le type n'est utile qu'aux entrees listables
         res["a"] = type_agent or _type_agent(path)
     return res
@@ -474,7 +540,7 @@ def mesure_sidechains(tdir: str, cache: dict = None, budget_s: float = None) -> 
     for cle in [c for c in cache if c not in cles]:
         del cache[cle]
     n0 = {"mesurable": True, "total": 0, "conformes": 0, "non_conformes": [], "sans_rendu": 0}
-    n1 = {"mesurable": True, "declarants": 0, "sans_outil": []}
+    n1 = {"mesurable": True, "declarants": 0, "sans_outil": [], "surdeclaration_restreinte": 0}
     illisibles = 0
     for cle in sorted(cache):
         r = cache[cle]["r"]
@@ -491,6 +557,7 @@ def mesure_sidechains(tdir: str, cache: dict = None, budget_s: float = None) -> 
                     n0["conformes"] += 1
                 else:
                     n0["non_conformes"].append(ref)
+        n1["surdeclaration_restreinte"] += int(r.get("s", 0))
         if r["v"]:
             n1["declarants"] += 1
             if not r["p"]:
