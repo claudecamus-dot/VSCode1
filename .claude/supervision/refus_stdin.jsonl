@@ -4,3 +4,5 @@
 {"ts": "2026-09-28T13:33:08+00:00", "hook": "guard_stories_avant_dev", "motif": "delai", "delai_s": 5.0}
 {"ts": "2026-09-28T13:33:43+00:00", "hook": "guard_destructive_git", "motif": "illisible", "delai_s": 5.0}
 {"ts": "2026-09-28T13:34:53+00:00", "hook": "guard_destructive_git", "motif": "illisible", "delai_s": 5.0}
+{"ts": "2026-10-07T14:55:34+00:00", "hook": "guard_destructive_git", "motif": "illisible", "delai_s": 15.0, "attente_s": 0.002}
+{"ts": "2026-10-07T14:58:20+00:00", "hook": "guard_destructive_git", "motif": "illisible", "delai_s": 15.0, "attente_s": 0.002}
