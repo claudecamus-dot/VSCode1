@@ -290,8 +290,9 @@ vérifier. Personne ne décide en lisant un dialogue.
 
 ## Mode neuronal
 
-Deux modes de salle, journalisés par `mode_salle` (`classique` | `neuronale`, absent = classique).
-Forçage par l'utilisateur : « salle classique : ... » ou « salle neuronale : ... » en tête de demande.
+Trois modes de salle, journalisés par `mode_salle` (`classique` | `neuronale` | `neuronale-augmentee`, absent = classique).
+Forçage par l'utilisateur : « salle classique : ... », « salle neuronale : ... » ou « salle neuronale augmentée : ... » en tête de demande.
+`neuronale-augmentee` = neuronale + espace partagé : les rendus du tour 1 sont signés dans un fichier commun en ajout seul que chaque voix lit au tour 2. Essai du 2026-10-08 (sujet A, exploratoire) : le tableau commun n'a pas fait mieux qu'un tour 2 renforcé ; ce mode reste à mesurer.
 La neuronale est PROPOSÉE (jamais imposée) sur désaccord documenté, ou décision irréversible/flotte.
 
 Protocole neuronal :
