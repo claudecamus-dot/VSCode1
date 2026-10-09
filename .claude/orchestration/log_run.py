@@ -4,7 +4,7 @@
 # | garder : la signaler au hub, qui corrige le canon et re-synchronise.
 # | (Depuis le hub : « py .claude/dispositif/sync_dispositif.py » — ce script
 # |  n'est pas déployé, il n'existe pas dans ce dépôt.)
-# | Provenance canon : ad5e2784 du 2026-10-08 — permet, au prochain sync, de dire si
+# | Provenance canon : 4b4bcda2 du 2026-10-09 — permet, au prochain sync, de dire si
 # | une différence vient d'une édition locale ou d'une avance du canon (voir
 # | `determiner_cause` dans sync_dispositif.py au hub).
 # +---------------------------------------------------------------------------
@@ -449,7 +449,9 @@ def solder(argv) -> int:
 # `optimiseur.py` (cellule playbook x gabarit x topologie), jamais le journal lui-meme.
 TOPOLOGIES = ("agent-seul", "fan-out", "salle", "workflow", "cascade")
 BRAS = ("temoin", "variante", "topologie-reduite")
-MODES_SALLE = ("classique", "neuronale")   # absent = classique ; seulement si topologie == "salle"
+MODES_SALLE = ("classique", "neuronale", "neuronale-augmentee")   # absent = classique ; seulement si topologie == "salle"
+# neuronale-augmentee = neuronale + espace partage (tableau commun en ajout seul, lu par les voix au tour 2)
+TOUR2_NA = "na"   # salle sans desaccord au tour 1 ; true = tour 2 joue, false = desaccord sans tour 2
 CHAMPS_ENTIERS_OPT = ("tokens", "duree_s", "budget_tokens")
 # Lot 2 (2026-10-03) : entiers >= 0 stricts (pas de float, pas de bool, pas de null).
 CHAMPS_ENTIERS_STRICTS = ("branches_lancees", "duree_branche_max_s")
@@ -470,9 +472,10 @@ def verifier_salle_voix(run: dict) -> str | None:
     tour 2). `voix` : liste de {nom: str non vide, modele: str non vide, duree_s: nombre
     fini >= 0, trouvailles_retenues: entier >= 0}. `famille` : chaine non vide.
     """
-    if "tour2" in run and not isinstance(run["tour2"], bool):
+    if "tour2" in run and not (isinstance(run["tour2"], bool) or run["tour2"] == TOUR2_NA):
         return (f"log_run REFUS : tour2 invalide : {run['tour2']!r}.\n"
-                "  Attendu : true | false (booleen) - ou champ absent.")
+                "  Attendu : true | false (booleen) | \"na\" (pas de desaccord) - "
+                "ou champ absent.")
     if "famille" in run and not (isinstance(run["famille"], str) and run["famille"].strip()):
         return (f"log_run REFUS : famille invalide : {run['famille']!r}.\n"
                 "  Attendu : chaine non vide (famille de taches) - ou champ absent.")
@@ -501,6 +504,20 @@ def verifier_salle_voix(run: dict) -> str | None:
         if doublons:
             return (f"log_run REFUS : voix en double : {', '.join(doublons)}.\n"
                     "  Attendu : un nom de voix UNIQUE par run (une seance par lentille).")
+    return None
+
+
+def verifier_champs_salle_requis(run: dict) -> str | None:
+    """A l'APPEND seulement (jamais `--solde`, jamais les lignes deja ecrites) : un run
+    `topologie == "salle"` DOIT porter `tour2` (true | false | "na") et `mode_salle`.
+    Les autres topologies, ou l'absence de topologie, ne sont pas concernes."""
+    if run.get("topologie") != "salle":
+        return None
+    manquants = [c for c in ("tour2", "mode_salle") if c not in run]
+    if manquants:
+        return (f"log_run REFUS : topologie=salle exige {', '.join(manquants)}.\n"
+                "  tour2 : true (tour 2 joue) | false (desaccord sans tour 2) | \"na\" "
+                "(pas de desaccord) ; mode_salle : " + " | ".join(MODES_SALLE) + ".")
     return None
 
 
@@ -1191,6 +1208,10 @@ def main(argv) -> int:
     refus_gt = verifier_gabarit_topologie(run)
     if refus_gt:
         print(refus_gt)
+        return 1
+    refus_salle = verifier_champs_salle_requis(run)
+    if refus_salle:
+        print(refus_salle)
         return 1
     refus_validation = verifier_validation_utilisateur(run, au_solde=False)
     if refus_validation:

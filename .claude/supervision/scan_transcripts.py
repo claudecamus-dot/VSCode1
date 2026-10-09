@@ -4,7 +4,7 @@
 # | garder : la signaler au hub, qui corrige le canon et re-synchronise.
 # | (Depuis le hub : « py .claude/dispositif/sync_dispositif.py » — ce script
 # |  n'est pas déployé, il n'existe pas dans ce dépôt.)
-# | Provenance canon : ad5e2784 du 2026-10-08 — permet, au prochain sync, de dire si
+# | Provenance canon : 4b4bcda2 du 2026-10-09 — permet, au prochain sync, de dire si
 # | une différence vient d'une édition locale ou d'une avance du canon (voir
 # | `determiner_cause` dans sync_dispositif.py au hub).
 # +---------------------------------------------------------------------------
@@ -308,7 +308,6 @@ def brief_exige_bloc(brief: str) -> bool:
     h = brief.upper().replace("É", "E")
     return "STATUT :" in h and "NON FERM" in h
 SLOTS_SORTIE = ("STATUT", "COMMIT", "FAITS INFIRM", "INFORMATION INSUFFISANTE", "NON FERM")
-FENETRE_BLOC_SORTIE = 1500  # le bloc doit CLORE le rendu : on ne cherche qu'en queue
 CLAIM_VERIF_RE = re.compile(
     r"\b(?:test[ée]s?|pytest\s+(?:vert|ok)|v[ée]rifi[ée]s?|commit\s+fait)\b", re.I)
 OUTILS_PREUVE = ("Bash", "PowerShell", "Read")
@@ -319,6 +318,22 @@ PREUVE_RE = re.compile(rb'"name"\s*:\s*"(?:Bash|PowerShell|Read)"')
 TAIL_OCTETS = 64 * 1024          # le rendu final se lit en QUEUE de fichier
 TAIL_MAX = 4 * 1024 * 1024       # elargissement maximal si le dernier message est enorme
 SIDECHAIN_BUDGET_S = 20.0        # au-dela : on cesse d'analyser les NOUVEAUX fichiers
+
+
+# Version de l'HEURISTIQUE n0/n1 (rendu_conforme, commit_affirme, CMD_*_RE, compteurs).
+# A relever quand elle change : le cache `sidechain_cache` n'est invalide que par
+# [mtime_ns, taille] et `reset_si_detecteur_change` (DETECTOR_VERSION) ne le vide pas.
+SIDECHAIN_VERSION = 1
+
+
+def appliquer_version_sidechain(state: dict) -> bool:
+    """Vide `sidechain_cache` si la version d'heuristique persistee differe ; True si vide."""
+    prec = state.get("sidechains")
+    version = prec.get("detector_version") if isinstance(prec, dict) else None
+    if version == SIDECHAIN_VERSION:
+        return False
+    state["sidechain_cache"] = {}
+    return True
 
 
 def _texte_blocs(content) -> str:
@@ -398,8 +413,45 @@ SURDECL_VERIF_RE = CLAIM_VERIF_RE
 SURDECL_TESTS_RE = re.compile(r"\b\d+\s+passed\b|\btests?\s+(?:verts?|pass[ée]s?)\b", re.I)
 # « commit <sha> » (citation) n'est PAS une affirmation : seuls ces tours comptent.
 SURDECL_COMMIT_RE = re.compile(r"\b(?:committed|commit[ée]s?|commit\s+fait)\b", re.I)
-CMD_PYTEST_RE = re.compile(r"pytest", re.I)
-CMD_GIT_COMMIT_RE = re.compile(r"\bgit\b[^\n]*\bcommit\b")
+NEGATION_RE = re.compile(
+    r"(?<!\w)(?:pas|aucune?|rien|jamais|non|not|never|no|sans|n['’]ai|ne)(?!\w)", re.I)
+# Delimiteurs : ponctuation, « mais/but », tiret ENTOURE D'ESPACES (« - », « – », « — »).
+# Limites connues : « pas de souci j'ai commité » sans virgule est lu comme nie ; la double
+# negation n'est pas traitee.
+DELIM_RE = re.compile(r"[.;!?,:\n]|(?<!\w)(?:mais|but)(?!\w)|\s[-–—]\s", re.I)
+
+
+def _negation_precede(avant: str) -> bool:
+    """Regle de negation PARTAGEE (commit_affirme, mutation_vue_rouge) : le texte `avant`,
+    depuis son dernier delimiteur (ponctuation, « mais », « but »), contient une negation."""
+    return bool(NEGATION_RE.search(DELIM_RE.split(avant)[-1]))
+
+
+def commit_affirme(rendu: str) -> bool:
+    """Une occurrence de SURDECL_COMMIT_RE ne compte pas si le texte qui la precede,
+    jusqu'au dernier delimiteur (ponctuation, « mais », « but »), contient une negation."""
+    for m in SURDECL_COMMIT_RE.finditer(rendu):
+        if not _negation_precede(rendu[:m.start()]):
+            return True
+    return False
+
+
+# Position de commande : debut de ligne ou apres `; & | (`, puis prefixes VAR=x, uv|poetry
+# run, py|python[3] [-flags] -m, ou un chemin (.venv/Scripts/pytest).
+CMD_DEBUT = r"(?:^|[;&|(])[ \t]*(?:[A-Za-z_]\w*=\S*[ \t]+)*"
+CMD_PYTEST_RE = re.compile(
+    CMD_DEBUT + r"(?:(?:uv|poetry)[ \t]+run[ \t]+)?"
+    # Options de python : `-X val` / toute autre option hors `-m` (alternatives DISJOINTES,
+    # cf. CMD_GIT_COMMIT_RE) ; versions pointees `python3.12(.exe)`.
+    r"(?:(?:py|python[\d.]*)(?:\.exe)?[ \t]+"
+    r"(?:(?:-X[ \t]+[^\s;&|()]+|-(?![Xm][ \t])[^\s;&|()]+)[ \t]+)*-m[ \t]+)?"
+    r"(?:[^\s;&|(]*[/\\])?pytest(?:\.exe)?\b", re.I | re.M)  # chemin borne : pas de O(n^2)
+CMD_GIT_COMMIT_RE = re.compile(
+    # Alternatives DISJOINTES (`-C x` / toute autre option) : sinon `-C` est reconnu par les
+    # deux branches et le backtracking est exponentiel. `commit(?![\w-])` exclut commit-tree.
+    CMD_DEBUT + r"git[ \t]+(?:(?:-[Cc][ \t]+[^\s;&|()]+|-(?![Cc][ \t])[^\s;&|()]+)[ \t]+)*"
+    r"commit(?![\w-])",
+    re.I | re.M)
 
 
 def _outils_et_commandes(path: str):
@@ -432,7 +484,7 @@ def surdeclaration_restreinte(rendu: str, path: str) -> int:
     pytest, (c) un commit fait sans `git commit`. Compteur seulement, jamais bloquant."""
     verif = bool(SURDECL_VERIF_RE.search(rendu))
     tests = bool(SURDECL_TESTS_RE.search(rendu))
-    commit = bool(SURDECL_COMMIT_RE.search(rendu))
+    commit = commit_affirme(rendu)
     if not (verif or tests or commit):
         return 0
     n, cmds = _outils_et_commandes(path)
@@ -443,6 +495,38 @@ def surdeclaration_restreinte(rendu: str, path: str) -> int:
     if commit and not CMD_GIT_COMMIT_RE.search(cmds):
         return 1
     return 0
+
+
+GABARIT_EXECUTOR_RE = re.compile(r"^[ \t]*GABARIT[ \t]*:[ \t]*EXECUTOR-LOT", re.M)
+MUTATION_PROOF_RE = re.compile(r"MUTATION[ \t]+PROOF")
+MUTATION_RE = re.compile(r"\bmutation|\bmutant", re.I)
+ROUGE_RE = re.compile(r"\b(?:rouge|red|fail\w*)\b", re.I)
+PHRASE_RE = re.compile(r"\n|(?<=[.;!?])\s+")
+PARTICIPE_RE = re.compile(
+    r"(?<!\w)(?:pos[eé]e?s?|vue?s?|seen|observ[eé]e?s?|fait\s+passer|turned|went|failed|fails)(?!\w)",
+    re.I)
+A_FAIRE_RE = re.compile(r"(?<!\w)(?:a\s+faire|à\s+faire|to\s+do|todo|pr[eé]vue?s?|planned)(?!\w)", re.I)
+
+
+def brief_executor_lot(brief: str) -> bool:
+    """Brief de gabarit executor-lot : ligne `GABARIT : executor-lot` ANCREE en debut de
+    ligne, ou clause `MUTATION PROOF`. Le mot « mutation » seul ne suffit pas (un brief de
+    revue « aucune mutation du depot » n'est pas un lot d'execution)."""
+    h = brief.upper().replace("É", "E")
+    return bool(GABARIT_EXECUTOR_RE.search(h) or MUTATION_PROOF_RE.search(h))
+
+
+def mutation_vue_rouge(rendu: str) -> bool:
+    """Une mutation VUE ROUGE : « mutation/mutant » ET « rouge/red/fail » dans la meme
+    phrase ou le meme item, avec un PARTICIPE passe (pose, vue, seen, « fait passer »), sans
+    negation avant « rouge » (meme regle que commit_affirme) et sans « a faire/prevue » ;
+    une simple mention (« mutation prevue », « faire une mutation ... voir rouge ») ne compte pas."""
+    for p in PHRASE_RE.split(rendu):
+        r = ROUGE_RE.search(p)
+        if (r and MUTATION_RE.search(p) and PARTICIPE_RE.search(p)
+                and not A_FAIRE_RE.search(p) and not _negation_precede(p[:r.start()])):
+            return True
+    return False
 
 
 def _a_un_outil_de_preuve(path: str) -> bool:
@@ -471,29 +555,52 @@ def analyser_sidechain(path: str, type_agent=None) -> dict:
         res["t"] = ts
         res["e"] = int(brief_exige_bloc(brief))
         res["r"] = int(bool(rendu.strip()))
+        res["g"] = int(brief_executor_lot(brief))
         if res["r"]:
+            res["m"] = int(mutation_vue_rouge(rendu))
             res["s"] = surdeclaration_restreinte(rendu, path)
             res["c"] = int(rendu_conforme(rendu))
             res["v"] = int(bool(CLAIM_VERIF_RE.search(rendu)))
             if res["v"]:
                 res["p"] = int(_a_un_outil_de_preuve(path))
     except Exception:  # noqa: BLE001 - un fichier hostile ne doit jamais arreter le scan
-        res.update({"e": 0, "r": 0, "c": 0, "v": 0, "p": 0, "s": 0, "x": 1})
+        res.update({"e": 0, "r": 0, "c": 0, "v": 0, "p": 0, "s": 0, "g": 0, "m": 0, "x": 1})
     if res["e"] or res["v"]:  # le type n'est utile qu'aux entrees listables
         res["a"] = type_agent or _type_agent(path)
     return res
 
 
+STATUT_LIGNE_RE = re.compile(r"^[ \t]*[*_]*STATUT\b", re.M)
+# Bornes de la fin tolerée après le dernier slot. Origine : un bloc cité puis suivi d'un
+# aveu/bavardage ne doit pas passer, une note, un lien ou une fermeture de bloc oui.
+FIN_LIGNE_MAX = 200      # par ligne, y compris le reste de la ligne du dernier slot
+FIN_TOTAL_MAX = 600      # tout ce qui suit le dernier slot
+
+
+def _fin_tolerable(fin: str) -> bool:
+    """Ce qui suit le dernier slot : une courte fin (note, lien, fermeture de bloc, liste)."""
+    if len(fin) > FIN_TOTAL_MAX:
+        return False
+    return all(len(x) <= FIN_LIGNE_MAX for x in fin.split("\n"))
+
+
 def rendu_conforme(rendu: str) -> bool:
-    """Les 5 slots, dans l'ordre, en queue du rendu (accents/casse tolerants)."""
-    queue = rendu[-FENETRE_BLOC_SORTIE:].upper().replace("É", "E")
+    """Les 5 slots, dans l'ordre, a partir du DERNIER `STATUT` en debut de ligne, et le
+    bloc CLOT le rendu : apres le dernier slot il ne reste qu'une courte fin (bornes
+    FIN_LIGNE_MAX par ligne et FIN_TOTAL_MAX au total). Accents/casse tolerants.
+    Limite : seule la FORME du bloc final est verifiee, jamais le contenu des slots."""
+    texte = rendu.replace("É", "E").replace("é", "e").upper()
+    debuts = [m.start() for m in STATUT_LIGNE_RE.finditer(texte)]
+    if not debuts:
+        return False
+    texte = texte[debuts[-1]:]
     pos = 0
     for slot in SLOTS_SORTIE:
-        i = queue.find(slot, pos)
+        i = texte.find(slot, pos)
         if i < 0:
             return False
         pos = i + len(slot)
-    return True
+    return _fin_tolerable(texte[pos:])
 
 
 def _type_agent(f: str) -> str:
@@ -540,7 +647,8 @@ def mesure_sidechains(tdir: str, cache: dict = None, budget_s: float = None) -> 
     for cle in [c for c in cache if c not in cles]:
         del cache[cle]
     n0 = {"mesurable": True, "total": 0, "conformes": 0, "non_conformes": [], "sans_rendu": 0}
-    n1 = {"mesurable": True, "declarants": 0, "sans_outil": [], "surdeclaration_restreinte": 0}
+    n1 = {"mesurable": True, "declarants": 0, "sans_outil": [], "surdeclaration_restreinte": 0,
+          "mutation_vue_rouge": 0, "mutation_denominateur": 0}
     illisibles = 0
     for cle in sorted(cache):
         r = cache[cle]["r"]
@@ -558,6 +666,9 @@ def mesure_sidechains(tdir: str, cache: dict = None, budget_s: float = None) -> 
                 else:
                     n0["non_conformes"].append(ref)
         n1["surdeclaration_restreinte"] += int(r.get("s", 0))
+        if r.get("g") and r["r"]:
+            n1["mutation_denominateur"] += 1
+            n1["mutation_vue_rouge"] += int(r.get("m", 0))
         if r["v"]:
             n1["declarants"] += 1
             if not r["p"]:
@@ -565,6 +676,8 @@ def mesure_sidechains(tdir: str, cache: dict = None, budget_s: float = None) -> 
     n0["ratio"] = round(n0["conformes"] / n0["total"], 3) if n0["total"] else None
     n1["ratio_sans_outil"] = (round(len(n1["sans_outil"]) / n1["declarants"], 3)
                               if n1["declarants"] else None)
+    n1["mutation_ratio"] = (round(n1["mutation_vue_rouge"] / n1["mutation_denominateur"], 3)
+                            if n1["mutation_denominateur"] else None)
     for bloc, cle in ((n0, "non_conformes"), (n1, "sans_outil")):
         bloc[cle + "_total"] = len(bloc[cle])
         bloc[cle] = bloc[cle][:LISTE_MAX]
@@ -2729,6 +2842,9 @@ def commits_non_pousses():
 
 def main(argv) -> int:
     state = {} if "--full" in argv else load_state()
+    # --full repart d'un state vide : la version d'heuristique du disque sert de reference,
+    # sinon `version_depuis` serait redate sans rupture reelle de serie.
+    sc_disque = load_state().get("sidechains") if "--full" in argv else None
     new_events = scan(state)
     # Troisieme canal (2026-09-02) : le journal du hook PostToolUse survit a la purge
     # des transcripts. Sans cet appel, scan_journal_usage() est une fonction definie
@@ -2739,13 +2855,28 @@ def main(argv) -> int:
     # scan() donc sur le state['files'] à jour du passage courant, avant save_state
     # pour que le constat soit persisté avec le reste de l'état.
     state["mesure_incomplete"] = mesure_incomplete(state)
+    prec = state.get("sidechains") if isinstance(state.get("sidechains"), dict) else {}
+    prec = prec or (sc_disque if isinstance(sc_disque, dict) else {})
+    rupture = None  # None : appliquer_version_sidechain n'a pas abouti (cache non vide)
     try:  # jamais bloquant : save_state() doit toujours s'executer
+        rupture = appliquer_version_sidechain(state)
+        if rupture and prec.get("detector_version") == SIDECHAIN_VERSION:
+            rupture = False  # cache vide par --full seulement : pas de rupture de serie
         state["sidechains"] = mesure_sidechains(
             transcript_dir(), state.setdefault("sidechain_cache", {}))
+        state["sidechains"]["detector_version"] = SIDECHAIN_VERSION
+        state["sidechains"]["version_depuis"] = (
+            dt.datetime.now().astimezone().isoformat(timespec="seconds") if rupture
+            else prec.get("version_depuis"))
     except Exception as exc:  # noqa: BLE001
         raison = "erreur " + type(exc).__name__
         state["sidechains"] = {"n0": {"mesurable": False, "raison": raison},
                                "n1": {"mesurable": False, "raison": raison}}
+        if rupture is not None:  # le cache est deja vide : sans la version, chaque scan le revide
+            state["sidechains"]["detector_version"] = SIDECHAIN_VERSION
+            state["sidechains"]["version_depuis"] = (
+                dt.datetime.now().astimezone().isoformat(timespec="seconds") if rupture
+                else prec.get("version_depuis"))
     save_state(state)
     fam = installed_skills()
     runs = load_jsonl(RUNS_PATH)
