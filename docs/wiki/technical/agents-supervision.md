@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-06
+updated: 2026-10-09
 generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, étage 1)
 ---
 
@@ -8,25 +8,23 @@ generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, ét
 > ⚠️ **Page générée automatiquement** (hook SessionStart → `.claude/supervision/scan_transcripts.py`).
 > **Ne pas éditer à la main** — toute modification serait écrasée au prochain scan.
 
-Dernier scan : 2026-10-06T22:04:30+02:00 · **31 sessions** (transcripts) · **61** invocations de skills · **45** lancements de sous-agents.
+Dernier scan : 2026-10-09T10:41:23+02:00 · **3 sessions** (transcripts) · **45** invocations de skills · **37** lancements de sous-agents.
 
 ## Skills — usage réel
 
 | Skill | Famille | Invocations | Première | Dernière |
 | --- | --- | --- | --- | --- |
-| `agent-orchestrator` | projet | 22 | 2026-07-21 | 2026-09-10 |
-| `agent-supervisor` | projet | 7 | 2026-07-21 | 2026-07-28 |
-| `revue-increment` | projet | 7 | 2026-07-21 | 2026-09-04 |
-| `run` | (builtin/session) | 7 | 2026-07-01 | 2026-09-04 |
-| `artifact-design` | (builtin/session) | 3 | 2026-07-07 | 2026-09-01 |
+| `agent-orchestrator` | projet | 16 | 2026-07-21 | 2026-09-10 |
+| `revue-increment` | projet | 6 | 2026-07-21 | 2026-09-04 |
+| `run` | (builtin/session) | 6 | 2026-07-21 | 2026-09-04 |
+| `agent-supervisor` | projet | 3 | 2026-07-21 | 2026-07-22 |
 | `bmad-review-edge-case-hunter` | BMAD | 3 | 2026-09-01 | 2026-09-01 |
-| `pptx-verify` | projet | 3 | 2026-07-01 | 2026-07-21 |
+| `artifact-design` | (builtin/session) | 2 | 2026-07-21 | 2026-09-01 |
 | `bmad-code-review` | BMAD | 2 | 2026-09-01 | 2026-09-01 |
 | `code-review` | (builtin/session) | 2 | 2026-09-04 | 2026-09-04 |
+| `pptx-verify` | projet | 2 | 2026-07-21 | 2026-07-21 |
 | `bmad-review-adversarial-general` | BMAD | 1 | 2026-09-01 | 2026-09-01 |
 | `dataviz` | (builtin/session) | 1 | 2026-09-01 | 2026-09-01 |
-| `roadmap-keeper` | global | 1 | 2026-07-01 | 2026-07-01 |
-| `skill-creator` | global | 1 | 2026-07-07 | 2026-07-07 |
 | `veille-agentic` | projet | 1 | 2026-09-04 | 2026-09-04 |
 
 ## Sous-agents
@@ -35,19 +33,16 @@ Dernier scan : 2026-10-06T22:04:30+02:00 · **31 sessions** (transcripts) · **6
 | --- | --- | --- | --- |
 | `(defaut)` | 8 | 2026-09-04 | 2026-09-04 |
 | `general-purpose` | 8 | 2026-09-01 | 2026-09-04 |
-| `ppt-designer` | 4 | 2026-07-08 | 2026-09-04 |
-| `Explore` | 3 | 2026-07-08 | 2026-09-01 |
 | `bmad-revue` | 3 | 2026-09-01 | 2026-09-01 |
 | `developer` | 3 | 2026-09-04 | 2026-09-04 |
-| `ux-designer` | 3 | 2026-07-01 | 2026-09-01 |
+| `ppt-designer` | 3 | 2026-07-21 | 2026-09-04 |
+| `Explore` | 2 | 2026-09-01 | 2026-09-01 |
 | `auditor-subagent` | 2 | 2026-09-01 | 2026-09-01 |
 | `qa-engineer` | 2 | 2026-09-01 | 2026-09-01 |
 | `reviewer` | 2 | 2026-07-21 | 2026-09-01 |
-| `ui-designer` | 2 | 2026-07-01 | 2026-07-01 |
 | `auditor` | 1 | 2026-09-01 | 2026-09-01 |
-| `documentarian` | 1 | 2026-07-01 | 2026-07-01 |
-| `onboarder` | 1 | 2026-07-07 | 2026-07-07 |
 | `security-auditor` | 1 | 2026-09-01 | 2026-09-01 |
+| `ux-designer` | 1 | 2026-09-01 | 2026-09-01 |
 | `veille-agentic` | 1 | 2026-09-04 | 2026-09-04 |
 
 ## Jamais utilisés
@@ -64,9 +59,9 @@ Dernier scan : 2026-10-06T22:04:30+02:00 · **31 sessions** (transcripts) · **6
 
 </details>
 
-**global** — 1/3 jamais invoqués :
+**global** — 2/3 jamais invoqués :
 
-`synced`
+`skill-creator`, `synced`
 
 ## Skills hub-only
 
@@ -78,15 +73,13 @@ _S'invoquent DEPUIS le hub de supervision, en ciblant ce projet — jamais depui
 
 _Consommés en lisant/exécutant leurs `scripts/`, ou via un sous-agent qui les suit (ex. `ppt-designer`, qui n'a pas l'outil Skill) — le compteur d'invocations ne peut structurellement pas les voir. `n=0` n'y vaut donc PAS « mort » : ne pas désinstaller sur ce seul signal (constat superviseur #2)._
 
-`deck-design-library`, `deck-design-review`, `pdf-quality`, `pptx-deck`, `pptx-framed-image`, `restitution-deck-design`, `restitution-ppt`, `revue-ui-web`, `slide-text-polish`
+`deck-design-library`, `deck-design-review`, `pdf-quality`, `pptx-deck`, `pptx-framed-image`, `restitution-deck-design`, `restitution-ppt`, `revue-ui-web`, `roadmap-keeper`, `slide-text-polish`
 
 ## TODO agents (constats automatiques)
 
-⚠️ **Mesure incomplète** — 26 transcript(s) sur 31 absent(s) du disque. Un `n=0` ne veut plus dire « jamais invoquée » mais « on ne le voit plus » : les listes ci-dessous sous-estiment l'usage réel. Ne rien désinstaller sur cette base.
-
 1. **Désinstaller les shims BMAD dépréciés** (4) : `bmad-create-architecture` → `bmad-architecture`, `bmad-create-prd` → `bmad-prd`, `bmad-edit-prd` → `bmad-prd`, `bmad-validate-prd` → `bmad-prd` — dépréciés par BMAD dans leur propre `description`, chacun avec son remplaçant ; le seul élagage qui ne repose pas sur notre mesure d'usage.
 2. **Skills projet sans usage** : `agent-securite` — vérifier pertinence et déclencheurs.
-3. **Skills en sommeil (>30 j sans usage)** : `auditor`, `auditor-subagent`, `bmad-code-review`, `bmad-review-adversarial-general`, `bmad-review-edge-case-hunter`, `bmad-revue`, `developer`, `documentarian`, `onboarder`, `ppt-designer`, `pptx-verify`, `qa-engineer`, `reviewer`, `roadmap-keeper`, `security-auditor`, `skill-creator`, `ui-designer`, `ux-designer`.
+3. **Skills en sommeil (>30 j sans usage)** : `auditor`, `auditor-subagent`, `bmad-code-review`, `bmad-review-adversarial-general`, `bmad-review-edge-case-hunter`, `bmad-revue`, `developer`, `ppt-designer`, `pptx-verify`, `qa-engineer`, `reviewer`, `security-auditor`, `ux-designer`.
 
 ## Arbitrages enregistrés
 
@@ -136,7 +129,11 @@ _Constats clos par décision humaine (`.claude/supervision/arbitrages.json`) —
 
 ## Diagnostic qualitatif (étage 2 — `agent-supervisor`)
 
-_Diagnostic à jour — rien à signaler, tous les constats précédents ont été arbitrés._
+_Diagnostic à jour._
+
+1. **[À VÉRIFIER] Journal des orchestrations muet depuis le 2026-09-07 alors que 164 commits ont suivi (40 sur app/, dont 12 fix)** — Vérifier l'appariement fin des 15 corrections avec le journal ; ne journaliser a posteriori que les vraies corrections, pas les rattrapages du hub. · **Proposition** : Journaliser a posteriori (log_run.py, resultat en-attente-validation) au moins les increments app/ du 2026-10-06 et les syncs kit 10-06..10-09 ; rendre bloquant le rappel SessionStart 'commits depuis le dernier run journalise' au-dela de 10 commits.
+2. **[À VÉRIFIER] Echeance agents dormants (reportee au 2026-10-03) depassee sans arbitrage ; 13 en sommeil dont pptx-verify, reviewer, qa-engineer** — Trancher maintenant : garder ce qui a un usage prevu, desinstaller le reste. · **Proposition** : Desinstaller ou mettre en sommeil explicite auditor, auditor-subagent, developer, security-auditor, ux-designer (doublons de agent-securite/bmad-*) ; garder pptx-verify et ppt-designer en les cablant dans le playbook export-ppt-verifie ; tracer la decision dans arbitrages.json.
+3. **[À VÉRIFIER] 10 findings flotte:23-items-cadres ouverts depuis ~2026-09-04 alors que le reaudit du 2026-09-23 en a ferme une partie** — Requalifier chaque finding contre le code actuel avant de les re-presenter a l'arbitrage. · **Proposition** : Rejouer audit-technique en mode reaudit sur les 10 cibles et fermer via log_arbitrage.py ceux corriges ; ne garder ouverts que les constats reproduits.
 
 _11 constat(s) de ce diagnostic écarté(s) par un arbitrage — pour en rouvrir un, demander au superviseur un `re_challenge` avec des données nouvelles :_
 

@@ -188,11 +188,9 @@ depuis .roadmap/roadmap.json:86-205
 
 Constats automatiques du superviseur d'agents (usage mesuré dans les transcripts de session) :
 
-⚠️ **Mesure incomplète** — 26 transcript(s) sur 31 absent(s) du disque. Un `n=0` ne veut plus dire « jamais invoquée » mais « on ne le voit plus » : les listes ci-dessous sous-estiment l'usage réel. Ne rien désinstaller sur cette base.
-
 - **Désinstaller les shims BMAD dépréciés** (4) : `bmad-create-architecture` → `bmad-architecture`, `bmad-create-prd` → `bmad-prd`, `bmad-edit-prd` → `bmad-prd`, `bmad-validate-prd` → `bmad-prd` — dépréciés par BMAD dans leur propre `description`, chacun avec son remplaçant ; le seul élagage qui ne repose pas sur notre mesure d'usage.
 - **Skills projet sans usage** : `agent-securite` — vérifier pertinence et déclencheurs.
-- **Skills en sommeil (>30 j sans usage)** : `auditor`, `auditor-subagent`, `bmad-code-review`, `bmad-review-adversarial-general`, `bmad-review-edge-case-hunter`, `bmad-revue`, `developer`, `documentarian`, `onboarder`, `ppt-designer`, `pptx-verify`, `qa-engineer`, `reviewer`, `roadmap-keeper`, `security-auditor`, `skill-creator`, `ui-designer`, `ux-designer`.
+- **Skills en sommeil (>30 j sans usage)** : `auditor`, `auditor-subagent`, `bmad-code-review`, `bmad-review-adversarial-general`, `bmad-review-edge-case-hunter`, `bmad-revue`, `developer`, `ppt-designer`, `pptx-verify`, `qa-engineer`, `reviewer`, `security-auditor`, `ux-designer`.
 
 Tableau de bord complet : [technical/agents-supervision.md](technical/agents-supervision.md) — régénéré à chaque session.
 <!-- TODO-AGENTS:END -->
