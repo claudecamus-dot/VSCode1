@@ -279,6 +279,15 @@
       "decision": "ACCEPTE + APPLIQUE (confirmation utilisateur 2026-09-24) : git add --renormalize app/src/server.js, index realigne, fichier intact",
       "preuve_application": "git status --porcelain -- app/src/server.js -> 0 ligne ; git diff --ignore-cr-at-eol --quiet -> 0",
       "sans_commit": "contenu identique hors fins de ligne, rien a committer"
+    },
+    {
+      "cible": "VSCode1:findings-audit-perimes",
+      "date": "2026-10-09",
+      "titre": "10 findings flotte:23-items-cadres ouverts depuis ~2026-09-04 alors que le reaudit du 2026-09-23 en a ferme une partie",
+      "categories": [
+        "pratique-dev"
+      ],
+      "decision": "REFUSÉ : REFUSE (infondé) : les 10 constats flotte:23-items-cadres ont chacun un arbitrage REFUSE « déjà fait » (arbitrages.json de VSCode1, lignes 173-263, datés 2026-09-21 et 2026-09-22) ; le registre garde par conception les findings fermés et finding_arbitre() les masque. Réaudit du 2026-10-09 : corrigés dans le code (esc.js, referentiel.js:367-379, build-artifact.js:57, ci.yml:44-69, export-restitution-ppt.py:815-823, resultats.html:375) ; seul le #6 (innerHTML à chaque filtre) reste partiel, déjà dit dans l'arbitrage du 2026-09-11. #7 et #9 non relus directement."
     }
   ]
 }
