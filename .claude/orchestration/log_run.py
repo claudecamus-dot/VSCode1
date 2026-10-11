@@ -4,7 +4,7 @@
 # | garder : la signaler au hub, qui corrige le canon et re-synchronise.
 # | (Depuis le hub : « py .claude/dispositif/sync_dispositif.py » — ce script
 # |  n'est pas déployé, il n'existe pas dans ce dépôt.)
-# | Provenance canon : 48c282a1 du 2026-10-11 — permet, au prochain sync, de dire si
+# | Provenance canon : 21a43bab du 2026-10-11 — permet, au prochain sync, de dire si
 # | une différence vient d'une édition locale ou d'une avance du canon (voir
 # | `determiner_cause` dans sync_dispositif.py au hub).
 # +---------------------------------------------------------------------------
@@ -650,6 +650,11 @@ def _usage_path() -> str:
         "supervision", "usage.jsonl")
 
 
+def _aware(t):
+    """Horodatage avec fuseau : un ts naif est lu en heure locale (jamais de TypeError a la comparaison)."""
+    return t.astimezone() if t.tzinfo is None else t
+
+
 def jointure_cout(run: dict, maintenant=None, nb_lignes: int = 20) -> dict:
     """Renseigne `tokens` et `duree_s` SEULEMENT si la jointure est fiable, sinon {}.
 
@@ -663,22 +668,20 @@ def jointure_cout(run: dict, maintenant=None, nb_lignes: int = 20) -> dict:
     if not (isinstance(sid, str) and isinstance(debut, str)):
         return {}
     try:
-        t0 = datetime.datetime.fromisoformat(debut)
-        if t0.tzinfo is None:
-            t0 = t0.astimezone()
-        t1 = maintenant or datetime.datetime.now().astimezone()
+        t0 = _aware(datetime.datetime.fromisoformat(debut))
+        t1 = _aware(maintenant or datetime.datetime.now().astimezone())
         with open(_usage_path(), "rb") as fh:
             fh.seek(0, os.SEEK_END)
             fh.seek(max(0, fh.tell() - 200_000))
             brut = fh.read().decode("utf-8", "replace").splitlines()[-nb_lignes:]
         lignes = [json.loads(x) for x in brut if x.strip()]
-        ts = [datetime.datetime.fromisoformat(x["ts"]) for x in lignes]
-    except (OSError, ValueError, KeyError, TypeError):
-        return {}
-    if not lignes or min(ts) > t0:
-        return {}   # la fenetre de 20 lignes ne remonte pas jusqu'au debut du run
-    dedans = [x for x, t in zip(lignes, ts, strict=True)
-              if x.get("session_id") == sid and t0 <= t <= t1]
+        ts = [_aware(datetime.datetime.fromisoformat(x["ts"])) for x in lignes]
+        if not lignes or min(ts) > t0:
+            return {}   # la fenetre de 20 lignes ne remonte pas jusqu'au debut du run
+        dedans = [x for x, t in zip(lignes, ts, strict=True)
+                  if x.get("session_id") == sid and t0 <= t <= t1]
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return {}   # une ligne abimee ou un ts sans fuseau ne coute jamais l'ecriture du run
     if not dedans or any(not _entier_positif(x.get("jetons")) for x in dedans):
         return {}
     out = {}
@@ -687,6 +690,72 @@ def jointure_cout(run: dict, maintenant=None, nb_lignes: int = 20) -> dict:
     if "duree_s" not in run:
         out["duree_s"] = max(0, int((t1 - t0).total_seconds()))
     return out
+
+
+def _prompts_path() -> str:
+    return os.environ.get("AGENT_ORCHESTRATION_PROMPTS") or os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "prompts.jsonl")
+
+
+def _queue_jsonl(chemin: str, octets: int) -> list:
+    """Lignes JSON valides des `octets` derniers octets (jamais le fichier entier)."""
+    with open(chemin, "rb") as fh:
+        fh.seek(0, os.SEEK_END)
+        fh.seek(max(0, fh.tell() - octets))
+        brut = fh.read().decode("utf-8", "replace").splitlines()
+    out = []
+    for x in brut:
+        try:
+            d = json.loads(x)
+        except ValueError:
+            continue   # premiere ligne coupee par le seek, ligne abimee
+        if isinstance(d, dict):
+            out.append(d)
+    return out
+
+
+def inferer_debut(run: dict, maintenant=None, fenetre_h: int = 24) -> dict:
+    """Pose `session_id` et `debut` quand le run n'en porte pas, sinon {}.
+
+    Source : `prompts.jsonl` (une ligne par prompt, session comprise). Le debut est le
+    premier prompt posterieur au run precedent du journal : le cout couvre donc tout le
+    travail depuis le dernier run journalise, pas une seule demande (surestimation
+    assumee, marquee `debut_infere`). Ambigu = rien : plusieurs sessions dans la fenetre
+    de `fenetre_h` heures, ou aucun prompt avec session -> {} (un cout absent vaut mieux
+    qu'un cout d'une autre session). Jamais d'ecrasement d'une valeur fournie."""
+    if run.get("session_id") or run.get("debut"):
+        return {}
+    try:
+        t1 = maintenant or datetime.datetime.now().astimezone()
+        seuil = t1 - datetime.timedelta(hours=fenetre_h)
+        lignes = []
+        for x in _queue_jsonl(_prompts_path(), 200_000):
+            sid = x.get("session_id")
+            t = datetime.datetime.fromisoformat(x["ts"])
+            if not (isinstance(sid, str) and sid):
+                continue
+            if t.tzinfo is None:
+                t = t.astimezone()
+            if seuil <= t <= t1:
+                lignes.append((t, sid))
+        if len({s for _, s in lignes}) != 1:
+            return {}
+        precedent = None
+        try:
+            derniers = _queue_jsonl(RUNS_PATH, 30_000)
+            if derniers and isinstance(derniers[-1].get("ts"), str):
+                precedent = datetime.datetime.fromisoformat(derniers[-1]["ts"])
+                if precedent.tzinfo is None:
+                    precedent = precedent.astimezone()
+        except (OSError, ValueError):
+            precedent = None
+        apres = [t for t, _ in lignes if precedent is None or t > precedent]
+        if not apres:
+            return {}
+        return {"session_id": lignes[0][1], "debut": min(apres).isoformat(timespec="seconds"),
+                "debut_infere": True}
+    except (OSError, ValueError, KeyError, TypeError):
+        return {}
 
 
 def run_id_existe(run_id: str, chemin=None) -> bool:
@@ -757,20 +826,34 @@ def _verdict_sous_verrou(argv) -> int:
         return 1
     cle, valeur = argv[0], argv[1]
     preuve = argv[2] if len(argv) > 2 else ""
+    if len(argv) > 3:
+        print("log_run --verdict REFUS : la preuve doit tenir en UN argument, entre guillemets "
+              f"({len(argv) - 2} mots recus, le reste serait perdu).")
+        return 1
     refus = verifier_instrumentation({"verdict_aval": {"valeur": valeur, "preuve": preuve}})
     if refus:
         print(refus)
         return 1
     try:
         with open(RUNS_PATH, encoding="utf-8") as fh:
-            runs = [json.loads(l) for l in fh if l.strip()]
+            lignes = [l.rstrip("\r\n") for l in fh if l.strip()]
         taille_lue = os.path.getsize(RUNS_PATH)
-    except (OSError, ValueError) as exc:
+    except OSError as exc:
         print(f"log_run --verdict : lecture impossible ({exc})")
         return 1
-    cibles = [r for r in runs if r.get("run_id") == cle]
+    # Une ligne abimee ou qui n'est pas un objet reste dans le fichier TELLE QUELLE : elle ne
+    # doit ni bloquer le verdict d'un autre run, ni etre perdue a la reecriture.
+    runs = []
+    for l in lignes:
+        try:
+            r = json.loads(l)
+        except ValueError:
+            r = None
+        runs.append(r if isinstance(r, dict) else l)
+    cibles = [r for r in runs if isinstance(r, dict) and r.get("run_id") == cle]
     if not cibles:
-        cibles = [r for r in runs if r.get("ts") and str(r["ts"]).startswith(cle)]
+        cibles = [r for r in runs if isinstance(r, dict) and r.get("ts")
+                  and str(r["ts"]).startswith(cle)]
     if len(cibles) != 1:
         print(f"log_run --verdict : {len(cibles)} run(s) pour '{cle}' - il en faut exactement 1")
         return 1
@@ -784,7 +867,7 @@ def _verdict_sous_verrou(argv) -> int:
     try:
         with open(tmp, "w", encoding="utf-8") as fh:
             for r in runs:
-                fh.write(json.dumps(r, ensure_ascii=False) + "\n")
+                fh.write((r if isinstance(r, str) else json.dumps(r, ensure_ascii=False)) + "\n")
         if _AVANT_REMPLACEMENT is not None:
             _AVANT_REMPLACEMENT()
         if os.path.getsize(RUNS_PATH) != taille_lue:
@@ -1452,7 +1535,8 @@ def main(argv) -> int:
         print(f"log_run REFUS : run_id deja present ou journal illisible : {run['run_id']!r}.")
         return 1
     run.setdefault("run_id", nouveau_run_id())
-    run.update(jointure_cout(run))
+    run.update(inferer_debut(run))
+    run.update(jointure_cout(run, nb_lignes=400 if run.get("debut_infere") else 20))
     refus_validation = verifier_validation_utilisateur(run, au_solde=False)
     if refus_validation:
         print(refus_validation)

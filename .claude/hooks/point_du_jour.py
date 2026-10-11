@@ -36,6 +36,17 @@ DIAGNOSTIC = os.path.join(RACINE, ".claude", "supervision", "diagnostic.json")
 VEILLE = os.path.join(RACINE, ".claude", "veille", "veille.json")
 ARBITRAGES = os.path.join(RACINE, ".claude", "supervision", "arbitrages.json")
 AUDITS = os.path.join(RACINE, ".claude", "audits")
+AMELIORATION = os.path.join(RACINE, ".claude", "supervision", "amelioration.json")
+AMELIORATION_PEREMPTION_JOURS = 14
+RUNS = os.path.join(RACINE, ".claude", "orchestration", "runs.jsonl")
+# Phase 0 de l'amelioration : seuls les runs posterieurs a la mise en service du verdict
+# sont reclames (un verdict sur un run de septembre ne s'etablit plus).
+VERDICTS_DEPUIS = "2026-10-11"
+VERDICTS_DELAI_H = 24
+VERDICTS_PEREMPTION_JOURS = 14
+# Tache recurrente du comite (hub seulement) : revue du fonctionnement agentic.
+REVUE_FONCTIONNEMENT = os.path.join(RACINE, ".claude", "supervision", "revue_fonctionnement.json")
+REVUE_FONCTIONNEMENT_JOURS = 7
 
 # Au-dela, une decision qui attend n'est plus une file : c'est un oubli.
 SEUIL_ALERTE_JOURS = 7
@@ -857,6 +868,104 @@ def ligne_hooks_orphelins(processus=None, maintenant=None, seuil_min=SEUIL_GIT_O
         f"verification : taskkill /F /T {cmd}")
 
 
+def ligne_amelioration(chemin=None, maintenant=None):
+    """One short line: the top improvement proposal (R4: proposal only, never applied).
+
+    Fail-open: missing file -> None (silence); broken JSON or any error -> None;
+    older than AMELIORATION_PEREMPTION_JOURS -> a 'tableau perime' line. Reads one
+    small JSON file, no subprocess.
+    """
+    try:
+        chemin = chemin or AMELIORATION
+        if not os.path.isfile(chemin):
+            return None
+        with open(chemin, encoding="utf-8") as fh:
+            d = json.load(fh)
+        age = _age_jours(d.get("genere"))
+        if age is None or age > AMELIORATION_PEREMPTION_JOURS:
+            return ("axes d'amelioration : tableau perime -- le rafraichir : "
+                    "py scripts/tableau_amelioration.py")
+        props = d.get("propositions") or []
+        if not props:
+            return None
+        titre = _ascii(str(props[0].get("titre") or "")).strip()
+        if not titre:
+            return None
+        return (f"priorite d'amelioration proposee n1 : {titre} (a arbitrer) -- "
+                "rafraichir : py scripts/tableau_amelioration.py")
+    except Exception:  # noqa: BLE001 - fail-open : un hook ne bloque jamais la session
+        return None
+
+
+def verdicts_en_attente(chemin=None, maintenant=None):
+    """Runs `succes`/`partiel` de plus de VERDICTS_DELAI_H h, sans `verdict_aval`, les
+    plus anciens d'abord. Lit la FIN du journal seulement (append-only), jamais en entier."""
+    chemin = chemin or RUNS
+    maintenant = maintenant or dt.datetime.now().astimezone()
+    with open(chemin, "rb") as fh:
+        fh.seek(0, os.SEEK_END)
+        fh.seek(max(0, fh.tell() - 120_000))
+        brut = fh.read().decode("utf-8", "replace").splitlines()
+    out = []
+    for x in brut:
+        try:
+            r = json.loads(x)
+            t = dt.datetime.fromisoformat(r["ts"])
+        except (ValueError, KeyError, TypeError):
+            continue
+        if t.tzinfo is None:
+            t = t.astimezone()
+        age_h = (maintenant - t).total_seconds() / 3600
+        if (r.get("resultat") in ("succes", "partiel") and "verdict_aval" not in r
+                and r["ts"] >= VERDICTS_DEPUIS and VERDICTS_DELAI_H <= age_h
+                <= VERDICTS_PEREMPTION_JOURS * 24):
+            out.append(r)
+    return out
+
+
+def ligne_verdicts(chemin=None, maintenant=None):
+    """One line: how many runs lack a verdict + the ready command for the oldest.
+    Fail-open: any error or nothing to say -> None."""
+    try:
+        runs = verdicts_en_attente(chemin, maintenant)
+        if not runs:
+            return None
+        r = runs[0]
+        cle = r.get("run_id") or r["ts"]
+        demande = _ascii(str(r.get("demande") or "")).strip()[:50]
+        return (f"{len(runs)} run(s) sans verdict apres {VERDICTS_DELAI_H} h, le plus ancien "
+                f"\"{demande}\" -- taper : py .claude/orchestration/log_run.py --verdict "
+                f"{cle} <confirme|infirme|repris|non-evalue> \"<preuve : commit ou test>\"")
+    except Exception:  # noqa: BLE001 - fail-open : un hook ne bloque jamais la session
+        return None
+
+
+def ligne_revue_fonctionnement(chemin=None, maintenant=None):
+    """One line when the weekly committee review is due (never done, or older than
+    REVUE_FONCTIONNEMENT_JOURS). Hub-only: silent where scripts/scan_projets.py is absent.
+    Fail-open: any error -> None."""
+    try:
+        if chemin is None and not os.path.isfile(os.path.join(RACINE, "scripts", "scan_projets.py")):
+            return None
+        chemin = chemin or REVUE_FONCTIONNEMENT
+        age = None
+        if os.path.isfile(chemin):
+            try:   # un etat illisible vaut « jamais faite » : on rappelle, on ne se tait pas
+                with open(chemin, encoding="utf-8") as fh:
+                    derniere = dt.date.fromisoformat(str(json.load(fh).get("derniere")))
+                age = ((maintenant or dt.datetime.now()).date() - derniere).days
+            except (ValueError, OSError, AttributeError):
+                age = None
+        if age is not None and age < REVUE_FONCTIONNEMENT_JOURS:
+            return None
+        depuis = "jamais faite" if age is None else f"faite il y a {age} j"
+        return (f"revue du fonctionnement agentic : {depuis} -- taper : /orchestre comite : revue du "
+                "fonctionnement agentic et des dysfonctionnements non corriges a la premiere demande ; "
+                "puis noter : py scripts/revue_fonctionnement.py --fait")
+    except Exception:  # noqa: BLE001 - fail-open : un hook ne bloque jamais la session
+        return None
+
+
 def main(argv=None):
     # `--tout` (2026-10-01, finding `point_du_jour:tout-voir-reaffiche-la-liste-tronquee`) :
     # la notice de troncature renvoyait a la commande nue, qui re-tronquait la meme
@@ -987,6 +1096,18 @@ def main(argv=None):
                         f"derive bloquante : mesure impossible ({_ascii(str(exc))})")
         except Exception as exc:
             lignes.append(f"kit installe : mesure impossible ({_ascii(str(exc))})")
+
+    ligne_verd = ligne_verdicts()
+    if ligne_verd:
+        lignes.append(ligne_verd)
+
+    ligne_rev = ligne_revue_fonctionnement()
+    if ligne_rev:
+        lignes.append(ligne_rev)
+
+    ligne_ame = ligne_amelioration()
+    if ligne_ame:
+        lignes.append(ligne_ame)
 
     if not lignes:
         # Le silence est une information : rien ne vous attend. On le dit une fois,
