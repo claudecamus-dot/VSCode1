@@ -4,7 +4,7 @@
 # | garder : la signaler au hub, qui corrige le canon et re-synchronise.
 # | (Depuis le hub : « py .claude/dispositif/sync_dispositif.py » — ce script
 # |  n'est pas déployé, il n'existe pas dans ce dépôt.)
-# | Provenance canon : 4b4bcda2 du 2026-10-09 — permet, au prochain sync, de dire si
+# | Provenance canon : 48c282a1 du 2026-10-11 — permet, au prochain sync, de dire si
 # | une différence vient d'une édition locale ou d'une avance du canon (voir
 # | `determiner_cause` dans sync_dispositif.py au hub).
 # +---------------------------------------------------------------------------
@@ -2720,6 +2720,24 @@ def agents_apparus(state) -> list:
     return [a for a in presents if a not in connus]
 
 
+def _git_texte(cmd, delai, errors="strict"):
+    """`subprocess.run(cmd, cwd=REPO, capture_output, text, utf-8, timeout=delai)`,
+    but REALLY bounded: on Windows that call ignores its timeout while a descendant
+    keeps the pipes open. Uses `.claude/hooks/_lancement_borne.py` (kit helper);
+    fail-open when it is absent (older kit): the previous call, unchanged."""
+    try:
+        hooks = os.path.join(os.path.dirname(SUP_DIR), "hooks")
+        if hooks not in sys.path:
+            sys.path.append(hooks)
+        import _lancement_borne as lancement_borne
+    except Exception:
+        lancement_borne = None
+    if lancement_borne is not None:
+        return lancement_borne.lancer_texte(cmd, delai=delai, cwd=REPO, errors=errors)
+    return subprocess.run(cmd, cwd=REPO, capture_output=True, text=True,
+                          encoding="utf-8", errors=errors, timeout=delai)
+
+
 def arbre_sale():
     """Fichiers modifiés/non suivis du dépôt (hors données générées du scan).
 
@@ -2730,8 +2748,7 @@ def arbre_sale():
     ignores = ("docs/wiki", ".claude/supervision/", ".claude/orchestration/routing-hints.json",
                ".claude/orchestration/runs.jsonl", ".claude/orchestration/prompts.jsonl")
     try:
-        res = subprocess.run(["git", "status", "--porcelain"], cwd=REPO,
-                             capture_output=True, text=True, encoding="utf-8", timeout=8)
+        res = _git_texte(["git", "status", "--porcelain"], 8)
     except Exception:
         return []
     if res.returncode != 0:
@@ -2770,10 +2787,9 @@ def commits_non_journalises():
         return []
     dernier_run = horodates[-1]
     try:
-        res = subprocess.run(
+        res = _git_texte(
             ["git", "log", f"--since={dernier_run}", "--format=%h|%cI|%s"],
-            cwd=REPO, capture_output=True, text=True, encoding="utf-8",
-            errors="replace", timeout=10)
+            10, errors="replace")
     except Exception:
         return []
     if res.returncode != 0:
@@ -2808,10 +2824,9 @@ def commits_non_pousses():
     geste est le prix de la revue humaine avant publication, pas un défaut à
     corriger en l'automatisant."""
     try:
-        amont = subprocess.run(
+        amont = _git_texte(
             ["git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
-            cwd=REPO, capture_output=True, text=True, encoding="utf-8",
-            errors="replace", timeout=10)
+            10, errors="replace")
     except Exception:
         return []
     if amont.returncode != 0:
@@ -2820,10 +2835,9 @@ def commits_non_pousses():
     if not ref_amont:
         return []
     try:
-        res = subprocess.run(
+        res = _git_texte(
             ["git", "log", f"{ref_amont}..HEAD", "--format=%h|%s"],
-            cwd=REPO, capture_output=True, text=True, encoding="utf-8",
-            errors="replace", timeout=10)
+            10, errors="replace")
     except Exception:
         return []
     if res.returncode != 0:
