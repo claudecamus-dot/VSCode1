@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-09
+updated: 2026-10-11
 generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, étage 1)
 ---
 
@@ -8,7 +8,7 @@ generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, ét
 > ⚠️ **Page générée automatiquement** (hook SessionStart → `.claude/supervision/scan_transcripts.py`).
 > **Ne pas éditer à la main** — toute modification serait écrasée au prochain scan.
 
-Dernier scan : 2026-10-09T10:41:23+02:00 · **3 sessions** (transcripts) · **45** invocations de skills · **37** lancements de sous-agents.
+Dernier scan : 2026-10-11T09:22:29+02:00 · **3 sessions** (transcripts) · **45** invocations de skills · **37** lancements de sous-agents.
 
 ## Skills — usage réel
 
@@ -126,16 +126,15 @@ _Constats clos par décision humaine (`.claude/supervision/arbitrages.json`) —
 - **`flotte:23-items-cadres`** (2026-09-22) : REFUSE (deja fait, constat) : resultats.html:263 Promise.all([chargerEquipes(), chargerParticipation()]) et ligne 411-412 Promise.all([fetch(resultats)...]) -- les fetches independants du chargement sont parallelises, motif deja utilise dans admin.html.
 - **`flotte:23-items-cadres`** (2026-09-22) : REFUSE (deja fait, constat) : build-artifact.js:57 execute npm ci --omit=dev --no-audit --no-fund pour generer un node_modules prod-only avant copie (ligne 7-9, 49-53 : commentaires exacts, plus de mention de 0 devDependency).
 - **`VSCode1:server-js-fin-de-ligne`** (2026-09-24) : ACCEPTE + APPLIQUE (confirmation utilisateur 2026-09-24) : git add --renormalize app/src/server.js, index realigne, fichier intact
+- **`VSCode1:findings-audit-perimes`** (2026-10-09) : REFUSÉ : REFUSE (infondé) : les 10 constats flotte:23-items-cadres ont chacun un arbitrage REFUSE « déjà fait » (arbitrages.json de VSCode1, lignes 173-263, datés 2026-09-21 et 2026-09-22) ; le registre garde par conception les findings fermés et finding_arbitre() les masque. Réaudit du 2026-10-09 : corrigés dans le code (esc.js, referentiel.js:367-379, build-artifact.js:57, ci.yml:44-69, export-restitution-ppt.py:815-823, resultats.html:375) ; seul le #6 (innerHTML à chaque filtre) reste partiel, déjà dit dans l'arbitrage du 2026-09-11. #7 et #9 non relus directement.
+- **`VSCode1:journal-runs`** (2026-10-10) : ACCEPTE + APPLIQUE : run recapitulatif a posteriori journalise par log_run.py (partiel, shas des fix dans les notes), decision utilisateur 2026-10-10
+- **`VSCode1:agents-dormants`** (2026-10-10) : REFUSÉ : Aucun des 8 agents dormants n'est un doublon d'une skill BMAD (verifie le 2026-10-10) : ils restent en place. Decision utilisateur 2026-10-10 de traiter sans nouvelle question.
 
 ## Diagnostic qualitatif (étage 2 — `agent-supervisor`)
 
-_Diagnostic à jour._
+_Diagnostic à jour — rien à signaler, tous les constats précédents ont été arbitrés._
 
-1. **[À VÉRIFIER] Journal des orchestrations muet depuis le 2026-09-07 alors que 164 commits ont suivi (40 sur app/, dont 12 fix)** — Vérifier l'appariement fin des 15 corrections avec le journal ; ne journaliser a posteriori que les vraies corrections, pas les rattrapages du hub. · **Proposition** : Journaliser a posteriori (log_run.py, resultat en-attente-validation) au moins les increments app/ du 2026-10-06 et les syncs kit 10-06..10-09 ; rendre bloquant le rappel SessionStart 'commits depuis le dernier run journalise' au-dela de 10 commits.
-2. **[À VÉRIFIER] Echeance agents dormants (reportee au 2026-10-03) depassee sans arbitrage ; 13 en sommeil dont pptx-verify, reviewer, qa-engineer** — Trancher maintenant : garder ce qui a un usage prevu, desinstaller le reste. · **Proposition** : Desinstaller ou mettre en sommeil explicite auditor, auditor-subagent, developer, security-auditor, ux-designer (doublons de agent-securite/bmad-*) ; garder pptx-verify et ppt-designer en les cablant dans le playbook export-ppt-verifie ; tracer la decision dans arbitrages.json.
-3. **[À VÉRIFIER] 10 findings flotte:23-items-cadres ouverts depuis ~2026-09-04 alors que le reaudit du 2026-09-23 en a ferme une partie** — Requalifier chaque finding contre le code actuel avant de les re-presenter a l'arbitrage. · **Proposition** : Rejouer audit-technique en mode reaudit sur les 10 cibles et fermer via log_arbitrage.py ceux corriges ; ne garder ouverts que les constats reproduits.
-
-_11 constat(s) de ce diagnostic écarté(s) par un arbitrage — pour en rouvrir un, demander au superviseur un `re_challenge` avec des données nouvelles :_
+_14 constat(s) de ce diagnostic écarté(s) par un arbitrage — pour en rouvrir un, demander au superviseur un `re_challenge` avec des données nouvelles :_
 
 - ~~Regle metier top-3/dispersion ecrite 2x (JS client+serveur) ; moyenne-non-null ecrite 3x (client/serveur/Python)~~ (`flotte:23-items-cadres`)
 - ~~Defense XSS esc() dupliquee 4x sans synchronisation, 1 seul test la couvre~~ (`flotte:23-items-cadres`)
@@ -148,10 +147,13 @@ _11 constat(s) de ce diagnostic écarté(s) par un arbitrage — pour en rouvrir
 - ~~build-artifact.js copie node_modules entier (6951 fichiers) sur un commentaire faux (0 devDep)~~ (`flotte:23-items-cadres`)
 - ~~seed-demo.js : ~2400 ecritures hors transaction alors que tx.js:enTransaction existe~~ (`flotte:23-items-cadres`)
 - ~~server.js marque modifie sans changement de contenu (LF/CRLF), bruit de statut~~ (`VSCode1:server-js-fin-de-ligne`)
+- ~~[À VÉRIFIER] Echeance agents dormants (reportee au 2026-10-03) depassee sans arbitrage ; 13 en sommeil dont pptx-verify, reviewer, qa-engineer~~ (`VSCode1:agents-dormants`)
+- ~~[À VÉRIFIER] 10 findings flotte:23-items-cadres ouverts depuis ~2026-09-04 alors que le reaudit du 2026-09-23 en a ferme une partie~~ (`VSCode1:findings-audit-perimes`)
+- ~~[À VÉRIFIER] Journal des orchestrations muet depuis le 2026-09-07 alors que 164 commits ont suivi (40 sur app/, dont 12 fix)~~ (`VSCode1:journal-runs`)
 
 ## Seuil de qualification — la mesure
 
-Depuis le 2026-09-04 : **27** demande(s) vue(s) hors commande slash (+ 6 slash), **3** run(s) orchestré(s) journalisé(s) sur la même fenêtre — soit **11 %** des demandes orchestrées.
+Depuis le 2026-09-04 : **27** demande(s) vue(s) hors commande slash (+ 6 slash), **4** run(s) orchestré(s) journalisé(s) sur la même fenêtre — soit **15 %** des demandes orchestrées.
 _Ce chiffre ne dit pas ce qui AURAIT dû être orchestré : le hook compte, il ne juge pas. Il donne le dénominateur qui manquait pour arbitrer le seuil sur données plutôt que sur habitude._
 
 ---

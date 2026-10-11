@@ -288,6 +288,26 @@
         "pratique-dev"
       ],
       "decision": "REFUSÉ : REFUSE (infondé) : les 10 constats flotte:23-items-cadres ont chacun un arbitrage REFUSE « déjà fait » (arbitrages.json de VSCode1, lignes 173-263, datés 2026-09-21 et 2026-09-22) ; le registre garde par conception les findings fermés et finding_arbitre() les masque. Réaudit du 2026-10-09 : corrigés dans le code (esc.js, referentiel.js:367-379, build-artifact.js:57, ci.yml:44-69, export-restitution-ppt.py:815-823, resultats.html:375) ; seul le #6 (innerHTML à chaque filtre) reste partiel, déjà dit dans l'arbitrage du 2026-09-11. #7 et #9 non relus directement."
+    },
+    {
+      "cible": "VSCode1:journal-runs",
+      "date": "2026-10-10",
+      "titre": "Journal des orchestrations muet depuis le 2026-09-07 alors que 164 commits ont suivi (40 sur app/, dont 12 fix)",
+      "categories": [
+        "verification-manquante"
+      ],
+      "decision": "ACCEPTE + APPLIQUE : run recapitulatif a posteriori journalise par log_run.py (partiel, shas des fix dans les notes), decision utilisateur 2026-10-10",
+      "preuve_application": "ligne partiel ajoutee a runs.jsonl ; 15 fix recomptes depuis 2026-09-07T20:08",
+      "sans_commit": "runs.jsonl ignore par git (.gitignore:26)"
+    },
+    {
+      "cible": "VSCode1:agents-dormants",
+      "date": "2026-10-10",
+      "titre": "Echeance agents dormants (reportee au 2026-10-03) depassee sans arbitrage ; 13 en sommeil dont pptx-verify, reviewer, qa-engineer",
+      "categories": [
+        "agent-mort"
+      ],
+      "decision": "REFUSÉ : Aucun des 8 agents dormants n'est un doublon d'une skill BMAD (verifie le 2026-10-10) : ils restent en place. Decision utilisateur 2026-10-10 de traiter sans nouvelle question."
     }
   ]
 }
