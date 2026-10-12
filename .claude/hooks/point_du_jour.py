@@ -863,6 +863,32 @@ def ligne_debit_git(processus, maintenant=None, fenetre_min=FENETRE_DEBIT_GIT_MI
                   " verifier le lanceur (extension)")
 
 
+# Worktrees accumules (etude du 2026-10-12 : 78 worktrees, le script de nettoyage n'en voit que
+# les agent-*). Alerte en LECTURE SEULE : le seuil est NON MESURE, rien n'est supprime ici.
+SEUIL_WORKTREES = 40
+
+
+def compter_worktrees(racine=None):
+    """Nombre de worktrees secondaires (entrees de .git/worktrees), 0 si illisible.
+
+    Aucun appel git : un listdir. Un depot sans worktree (ou dont .git est un fichier) -> 0.
+    """
+    try:
+        return len(os.listdir(os.path.join(racine or RACINE, ".git", "worktrees")))
+    except OSError:
+        return 0
+
+
+def ligne_worktrees(nombre, seuil=SEUIL_WORKTREES):
+    """Une ligne ASCII si `nombre` >= `seuil`, sinon None. Fail-open sur entree invalide."""
+    if not isinstance(nombre, int) or isinstance(nombre, bool) or nombre < seuil:
+        return None
+    return _ascii(f"{nombre} worktrees git (seuil {seuil}) -- git ralentit ; a trier a la main"
+                  " (git worktree list), jamais --force : un worktree sale, non pousse ou"
+                  " detache porte du travail ; dry-run agent-* : py .claude/supervision/"
+                  "nettoyage_worktrees.py --depuis <date>")
+
+
 _NOMS_PYTHON = ("python.exe", "py.exe", "pythonw.exe")
 
 
@@ -1094,7 +1120,7 @@ def main(argv=None):
                           f" ou > {DELAI_LISTE_PROCESSUS_S} s)")
         procs = procs if procs is not None else []  # never a 2nd (slow) listing
         for ligne_orph in (ligne_git_orphelins(procs), ligne_hooks_orphelins(procs),
-                           ligne_debit_git(procs)):
+                           ligne_debit_git(procs), ligne_worktrees(compter_worktrees())):
             if ligne_orph:
                 lignes.append(ligne_orph)
     except Exception as exc:  # fail-open : un hook ne bloque jamais la session
