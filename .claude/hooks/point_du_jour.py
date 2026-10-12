@@ -824,6 +824,45 @@ def ligne_git_orphelins(processus=None, maintenant=None, seuil_min=SEUIL_GIT_ORP
         " journal des Popen detaches : .claude/supervision/popen_detaches.jsonl")
 
 
+# Debit de creation de git.exe, independant du filtre du faucheur (un orphelin que le filtre
+# protege par erreur reste visible ici). Seuil NON MESURE, a ajuster apres lecture de
+# orphelins_arretes.jsonl.
+SEUIL_DEBIT_GIT = 40
+FENETRE_DEBIT_GIT_MIN = 10
+
+
+def ligne_debit_git(processus, maintenant=None, fenetre_min=FENETRE_DEBIT_GIT_MIN,
+                    seuil=SEUIL_DEBIT_GIT):
+    """Une ligne ASCII si au moins `seuil` git.exe ont moins de `fenetre_min` minutes, sinon None.
+
+    Un instantane mesure un STOCK jeune, pas un debit : des git.exe deja termines ne sont pas
+    vus, donc le compte est un PLANCHER du nombre reellement cree. Aucun listing supplementaire :
+    `processus` est la liste partagee. Fail-open : entree malformee ignoree, jamais d'exception.
+    """
+    if not processus:
+        return None
+    utc = dt.timezone.utc  # noqa: UP017
+    maintenant = maintenant or dt.datetime.now(utc)
+    n = 0
+    for p in processus:
+        try:
+            if not isinstance(p, dict) or p.get("nom") != "git.exe":
+                continue
+            debut = p.get("debut")
+            if not isinstance(debut, dt.datetime):
+                continue
+            if debut.tzinfo is None:
+                debut = debut.replace(tzinfo=utc)
+            if dt.timedelta(0) <= maintenant - debut < dt.timedelta(minutes=fenetre_min):
+                n += 1
+        except Exception:  # noqa: BLE001
+            continue
+    if n < seuil:
+        return None
+    return _ascii(f"{n} git.exe nes en <{fenetre_min} min (seuil {seuil}) -- saturation probable ;"
+                  " verifier le lanceur (extension)")
+
+
 _NOMS_PYTHON = ("python.exe", "py.exe", "pythonw.exe")
 
 
@@ -1054,7 +1093,8 @@ def main(argv=None):
             lignes.append("processus orphelins (git/hooks) : non mesure (liste indisponible"
                           f" ou > {DELAI_LISTE_PROCESSUS_S} s)")
         procs = procs if procs is not None else []  # never a 2nd (slow) listing
-        for ligne_orph in (ligne_git_orphelins(procs), ligne_hooks_orphelins(procs)):
+        for ligne_orph in (ligne_git_orphelins(procs), ligne_hooks_orphelins(procs),
+                           ligne_debit_git(procs)):
             if ligne_orph:
                 lignes.append(ligne_orph)
     except Exception as exc:  # fail-open : un hook ne bloque jamais la session
