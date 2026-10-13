@@ -813,8 +813,9 @@ app.get('/api/sessions/:id/commentaire', chargerSession, (req, res) => {
 
 app.put('/api/sessions/:id/commentaire', chargerSession, (req, res) => {
   const session = req.session;
-  const { equipe, texte } = req.body || {};
-  if (!equipe || typeof equipe !== 'string') return res.status(400).json({ error: "Le champ 'equipe' est requis." });
+  const { equipe: equipeBrute, texte } = req.body || {};
+  if (typeof equipeBrute !== 'string' || !equipeBrute.trim()) return res.status(400).json({ error: "Le champ 'equipe' est requis." });
+  const equipe = equipeBrute.trim(); // meme normalisation que la fusion d'equipes (routes-fusion.js)
   if (texte !== undefined && typeof texte !== 'string') {
     return res.status(400).json({ error: 'texte doit etre une chaine de caracteres.' });
   }
@@ -1093,14 +1094,21 @@ app.get('/api/sessions/:id/consolidation', chargerSession, (req, res) => {
 // progression par pilier. "Meme equipe" = meme libelle d'equipe (consistance
 // assuree par US3.3/US3.4bis). On retient automatiquement la precedente la plus
 // recente (ouverture anterieure a la session courante).
-function calculerComparaison(session, equipe, manager) {
+// Cle d'un objectif : (pilier, objectif), jamais le nom seul (homonymes entre piliers).
+function cleObjectif(nomPilier, nomObjectif) {
+  return JSON.stringify([nomPilier, nomObjectif]);
+}
+
+// `departement` (optionnel) cloisonne equipe ET departement : une equipe homonyme
+// d'un autre departement n'est ni agregee ni retenue comme session precedente.
+function calculerComparaison(session, equipe, manager, departement) {
   const precedente = db
     .prepare(
       `SELECT DISTINCT s.id, s.ouverture_at, s.fermeture_at
        FROM sessions s
        JOIN repondants r ON r.session_id = s.id
        WHERE s.id != ? AND r.equipe = ? AND r.soumis_at IS NOT NULL AND s.ouverture_at < ?
-         AND s.est_demo = ?
+         AND s.est_demo = ?${departement !== undefined ? ' AND r.departement = ?' : ''}
        ORDER BY s.ouverture_at DESC
        LIMIT 1`
     )
@@ -1109,14 +1117,15 @@ function calculerComparaison(session, equipe, manager) {
     // reelle de porter le meme libelle. La progression affichee a l'ecran et dans
     // le PPT presente au client se serait alors calculee contre des donnees
     // fictives. Une session de demo se compare a une demo, une reelle a une reelle.
-    .get(session.id, equipe, session.ouverture_at, session.est_demo ? 1 : 0);
+    .get(session.id, equipe, session.ouverture_at, session.est_demo ? 1 : 0, ...(departement !== undefined ? [departement] : []));
   if (!precedente) return { disponible: false };
 
   // La comparaison ne restitue que des moyennes par pilier et par objectif : le
   // detail nominatif des DEUX sessions n'y a aucun usage, et celui de la session
   // precedente est encore plus sensible (elle peut avoir change de perimetre).
-  const courant = agregerResultats(session.id, { equipe }, manager, { nominatif: false });
-  const ancien = agregerResultats(precedente.id, { equipe }, manager, { nominatif: false });
+  const filtreComp = departement !== undefined ? { equipe, departement } : { equipe };
+  const courant = agregerResultats(session.id, filtreComp, manager, { nominatif: false });
+  const ancien = agregerResultats(precedente.id, filtreComp, manager, { nominatif: false });
 
   // Alignement par nom : on ancre sur le referentiel de la session courante.
   //
@@ -1127,7 +1136,6 @@ function calculerComparaison(session, equipe, manager) {
   // affichee a l'ecran ET dans le PPT remis au client -- portait sur le mauvais
   // objectif, sans aucun signal (audit du 2026-09-13). Meme qualification que
   // `Classement.aplatirQuestions(piliers, (p, sc) => ...)` plus bas.
-  const cleObjectif = (nomPilier, nomObjectif) => JSON.stringify([nomPilier, nomObjectif]);
   const ancienParPilier = new Map(ancien.piliers.map((p) => [p.nom, p]));
   const ancienParObjectif = new Map();
   for (const p of ancien.piliers) {
@@ -1204,15 +1212,15 @@ function construireBlocRestitution(session, filtre, type, nom, manager) {
   const accords = accordsClasses.map(champsAvecDispersion);
 
   // Evolution : seulement pour les equipes (comparaison par equipe, US6.5).
-  const comp = type === 'equipe' ? calculerComparaison(session, filtre.equipe, manager) : { disponible: false };
-  const precParObjectif = {};
-  if (comp.disponible) for (const a of comp.axes) precParObjectif[a.label] = a.precedent;
+  const comp = type === 'equipe' ? calculerComparaison(session, filtre.equipe, manager, filtre.departement) : { disponible: false };
+  const precParObjectif = new Map();
+  if (comp.disponible) for (const a of comp.axes) precParObjectif.set(cleObjectif(a.pilier, a.label), a.precedent);
 
   const objectifs = piliers.flatMap((p, pilierIndex) =>
     p.sousCategories.map((sc) => ({
       nom: sc.nom,
       moyenne: sc.moyenne,
-      precedent: comp.disponible ? (precParObjectif[sc.nom] ?? null) : null,
+      precedent: comp.disponible ? (precParObjectif.get(cleObjectif(p.nom, sc.nom)) ?? null) : null,
       pilierIndex,
     }))
   );
@@ -1221,11 +1229,16 @@ function construireBlocRestitution(session, filtre, type, nom, manager) {
   let commentaire = '';
   let nbEquipes;
   if (type === 'equipe') {
+    const sqlDep = 'SELECT DISTINCT departement FROM repondants WHERE session_id = ? AND equipe = ? AND soumis_at IS NOT NULL'
+      + (filtre.departement !== undefined ? ' AND departement = ?' : '');
     departement = db
-      .prepare('SELECT DISTINCT departement FROM repondants WHERE session_id = ? AND equipe = ? AND soumis_at IS NOT NULL')
-      .all(session.id, filtre.equipe)
+      .prepare(sqlDep)
+      .all(session.id, filtre.equipe, ...(filtre.departement !== undefined ? [filtre.departement] : []))
       .map((r) => r.departement)
       .join(', ');
+    // LIMITE DE SCHEMA CONNUE (pas de migration) : `commentaires` a pour PK
+    // (session_id, equipe), sans colonne departement ; deux equipes homonymes de la
+    // meme session partagent donc la meme ligne de commentaire.
     const c = db.prepare('SELECT texte FROM commentaires WHERE session_id = ? AND equipe = ?').get(session.id, filtre.equipe);
     commentaire = c ? c.texte : '';
   } else {
@@ -1236,6 +1249,8 @@ function construireBlocRestitution(session, filtre, type, nom, manager) {
       .map((r) => r.equipe);
     nbEquipes = eqs.length;
     // Commentaire departement = concatenation des commentaires d'equipe (US6.3).
+    // Meme limite de schema : commentaires indexes par equipe seule, un homonyme
+    // d'un autre departement partage (et ici peut apparaitre dans) cette ligne.
     if (eqs.length > 0) {
       const rows = db
         .prepare(`SELECT equipe, texte FROM commentaires WHERE session_id = ? AND equipe IN (${eqs.map(() => '?').join(',')})`)
@@ -1310,7 +1325,7 @@ app.get('/api/sessions/:id/export-ppt', chargerSession, (req, res) => avecCacheR
     const equipes = [...new Set(reps.map((r) => r.equipe))].sort((a, b) => a.localeCompare(b));
     blocs = [blocDep];
     for (const e of equipes) {
-      const b = construireBlocRestitution(session, { equipe: e }, 'equipe', e, manager);
+      const b = construireBlocRestitution(session, { departement, equipe: e }, 'equipe', e, manager);
       if (b) blocs.push(b);
     }
     sousTitre = `Département ${departement}`;
