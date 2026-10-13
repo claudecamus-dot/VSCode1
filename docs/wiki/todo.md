@@ -346,3 +346,25 @@ d'unicite n'est signale qu'au demarrage et n'est observable par aucune route ;
 comparaisons SQL sont lexicographiques ; le worker du correcteur n'a pas de
 delai de garde (un worker silencieux laisserait l'import pendu) ; un pilier sans
 question active rend 200 sur une sauvegarde qui n'ecrit rien.
+
+## Comité de revue du code du 2026-10-13 — constats 1 à 3 traités, reliquat connu
+
+Traités (fusion équipes/départements, export PPT par département, évolution par
+objectif) : voir le commit du lot. **Reliquat accepté, non corrigé** :
+
+- **Commentaires partagés entre équipes homonymes d'une session.** `commentaires` a
+  pour clé `(session_id, equipe)`, sans colonne `departement` : deux équipes de même
+  nom dans deux départements partagent la même ligne, y compris dans l'export d'un
+  département. Décision : documenter, pas de migration. La fusion d'équipes
+  concatène ces lignes de façon irréversible (le texte source est supprimé).
+- **`/export-ppt?scope=equipe` ignore `departement`** : une équipe homonyme de deux
+  départements agrège les deux. Même chose pour `/resultats`, `/detail` et
+  `/comparaison` (écran), qui filtrent par équipe seule : l'écran et le deck d'un
+  département peuvent afficher des progressions différentes pour la même équipe.
+- **Valeurs `equipe`/`departement` non trimées déjà en base** (imports anciens) :
+  la fusion trime source et cible, donc répondrait 404 sur une valeur à espaces de
+  bord. Non vérifié sur une base réelle.
+- **Rendu du radar** : deux objectifs homonymes de deux piliers portent le même libellé
+  d'axe (« Pilotage » deux fois), distingués seulement par la couleur du point.
+- Constat « XSS de `q.contexte` » **écarté** : `contexte` est déjà échappé à la source
+  dans `resultats.html` (lignes 512 et 542) ; ajouter `esc()` doublerait l'échappement.
