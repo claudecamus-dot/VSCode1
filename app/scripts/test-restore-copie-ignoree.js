@@ -25,6 +25,8 @@ const RACINE_APP = path.join(__dirname, '..');
 // bases, pas du texte brut portant un nom de fichier .db.
 function creerBaseMarquee(chemin, marqueur) {
   const base = new DatabaseSync(chemin);
+  // Tables coeur de l'app : restore-db.js refuse une source qui ne les a pas.
+  base.exec('CREATE TABLE piliers (id INTEGER); CREATE TABLE questions (id INTEGER); CREATE TABLE sessions (id INTEGER); CREATE TABLE repondants (id INTEGER); CREATE TABLE reponses (id INTEGER)');
   base.exec('CREATE TABLE marqueur (valeur TEXT)');
   base.prepare('INSERT INTO marqueur (valeur) VALUES (?)').run(marqueur);
   base.close();
@@ -73,7 +75,7 @@ try {
   const copie = copies[0] || '';
   check(copie.endsWith('.db'), `le nom se termine par .db (recu « ${copie} »)`);
   check(
-    /^app\.db\.before-restore-[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9-]+Z\.db$/.test(copie),
+    /^app\.db\.before-restore-[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9-]+Z(-[0-9]+)*\.db$/.test(copie),
     `le nom garde sa forme horodatee (recu « ${copie} »)`,
   );
   if (copie) {

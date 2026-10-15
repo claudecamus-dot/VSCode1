@@ -376,12 +376,12 @@ async function importFromBuffer(buffer, mode = 'conserver') {
 // consecutives et dans l'ordre voulu apres regroupement).
 function getReferentiel({ includeArchived = false } = {}) {
   const filtre = includeArchived ? '' : 'AND archive = 0';
-  const piliers = db.prepare(`SELECT id, nom, ordre FROM piliers WHERE 1=1 ${filtre} ORDER BY ordre`).all();
+  const piliers = db.prepare(`SELECT id, nom, ordre FROM piliers WHERE 1=1 ${filtre} ORDER BY ordre, id`).all();
   const sousCategories = db
-    .prepare(`SELECT id, nom, ordre, pilier_id FROM sous_categories WHERE 1=1 ${filtre} ORDER BY pilier_id, ordre`)
+    .prepare(`SELECT id, nom, ordre, pilier_id FROM sous_categories WHERE 1=1 ${filtre} ORDER BY pilier_id, ordre, id`)
     .all();
   const questions = db
-    .prepare(`SELECT id, ordre, texte, sous_categorie_id FROM questions WHERE 1=1 ${filtre} ORDER BY sous_categorie_id, ordre`)
+    .prepare(`SELECT id, ordre, texte, sous_categorie_id FROM questions WHERE 1=1 ${filtre} ORDER BY sous_categorie_id, ordre, id`)
     .all();
   const niveaux = db
     .prepare('SELECT niveau, texte, valeur_numerique, question_id FROM niveaux ORDER BY question_id, niveau')

@@ -13,23 +13,13 @@ const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
-const puppeteer = require('puppeteer-core');
 const { portLibre, attendreServeur, attendreMort, nettoyer, fetchMutant } = require('./helpers-serveur');
 
-// Recherche du navigateur parmi les emplacements usuels des trois OS, meme
-// idiome que scripts/test-entetes-securite.js : un chemin Windows en dur rendait
-// ce script inexecutable ailleurs que sur le poste de son auteur. CHROME_PATH,
-// quand elle est posee, fait AUTORITE et remplace la liste.
-const CANDIDATS_CHROME = process.env.CHROME_PATH ? [process.env.CHROME_PATH] : [
-  'C:/Program Files/Google/Chrome/Application/chrome.exe',
-  'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
-  '/usr/bin/google-chrome',
-  '/usr/bin/google-chrome-stable',
-  '/usr/bin/chromium-browser',
-  '/usr/bin/chromium',
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-];
-const CHROME_PATH = CANDIDATS_CHROME.find((c) => fs.existsSync(c)) || CANDIDATS_CHROME[0];
+// Navigateur : decouverte, lancement (userDataDir neuf) et fermeture bornee dans le
+// helper commun navigateur-e2e.js (CHROME_PATH fait AUTORITE ; SKIP propre sans Chrome
+// hors CI, echec si CI/EXIGER_NAVIGATEUR).
+const { chromeOuSortie, lancerNavigateur, fermer } = require('./navigateur-e2e');
+const CHROME_PATH = chromeOuSortie();
 const OUT_DIR = process.env.CAPTURES_OUT || path.join(__dirname, '..', '..', 'cadrage', 'captures', 'lien-repondant');
 
 let echecs = 0;
@@ -65,9 +55,6 @@ async function main() {
   serveur.stdout.on('data', (d) => { sortie += d; });
   serveur.stderr.on('data', (d) => { sortie += d; });
 
-  // userDataDir NEUF par execution (audit 2026-09-02, meme lecon que
-  // capture-screenshots.js) : jamais de profil Chrome persistant.
-  const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'puppeteer-verif-lien-'));
   let browser;
   try {
     await attendreServeur(base, 15000);
@@ -84,7 +71,8 @@ async function main() {
     const { id: sessionId } = await creation.json();
     const urlDepart = `${base}/repondre.html?session=${sessionId}`;
 
-    browser = await puppeteer.launch({ executablePath: CHROME_PATH, headless: true, userDataDir, args: ['--no-sandbox'] });
+    // userDataDir NEUF par execution (audit 2026-09-02) : fait par lancerNavigateur.
+    browser = await lancerNavigateur(CHROME_PATH);
 
     console.log('--- (1) Formulaire d\'identification puis identification ---');
     const page = await browser.newPage();
@@ -143,8 +131,7 @@ async function main() {
     console.error('Sortie du serveur pendant le test :\n' + sortie);
     throw err;
   } finally {
-    if (browser) await browser.close();
-    await nettoyer(userDataDir);
+    await fermer(browser);
     serveur.kill();
     await attendreMort(serveur);
     await nettoyer(dossierTmp);

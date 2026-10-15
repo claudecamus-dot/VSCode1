@@ -1,9 +1,11 @@
 name: CI
 
-# Exécute la suite de tests (app/scripts/test-*.js via `npm test`) à chaque push
-# sur main et sur chaque pull request. Couvre la partie JS ; le RENDU réel du PPT
-# (Chrome/PowerPoint, relecture à l'œil) n'est pas testable en CI et reste vérifié
-# manuellement (voir docs/wiki/technical/tests.md). En revanche, les vérifications
+# Exécute la suite de tests (app/scripts/test-*.js via `npm test`) puis les tests de
+# bout en bout en NAVIGATEUR RÉEL (app/scripts/e2e-*.js via `npm run test:e2e`, Chrome
+# installé par l'étape setup-chrome ci-dessous) à chaque push sur main et sur chaque
+# pull request. Le rendu réel du PPT (PowerPoint, relecture à l'œil) n'est, lui, pas
+# testable en CI et reste vérifié manuellement (voir docs/wiki/technical/tests.md).
+# En revanche, les vérifications
 # géométrie et charte graphique du générateur — python-pptx pur, aucun rendu
 # visuel réel — tournent bien ici : test-export-ppt.py (via `npm test` →
 # test-export-ppt-si-dispo.js, qui skip proprement sans python-pptx) et
@@ -30,6 +32,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: app
@@ -40,6 +43,8 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
 
       # package-lock.json EST versionné (app/package-lock.json) → `npm ci`
       # (déterministe, plus rapide, échoue si le lockfile diverge de
@@ -52,13 +57,26 @@ jobs:
         with:
           python-version: '3.12'
 
-      # python-pptx seul (pas de Chrome/PowerPoint) : suffit à faire tourner
+      # python-pptx seul (pas de PowerPoint) : suffit à faire tourner
       # réellement test-export-ppt.py (géométrie, via test-export-ppt-si-dispo.js
       # dans `npm test`, sinon SKIP faute de python-pptx) et test-ppt-charte.py
       # (charte graphique, via test-ppt-charte-si-dispo.js dans `npm test`) — les deux
       # inspectent le modèle objet python-pptx, sans jamais produire de rendu visuel réel.
       - name: Install python-pptx
-        run: pip install python-pptx
+        run: pip install -r requirements.txt  # python-pptx==1.0.2 (version épinglée, app/requirements.txt)
+
+      # Chrome installé de façon déterministe (le Chrome préinstallé du runner n'est pas
+      # garanti) ; CHROME_PATH fait AUTORITÉ pour app/scripts/navigateur-e2e.js. En CI,
+      # l'absence de navigateur est un ÉCHEC (test-entetes-securite.js, e2e-*.js).
+      # Épinglé par SHA de COMMIT (v2.2.0, résolu via `gh api`, pas le SHA du tag annoté).
+      - name: Setup Chrome
+        id: setup-chrome
+        uses: browser-actions/setup-chrome@48ad923757ca74d66703209fe939badbdf80f2f4 # v2.2.0
+        with:
+          chrome-version: stable
+
+      - name: Exporter CHROME_PATH
+        run: echo "CHROME_PATH=${{ steps.setup-chrome.outputs.chrome-path }}" >> "$GITHUB_ENV"
 
       - name: Lint
         run: npm run lint
@@ -71,6 +89,11 @@ jobs:
       # faute de python-pptx est un ÉCHEC, jamais un SKIP silencieux.
       - name: Run tests (with coverage)
         run: npm run test:cov
+
+      # Tests de bout en bout en navigateur réel (CHROME_PATH posé ci-dessus ; CI=true
+      # rend le navigateur obligatoire). Script `test:e2e` défini dans app/package.json.
+      - name: Run e2e tests (Chrome)
+        run: npm run test:e2e
 
       # Audit des dependances (adoption veille SSDF/OWASP du 2026-09-26).
       # NON bloquant au depart (continue-on-error) : on mesure avant de gater,

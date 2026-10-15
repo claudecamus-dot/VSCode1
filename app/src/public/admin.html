@@ -62,6 +62,7 @@
   .mode-import .danger { color: #b3261e; }
 </style>
 <script src="/esc.js"></script>
+<script src="/fetch-json.js"></script>
 <script src="/env-banner.js" defer></script>
 </head>
 <body>
@@ -214,7 +215,21 @@
       el.innerHTML = `<div class="result ${ok ? 'ok' : 'err'}">${message}</div>`;
     }
 
-    $('btnImporter').addEventListener('click', async () => {
+    // Desactive le bouton pendant l'envoi (un double clic lancait deux imports
+    // « remplacer » destructifs) et le reactive quoi qu'il arrive.
+    async function avecBouton(bouton, action) {
+      if (bouton.disabled) return;
+      bouton.disabled = true;
+      try {
+        return await action();
+      } finally {
+        bouton.disabled = false;
+      }
+    }
+
+    $('btnImporter').addEventListener('click', () => avecBouton($('btnImporter'), importerReferentiel));
+
+    async function importerReferentiel() {
       const fichier = $('fichierExcel').files[0];
       if (!fichier) return afficherResultat($('resultatImport'), false, 'Choisissez un fichier .xlsx.');
       const mode = document.querySelector('input[name="modeImport"]:checked').value;
@@ -254,15 +269,21 @@
         afficherResultat($('resultatImport'), true, `Import réussi : ${data.piliers} pilier(s), ${data.sousCategories} objectif(s), ${data.questions} question(s).${suffixe}`);
         await chargerPerimetre();
       } catch (err) {
-        afficherResultat($('resultatImport'), false, err.message);
+        afficherResultat($('resultatImport'), false, esc(err.message));
       }
-    });
+    }
 
     // --- Périmètre de la session : arbre piliers > questions (US1.3/1.3bis) ---
 
     async function chargerPerimetre() {
-      const referentiel = await (await fetch('/api/referentiel')).json();
       const zone = $('perimetre');
+      let referentiel;
+      try {
+        referentiel = await fetchJson('/api/referentiel');
+      } catch (err) {
+        zone.innerHTML = `<div class="result err">Impossible de charger le référentiel : ${esc(err.message)}</div>`;
+        return;
+      }
       if (referentiel.length === 0) {
         zone.innerHTML = "Importez d'abord un référentiel.";
         return;
@@ -341,11 +362,13 @@
         afficherResultat($('resultatSession'), true, `Session créée. Lien à partager : <code>${lien}</code>`);
         $('idSession').value = data.id;
       } catch (err) {
-        afficherResultat($('resultatSession'), false, err.message);
+        afficherResultat($('resultatSession'), false, esc(err.message));
       }
     });
 
-    $('btnImporterParticipants').addEventListener('click', async () => {
+    $('btnImporterParticipants').addEventListener('click', () => avecBouton($('btnImporterParticipants'), importerParticipants));
+
+    async function importerParticipants() {
       const idSession = $('idSession').value.trim();
       const fichier = $('fichierParticipants').files[0];
       if (!idSession) return afficherResultat($('resultatParticipants'), false, "Renseignez l'identifiant de session.");
@@ -358,9 +381,9 @@
         if (!res.ok) throw new Error(data.error || 'Erreur inconnue.');
         afficherResultat($('resultatParticipants'), true, `${data.invites} destinataire(s) importé(s).`);
       } catch (err) {
-        afficherResultat($('resultatParticipants'), false, err.message);
+        afficherResultat($('resultatParticipants'), false, esc(err.message));
       }
-    });
+    }
 
     function formatDateFr(iso) {
       return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' });
@@ -447,16 +470,17 @@
       const urlListe = type === 'rappel'
         ? `/api/sessions/${idSession}/invites/non-repondants`
         : `/api/sessions/${idSession}/invites`;
-      const [sessionRes, listeRes] = await Promise.all([
-        fetch(`/api/sessions/${idSession}`),
-        fetch(urlListe),
-      ]);
-      const session = await sessionRes.json();
-      if (!sessionRes.ok) {
-        $('erreurEmail').textContent = session.error;
+      let session;
+      let destinataires;
+      try {
+        [session, destinataires] = await Promise.all([
+          fetchJson(`/api/sessions/${idSession}`),
+          fetchJson(urlListe),
+        ]);
+      } catch (err) {
+        $('erreurEmail').textContent = err.message;
         return;
       }
-      const destinataires = await listeRes.json();
       if (destinataires.length === 0) {
         $('erreurEmail').textContent = type === 'rappel'
           ? "Aucun rappel à envoyer : tous les invités ont déjà soumis leur questionnaire (ou aucune liste de participants n'a été importée)."
@@ -472,7 +496,13 @@
       const sujet = template.sujet;
       const corps = appliquerPlaceholders(template.corps, lien, fermeture);
 
-      window.location.href = `mailto:${emailsTo}?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
+      const lienMailto = `mailto:${emailsTo}?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
+      // Les clients mail tronquent (ou refusent) les liens mailto: trop longs : mieux vaut le dire que d'ouvrir un message aux destinataires coupes.
+      if (lienMailto.length > 1800) {
+        $('erreurEmail').textContent = `Liste trop longue pour un lien mail (${destinataires.length} destinataires, ${lienMailto.length} caractères, limite ~1800) : le message serait tronqué. Envoyez-le en plusieurs lots ou copiez les adresses depuis votre fichier de participants.`;
+        return;
+      }
+      window.location.href = lienMailto;
     }
 
     $('btnSauvegarderTemplates').addEventListener('click', sauvegarderTemplates);
@@ -505,7 +535,8 @@
       const statut = $('statutSessionResultats');
       resultat.innerHTML = '';
       try {
-        const sessions = await (await fetch('/api/sessions')).json();
+        const sessionPrecedente = select.value;
+        const sessions = await fetchJson('/api/sessions');
         if (!Array.isArray(sessions) || sessions.length === 0) {
           select.innerHTML = '<option value="">Aucune session disponible</option>';
           $('btnOuvrirResultats').disabled = true;
@@ -515,7 +546,8 @@
         select.innerHTML = sessions
           .map((s) => `<option value="${s.id}">${formatDateFr(s.ouverture_at)} → ${formatDateFr(s.fermeture_at)} (${s.id.slice(0, 8)})</option>`)
           .join('');
-        const sessionSelectionnee = select.value || sessions[0].id;
+        // Conserver la selection courante si elle existe encore (le select vient d'etre reconstruit).
+        const sessionSelectionnee = sessions.some((s) => s.id === sessionPrecedente) ? sessionPrecedente : sessions[0].id;
         select.value = sessionSelectionnee;
         statut.textContent = `Session prête : ${sessionSelectionnee.slice(0, 8)}`;
         $('btnOuvrirResultats').disabled = false;
@@ -523,7 +555,7 @@
         select.innerHTML = '<option value="">Erreur de chargement</option>';
         $('btnOuvrirResultats').disabled = true;
         statut.textContent = 'Erreur de chargement';
-        resultat.innerHTML = `<div class="result err">${err.message || 'Impossible de charger les sessions.'}</div>`;
+        resultat.innerHTML = `<div class="result err">${esc(err.message || 'Impossible de charger les sessions.')}</div>`;
       }
     }
 
@@ -607,7 +639,13 @@
     // --- Gestion des rôles (US2.3) ---
 
     async function chargerRoles() {
-      const roles = await (await fetch('/api/roles')).json();
+      let roles;
+      try {
+        roles = await fetchJson('/api/roles');
+      } catch (err) {
+        $('erreurRole').textContent = `Impossible de charger les rôles : ${err.message}`;
+        return;
+      }
       $('listeRoles').innerHTML = roles
         .map((r) => `<li><span>${esc(r)}</span><button type="button" data-role="${encodeURIComponent(r)}">Supprimer</button></li>`)
         .join('');
@@ -655,7 +693,13 @@
 
     async function chargerValeursFusion() {
       const champ = $('champFusion').value;
-      const valeurs = await (await fetch(`/api/repondants/valeurs/${champ}`)).json();
+      let valeurs;
+      try {
+        valeurs = await fetchJson(`/api/repondants/valeurs/${champ}`);
+      } catch (err) {
+        afficherResultat($('resultatFusion'), false, `Impossible de charger les valeurs : ${esc(err.message)}`);
+        return;
+      }
       $('listeValeurs').innerHTML = valeurs.length
         ? valeurs.map((v) => `<li><span>${esc(v.valeur)}</span><span class="effectif">${v.n}</span></li>`).join('')
         : '<li><span>Aucune donnée pour le moment.</span></li>';
@@ -678,7 +722,7 @@
         body: JSON.stringify({ champ, source, cible }),
       });
       const data = await res.json();
-      if (!res.ok) return afficherResultat($('resultatFusion'), false, data.error || 'Fusion impossible.');
+      if (!res.ok) return afficherResultat($('resultatFusion'), false, esc(data.error || 'Fusion impossible.'));
       afficherResultat($('resultatFusion'), true, `${data.reaffectes} répondant(s) réaffecté(s) de « ${esc(source)} » vers « ${esc(cible)} ».`);
       await chargerValeursFusion();
     }
@@ -687,8 +731,12 @@
     $('champFusion').addEventListener('change', chargerValeursFusion);
 
     async function chargerTexteIntroDefaut() {
-      const { texte } = await (await fetch('/api/texte-intro-defaut')).json();
-      if (!$('texteIntro').value) $('texteIntro').value = texte;
+      try {
+        const { texte } = await fetchJson('/api/texte-intro-defaut');
+        if (!$('texteIntro').value) $('texteIntro').value = texte;
+      } catch (err) {
+        afficherResultat($('resultatSession'), false, `Texte d'accueil par défaut indisponible : ${esc(err.message)}`);
+      }
     }
 
     chargerRoles();

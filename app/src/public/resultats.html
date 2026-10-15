@@ -118,6 +118,7 @@
   .delta-row .delta.nouveau { color: #888; font-weight: 400; font-style: italic; }
 </style>
 <script src="/esc.js"></script>
+<script src="/fetch-json.js"></script>
 <script src="/stats-partagees.js"></script>
 <script src="/classement.js"></script>
 <script src="/env-banner.js" defer></script>
@@ -197,6 +198,20 @@
     // Signature du dernier rendu de rendrePiliers() (voir la fonction) — permet
     // de sauter un rebuild DOM qui reproduirait exactement le meme resultat.
     let dernierPiliersSerialises = null;
+    // Gardes de sequence (une par chargeur) : la reponse d'un appel perime (equipe
+    // changee entre-temps) est ignoree au lieu d'ecraser l'equipe courante.
+    const gardeEquipes = gardeSequence();
+    const gardeParticipation = gardeSequence();
+    const gardeResultats = gardeSequence();
+    const gardeCommentaire = gardeSequence();
+    const gardeComparaison = gardeSequence();
+    // Equipe dont le commentaire est actuellement affiche dans le textarea (null tant
+    // qu'un chargement est en cours ou a echoue) et texte tel que charge/enregistre :
+    // sert a refuser un enregistrement sous la mauvaise equipe et a detecter les
+    // modifications non enregistrees.
+    let equipeCommentaire = null;
+    let texteCommentaireBase = '';
+    const commentaireModifie = () => equipeCommentaire !== null && $('commentaire').value !== texteCommentaireBase;
 
     // Libelle d'axe radar sans son contenu entre parentheses (ex. "Leadership et
     // Culture agile (sponsorship, posture managériale, ...)" -> "Leadership et
@@ -243,14 +258,40 @@
       attacherRepli($('comparaisonTitre'));
       attacherRepli($('participantsTitre'));
 
-      $('equipe').addEventListener('change', chargerResultats);
+      // Modifications non enregistrees : un confirm() natif (une ligne, sans etat
+      // supplementaire) est le plus simple et le plus sur ; refuser restaure l'equipe
+      // dont le commentaire est affiche. Conserver le texte sous la nouvelle equipe
+      // serait plus risque (il serait enregistre sous la mauvaise equipe).
+      $('equipe').addEventListener('change', () => {
+        if (commentaireModifie() && $('equipe').value !== equipeCommentaire) {
+          if (!confirm(`Le commentaire de « ${equipeCommentaire} » a des modifications non enregistrées. Changer d'équipe et les perdre ?`)) {
+            $('equipe').value = equipeCommentaire;
+            return;
+          }
+        }
+        chargerResultats();
+      });
       // chargerEquipes() n'est pas catche par ailleurs (chargerResultats(), lui,
       // gere desormais ses propres echecs — cf. plus bas) : sans ce .catch(),
       // un rejet ici devenait une rejection non geree (item 4 audit-technique
       // 2026-09-04).
-      $('avecManager').addEventListener('change', () => {
-        chargerEquipes().catch((err) => console.error('chargerEquipes', err));
-        chargerResultats();
+      $('avecManager').addEventListener('change', async () => {
+        // Le rechargement ecrase le textarea : meme protection que le changement d'equipe.
+        if (commentaireModifie() && !confirm(`Le commentaire de « ${equipeCommentaire} » a des modifications non enregistrées. Recharger et les perdre ?`)) {
+          $('avecManager').checked = !$('avecManager').checked;
+          return;
+        }
+        // Enchaine (et non en parallele) : chargerResultats() lit le select que
+        // chargerEquipes() reconstruit.
+        try {
+          await chargerEquipes();
+        } catch (err) {
+          console.error('chargerEquipes', err);
+          $('etatSession').hidden = false;
+          $('etatSession').innerHTML = `<strong>Erreur de chargement des équipes.</strong> ${esc(err.message)}`;
+          return;
+        }
+        await chargerResultats();
       });
       $('btnExportPPT').addEventListener('click', exporterPPT);
       $('btnToutDeplier').addEventListener('click', toggleTout);
@@ -268,22 +309,29 @@
         // laisser un ecran silencieusement casse.
         console.error('init', err);
         $('etatSession').hidden = false;
-        $('etatSession').innerHTML = '<strong>Erreur de chargement de la session.</strong> Rechargez la page ; si le problème persiste, contactez le support.';
+        $('etatSession').innerHTML = `<strong>Erreur de chargement de la session.</strong> ${esc(err.message)} Rechargez la page ; si le problème persiste, contactez le support.`;
         $('barreControles').hidden = true;
       }
     }
 
     async function chargerEquipes() {
       const manager = $('avecManager').checked ? 'avec' : 'sans';
-      const equipes = await (await fetch(`/api/sessions/${sessionId}/equipes?manager=${manager}`)).json();
+      const jeton = gardeEquipes.prochain();
+      const equipes = await fetchJson(`/api/sessions/${sessionId}/equipes?manager=${manager}`);
+      if (!gardeEquipes.estCourant(jeton)) return;
       const select = $('equipe');
+      const precedente = select.value;
       if (equipes.length === 0) {
-        select.innerHTML = '<option>Aucune équipe avec réponses soumises</option>';
+        // value="" : sans attribut value, select.value renverrait le libelle et la
+        // garde `if (!equipe)` de chargerResultats() ne se declencherait jamais.
+        select.innerHTML = '<option value="">Aucune équipe avec réponses soumises</option>';
         return;
       }
       select.innerHTML = equipes.map((e) => `<option value="${esc(e.equipe)}">${esc(e.equipe)} (${e.effectif})</option>`).join('');
       const equipeParam = new URLSearchParams(window.location.search).get('equipe');
       if (equipeParam && equipes.some((e) => e.equipe === equipeParam)) select.value = equipeParam;
+      // Bascule « avec manager » : garder l'equipe deja selectionnee si elle existe encore.
+      else if (precedente && equipes.some((e) => e.equipe === precedente)) select.value = precedente;
     }
 
     // --- Repli generique (Points forts, Points d'attention, Comparaison, Participants) ---
@@ -362,7 +410,10 @@
     // Taux de reponse de la session (US6.2), independant de l'equipe selectionnee.
     // Mis en cache : consomme par la synthese chiffree a chaque changement d'equipe.
     async function chargerParticipation() {
-      participationSession = await (await fetch(`/api/sessions/${sessionId}/participation`)).json();
+      const jeton = gardeParticipation.prochain();
+      const donnees = await fetchJson(`/api/sessions/${sessionId}/participation`);
+      if (!gardeParticipation.estCourant(jeton)) return;
+      participationSession = donnees;
     }
 
     function fmt(moyenne) {
@@ -390,7 +441,12 @@
 
     async function chargerResultats() {
       const equipe = $('equipe').value;
+      const jeton = gardeResultats.prochain();
       if (!equipe) {
+        // Invalide aussi les chargements commentaire/comparaison encore en vol.
+        gardeCommentaire.prochain();
+        gardeComparaison.prochain();
+        equipeCommentaire = null;
         $('participants').hidden = true;
         $('syntheseChiffree').innerHTML = '';
         $('pointsForts').innerHTML = '';
@@ -409,10 +465,11 @@
       // qu'enchainer (constat audit-technique 2026-09-04).
       try {
         const [data] = await Promise.all([
-          fetch(`/api/sessions/${sessionId}/resultats?equipe=${encodeURIComponent(equipe)}&manager=${manager}`).then((r) => r.json()),
-          chargerCommentaire(),
-          chargerComparaison(),
+          fetchJson(`/api/sessions/${sessionId}/resultats?equipe=${encodeURIComponent(equipe)}&manager=${manager}`),
+          chargerCommentaire().catch(echecCommentaire),
+          chargerComparaison().catch(echecComparaison),
         ]);
+        if (!gardeResultats.estCourant(jeton)) return; // une autre equipe a ete demandee entre-temps
         $('effectif').textContent = `${data.effectif} réponse(s) prise(s) en compte`;
         if (data.effectifTotal !== undefined) {
           $('effectif').textContent += ` — ${data.effectifTotal} membre(s) dans l'équipe`;
@@ -430,8 +487,9 @@
         // donnees de l'ANCIENNE — un melange silencieux de 2 equipes differentes
         // (item 4, audit-technique 2026-09-04). On efface les panneaux et on
         // affiche un message clair plutot que ce melange.
+        if (!gardeResultats.estCourant(jeton)) return; // echec d'un appel perime : ne pas ecraser l'equipe courante
         console.error('chargerResultats', err);
-        const msg = '<p class="vide">Erreur de chargement des résultats de cette équipe. Réessayez (changez d\'équipe ou rechargez la page).</p>';
+        const msg = `<p class="vide">Erreur de chargement des résultats de cette équipe (${esc(err.message)}). Réessayez (changez d'équipe ou rechargez la page).</p>`;
         $('effectif').textContent = '';
         $('syntheseChiffree').innerHTML = '';
         $('pointsForts').innerHTML = msg;
@@ -462,28 +520,52 @@
       $('participants').hidden = false;
     }
 
+    // Un panneau annexe en echec ne doit pas vider des resultats valides : le
+    // commentaire reste non enregistrable (equipeCommentaire = null) et le dit.
+    function echecCommentaire(err) {
+      console.error('chargerCommentaire', err);
+      $('etatCommentaire').textContent = `Commentaire non chargé (${err.message}) : enregistrement impossible. Changez d'équipe puis revenez pour réessayer.`;
+    }
+    function echecComparaison(err) {
+      console.error('chargerComparaison', err);
+      $('comparaison').hidden = true;
+    }
+
     // --- Commentaire de restitution par équipe (US6.3) ---
     async function chargerCommentaire() {
       const equipe = $('equipe').value;
-      const { texte } = await (await fetch(`/api/sessions/${sessionId}/commentaire?equipe=${encodeURIComponent(equipe)}`)).json();
+      const jeton = gardeCommentaire.prochain();
+      equipeCommentaire = null; // chargement en cours : enregistrer est refuse
+      const { texte } = await fetchJson(`/api/sessions/${sessionId}/commentaire?equipe=${encodeURIComponent(equipe)}`);
+      if (!gardeCommentaire.estCourant(jeton)) return;
       $('commentaire').value = texte;
+      equipeCommentaire = equipe;
+      texteCommentaireBase = texte;
       $('etatCommentaire').textContent = '';
     }
 
     async function enregistrerCommentaire() {
       const equipe = $('equipe').value;
+      // Le textarea doit afficher le commentaire de l'equipe selectionnee : sinon
+      // (chargement en cours ou echoue) on enverrait le texte d'une autre equipe.
+      if (!equipe || equipeCommentaire !== equipe) {
+        $('etatCommentaire').textContent = "Enregistrement refusé : le commentaire de cette équipe n'est pas (encore) chargé. Changez d'équipe puis revenez pour le recharger.";
+        return;
+      }
+      const texte = $('commentaire').value;
       $('etatCommentaire').textContent = 'Enregistrement…';
       try {
         const res = await fetch(`/api/sessions/${sessionId}/commentaire`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ equipe, texte: $('commentaire').value }),
+          body: JSON.stringify({ equipe, texte }),
         });
         // Le serveur borne desormais la longueur du commentaire (400 au-dela,
         // audit-technique 2026-09-09) : sans reprendre son message, l'animateur
         // ne verrait qu'un « Échec de l'enregistrement » muet et retenterait
         // indefiniment le meme texte trop long.
         if (res.ok) {
+          if (equipeCommentaire === equipe) texteCommentaireBase = texte;
           $('etatCommentaire').textContent = 'Enregistré ✓';
         } else {
           const { error } = await res.json().catch(() => ({}));
@@ -690,7 +772,9 @@
     async function chargerComparaison() {
       const equipe = $('equipe').value;
       const manager = $('avecManager').checked ? 'avec' : 'sans';
-      const data = await (await fetch(`/api/sessions/${sessionId}/comparaison?equipe=${encodeURIComponent(equipe)}&manager=${manager}`)).json();
+      const jeton = gardeComparaison.prochain();
+      const data = await fetchJson(`/api/sessions/${sessionId}/comparaison?equipe=${encodeURIComponent(equipe)}&manager=${manager}`);
+      if (!gardeComparaison.estCourant(jeton)) return;
       const section = $('comparaison');
       if (!data.disponible) {
         section.hidden = true;

@@ -39,6 +39,7 @@
   #statutCopieLien { margin-left: 0.5rem; }
 </style>
 <script src="/esc.js"></script>
+<script src="/fetch-json.js"></script>
 <script src="/env-banner.js" defer></script>
 </head>
 <body>
@@ -153,17 +154,33 @@
     let repondant = null;
     let pilierActifIndex = 0;
     let piliersSauvegardes = new Set();
+    let identificationEnCours = false;
+    let envoiEnCours = false;
 
     async function init() {
       if (!sessionId) {
         $('zoneStatutSession').innerHTML = '<p class="err">Lien invalide : identifiant de session manquant.</p>';
         return;
       }
-      const sessionRes = await fetch(`/api/sessions/${sessionId}`);
-      const session = await sessionRes.json();
-      if (!sessionRes.ok) {
-        $('zoneStatutSession').innerHTML = `<p class="err">${session.error}</p>`;
-        return;
+      try {
+        await demarrer();
+      } catch (err) {
+        // Reseau coupe, 5xx, corps illisible : message visible plutot qu'une page blanche.
+        $('zoneStatutSession').innerHTML = `<p class="err">Impossible de charger le questionnaire (${esc(err.message)}). Rechargez la page pour réessayer.</p>`;
+      }
+    }
+
+    async function demarrer() {
+      let session;
+      try {
+        session = await fetchJson(`/api/sessions/${sessionId}`);
+      } catch (err) {
+        // Une reponse 4xx du serveur (session inconnue...) garde son message tel quel.
+        if (err.status > 0 && err.status < 500) {
+          $('zoneStatutSession').innerHTML = `<p class="err">${esc(err.message)}</p>`;
+          return;
+        }
+        throw err;
       }
       $('noticeIdentification').textContent = session.texte_intro;
       if (session.statut !== 'ouverte') {
@@ -191,9 +208,9 @@
       // celui qu'ouvrent toutes les personnes invitees, pas seulement
       // l'animateur.
       const [roles, departements, equipes] = await Promise.all([
-        fetch(`/api/sessions/${sessionId}/roles`).then((r) => r.json()),
-        fetch(`/api/sessions/${sessionId}/departements-suggestions`).then((r) => r.json()),
-        fetch(`/api/sessions/${sessionId}/equipes-suggestions`).then((r) => r.json()),
+        fetchJson(`/api/sessions/${sessionId}/roles`),
+        fetchJson(`/api/sessions/${sessionId}/departements-suggestions`),
+        fetchJson(`/api/sessions/${sessionId}/equipes-suggestions`),
       ]);
 
       const selectRole = $('role');
@@ -206,7 +223,22 @@
 
     $('formIdentification').addEventListener('submit', async (e) => {
       e.preventDefault();
+      if (identificationEnCours) return;
+      identificationEnCours = true;
+      const bouton = $('formIdentification').querySelector('button[type=submit]');
+      if (bouton) bouton.disabled = true;
       $('erreurIdentification').textContent = '';
+      try {
+        await identifier();
+      } catch (err) {
+        $('erreurIdentification').textContent = err.message;
+      } finally {
+        identificationEnCours = false;
+        if (bouton) bouton.disabled = false;
+      }
+    });
+
+    async function identifier() {
       const corps = {
         email: $('email').value,
         nom: $('nom').value,
@@ -217,19 +249,22 @@
         est_manager: $('estManager').checked,
         dans_equipe: $('dansEquipe').checked,
       };
-      const res = await fetch(`/api/sessions/${sessionId}/repondants`, {
+      const data = await fetchJson(`/api/sessions/${sessionId}/repondants`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(corps),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        $('erreurIdentification').textContent = data.error;
-        return;
-      }
       $('formIdentification').classList.add('hidden');
-      await chargerRepondant(data.id);
-    });
+      try {
+        await chargerRepondant(data.id);
+      } catch (err) {
+        // Le repondant existe deja (lien ?rid= pose) : re-afficher le formulaire pour que
+        // l'erreur soit visible, et dire comment reprendre sans re-saisir (un 2e envoi
+        // serait refuse : email deja pris).
+        $('formIdentification').classList.remove('hidden');
+        throw new Error(`${err.message} Rechargez la page pour reprendre votre questionnaire.`);
+      }
+    }
 
     async function chargerRepondant(repondantId) {
       const res = await fetch(`/api/repondants/${repondantId}`);
@@ -252,7 +287,7 @@
       reponsesEnCours = {};
       for (const r of repondant.reponses) reponsesEnCours[r.question_id] = r.niveau;
 
-      referentiel = await (await fetch(`/api/sessions/${sessionId}/referentiel`)).json();
+      referentiel = await fetchJson(`/api/sessions/${sessionId}/referentiel`);
       piliersSauvegardes = new Set(
         referentiel
           .filter((pilier) => pilierQuestions(pilier).every((q) => repondant.reponses.some((r) => r.question_id === q.id)))
@@ -338,6 +373,10 @@
         input.addEventListener('change', () => {
           const questionId = Number(input.name.slice(1));
           reponsesEnCours[questionId] = Number(input.value);
+          // Compteur et pastilles « complet » rafraichis des le choix (le total
+          // compte les choix faits, enregistres ou non : rien d'autre ne les
+          // remettait a jour avant « Continuer »).
+          rendreNavigation();
           const question = pilierQuestions(pilier).find((q) => q.id === questionId);
           const choixInfo = question.niveaux.find((n) => n.niveau === Number(input.value));
           const encart = $(`detail-q${questionId}`);
@@ -359,21 +398,38 @@
         if (erreurEl) erreurEl.textContent = 'Répondez à toutes les questions de ce pilier avant de le valider.';
         return;
       }
-      const res = await fetch(`/api/repondants/${repondant.id}/piliers/${pilier.id}/reponses`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reponses }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        if (erreurEl) erreurEl.textContent = data.error;
+      if (envoiEnCours) return;
+      envoiEnCours = true;
+      const bouton = $('btnValiderPilier');
+      if (bouton) bouton.disabled = true;
+      try {
+        await fetchJson(`/api/repondants/${repondant.id}/piliers/${pilier.id}/reponses`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reponses }),
+        });
+      } catch (err) {
+        if (bouton) bouton.disabled = false;
+        envoiEnCours = false;
+        const el = $('erreurAction');
+        if (el) el.textContent = err.message;
         return;
       }
-      piliersSauvegardes.add(pilier.id);
-      rendreNavigation();
-      const prochainIndex = referentiel.findIndex((_, idx) => idx > pilierActifIndex && !pilierEstComplet(referentiel[idx]));
+      envoiEnCours = false;
+      // INSTANTANE : un radio change pendant le PUT rend les reponses envoyees
+      // obsoletes ; le pilier n'est « sauvegarde » que si rien n'a bouge.
+      const inchange = reponses.every((r) => reponsesEnCours[r.question_id] === r.niveau);
+      if (inchange) piliersSauvegardes.add(pilier.id);
+      const prochainIndex = inchange
+        ? referentiel.findIndex((_, idx) => idx > pilierActifIndex && !pilierEstComplet(referentiel[idx]))
+        : -1;
       if (prochainIndex !== -1) pilierActifIndex = prochainIndex;
+      rendreNavigation();
       rendrePilierCourant();
+      if (!inchange) {
+        const el = $('erreurAction');
+        if (el) el.textContent = "Vous avez modifié une réponse pendant l'enregistrement : cliquez de nouveau sur « Continuer ».";
+      }
     }
 
     function rendreZoneSoumission() {
@@ -400,14 +456,20 @@
     }
 
     async function soumettre() {
-      const res = await fetch(`/api/repondants/${repondant.id}/soumission`, { method: 'POST' });
-      const data = await res.json();
-      const erreurEl = $('erreurAction');
-      if (!res.ok) {
-        if (erreurEl) erreurEl.textContent = data.error;
+      if (envoiEnCours) return;
+      envoiEnCours = true;
+      const bouton = $('btnSoumettre');
+      if (bouton) bouton.disabled = true;
+      try {
+        await fetchJson(`/api/repondants/${repondant.id}/soumission`, { method: 'POST' });
+      } catch (err) {
+        const erreurEl = $('erreurAction');
+        if (erreurEl) erreurEl.textContent = err.message;
+        if (bouton) bouton.disabled = false;
         return;
+      } finally {
+        envoiEnCours = false;
       }
-      if (erreurEl) erreurEl.textContent = '';
       afficherSoumissionFaite();
     }
 

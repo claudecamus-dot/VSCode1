@@ -12,7 +12,7 @@ const { importFromBuffer, getReferentiel, estImportRemplacerEnCours } = require(
 const { moyenneDe, statsNiveaux, deltaHistorique } = require('./scores');
 const Classement = require('./public/classement.js');
 const { importInvitesFromBuffer, replaceInvites, getInvites, getNonRepondants, looksLikeEmail } = require('./invites');
-const { valeurCanonique } = require('./normalisation');
+const { valeurCanonique, cleNormalisee } = require('./normalisation');
 const { estModeDemo } = require('./mode');
 const { barriereAuth } = require('./auth');
 const { verifierOrigine } = require('./csrf');
@@ -20,6 +20,8 @@ const { entetesSecurite } = require('./entetes-securite');
 const { limiteDebit } = require('./debit');
 const { corpsEchecPpt } = require('./erreur-ppt');
 const { routesFusion } = require('./routes-fusion');
+const { classerErreur, ligneJournal, resumeSortiePython } = require('./erreurs');
+const { installerArret, delaiDepuisEnv } = require('./arret');
 
 const app = express();
 // Routage sensible a la casse (defaut Express : desactive). Deuxieme ligne de
@@ -45,8 +47,15 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 app.use(entetesSecurite);
 // Sonde de vivacite (HEALTHCHECK Docker, audit 2026-10-04) : AVANT la barriere,
 // car l'orchestrateur n'a pas d'identifiants ; ne renvoie aucune donnee.
+// Une simple lecture suffit (sans verrou d'ecriture) : si la base est fermee ou
+// illisible, la sonde le dit (503) au lieu de laisser croire que tout va bien.
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
+  try {
+    db.prepare('SELECT 1').get();
+    res.json({ status: 'ok' });
+  } catch {
+    res.status(503).json({ status: 'indisponible' });
+  }
 });
 app.use(barriereAuth());
 // Anti-CSRF (voir csrf.js) : Basic Auth ne protege pas des requetes rejouees
@@ -402,7 +411,7 @@ app.get('/api/sessions/:id/referentiel', chargerSession, (req, res) => {
 // 400 pour ce qui est vraiment un fichier illisible : sans lui, une panne de base
 // serait annoncee a l'animateur comme un mauvais format, et il referait son
 // fichier au lieu d'appeler l'exploitant.
-app.post('/api/sessions/:id/invites', upload.single('fichier'), chargerSession, async (req, res, next) => {
+app.post('/api/sessions/:id/invites', gardeImportEnCours, upload.single('fichier'), chargerSession, async (req, res, next) => {
   try {
     const session = req.session;
     if (!req.file) return res.status(400).json({ error: 'Fichier manquant (champ "fichier").' });
@@ -444,6 +453,9 @@ app.get('/api/sessions/:id/invites/non-repondants', chargerSession, (req, res) =
 // supprime l'enumeration en masse (audit du 2026-09-19). Le libelle du 409
 // reste inchange : c'est un arbitrage produit, pas une decision technique.
 const debitRepondants = limiteDebit();
+// Bornes de longueur de l'inscription (les champs etaient stockes sans limite).
+const LONGUEUR_MAX_IDENTITE = 200;
+const LONGUEUR_MAX_EMAIL = 254; // RFC 5321
 
 app.post('/api/sessions/:id/repondants', debitRepondants, (req, res) => {
   if (refuserSiImportEnCours(res)) return;
@@ -460,9 +472,17 @@ app.post('/api/sessions/:id/repondants', debitRepondants, (req, res) => {
       return res.status(400).json({ error: `Le champ "${champ}" est requis.` });
     }
   }
+  for (const [champ, valeur] of Object.entries(champsTexte)) {
+    if ([...valeur].length > LONGUEUR_MAX_IDENTITE) { // points de code : un emoji ou un « e » decompose ne compte pas double
+      return res.status(400).json({ error: `Le champ "${champ}" est limite a ${LONGUEUR_MAX_IDENTITE} caracteres.`, champ });
+    }
+  }
   // L'email rattache le repondant a la liste d'invites pour le rappel cible (US2.5).
   if (!looksLikeEmail(email)) {
     return res.status(400).json({ error: 'Un email valide est requis.' });
+  }
+  if ([...email].length > LONGUEUR_MAX_EMAIL) {
+    return res.status(400).json({ error: `Le champ "email" est limite a ${LONGUEUR_MAX_EMAIL} caracteres.`, champ: 'email' });
   }
   if (typeof est_manager !== 'boolean' || typeof dans_equipe !== 'boolean') {
     return res.status(400).json({ error: 'est_manager et dans_equipe doivent etre des booleens.' });
@@ -476,7 +496,7 @@ app.post('/api/sessions/:id/repondants', debitRepondants, (req, res) => {
   // dans son navigateur, jamais par ce chemin.
   const emailNormalise = email.trim().toLowerCase();
   const dejaIdentifie = db
-    .prepare('SELECT 1 FROM repondants WHERE session_id = ? AND email = ?')
+    .prepare('SELECT 1 FROM repondants WHERE session_id = ? AND lower(email) = ?')
     .get(session.id, emailNormalise);
   if (dejaIdentifie) {
     return res.status(409).json({
@@ -577,6 +597,12 @@ function refuserSiImportEnCours(res) {
   if (!estImportRemplacerEnCours()) return false;
   res.status(503).json({ error: 'Import du referentiel en cours (mode remplacer), reessayez dans quelques instants.' });
   return true;
+}
+// Meme garde, en middleware, placee AVANT multer : le fichier envoye n'est meme
+// pas lu en memoire quand l'ecriture va etre refusee.
+function gardeImportEnCours(req, res, next) {
+  if (refuserSiImportEnCours(res)) return;
+  next();
 }
 
 app.put('/api/repondants/:id/piliers/:pilierId/reponses', (req, res) => {
@@ -803,19 +829,46 @@ app.get('/api/sessions/:id/participation', chargerSession, (req, res) => {
 // le cas. 5000 caracteres : tres au-dela d'un commentaire de restitution reel
 // (quelques lignes par equipe) et tres en deca de ce qui deforme l'export.
 const LONGUEUR_MAX_COMMENTAIRE = 5000;
+// Cle d'un commentaire. La regle ne depend PAS des effectifs (sinon la cle changerait
+// quand des inscriptions inversent l'orthographe majoritaire et le commentaire
+// deviendrait introuvable) :
+//  1. une ligne existe sous la graphie saisie (espaces compactes) -> cette ligne ;
+//  2. sinon une ligne existe sous une graphie equivalente (casse, accents, espaces :
+//     cleNormalisee) -> cette ligne, la plus recemment modifiee ;
+//  3. sinon, creation : la graphie saisie si c'est celle d'une equipe de la session
+//     (c'est ce que l'export relit), sinon l'orthographe canonique des equipes de la
+//     session (valeurCanonique, comme a l'inscription), sinon la saisie nettoyee.
+function cibleCommentaire(sessionId, saisie) {
+  const propre = String(saisie).replace(/\s+/g, ' ').trim();
+  const lignes = db.prepare('SELECT equipe, texte, updated_at FROM commentaires WHERE session_id = ?').all(sessionId);
+  const exacte = lignes.find((l) => l.equipe === propre);
+  if (exacte) return { cle: exacte.equipe, ligne: exacte };
+  const cleN = cleNormalisee(propre);
+  const proches = lignes
+    .filter((l) => cleNormalisee(l.equipe) === cleN)
+    .sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)) || a.equipe.localeCompare(b.equipe));
+  if (proches.length) return { cle: proches[0].equipe, ligne: proches[0] };
+  const connues = db.prepare('SELECT equipe AS valeur, COUNT(*) AS n FROM repondants WHERE session_id = ? GROUP BY equipe').all(sessionId);
+  const cle = connues.some((c) => c.valeur === propre) ? propre : valeurCanonique(connues, propre);
+  return { cle, ligne: undefined };
+}
 app.get('/api/sessions/:id/commentaire', chargerSession, (req, res) => {
   const session = req.session;
   const equipe = unParam(req.query.equipe);
   if (!equipe) return res.status(400).json({ error: "Le parametre 'equipe' est requis." });
-  const ligne = db.prepare('SELECT texte FROM commentaires WHERE session_id = ? AND equipe = ?').get(session.id, equipe);
+  if ([...equipe].length > LONGUEUR_MAX_IDENTITE) return res.status(400).json({ error: `Le parametre 'equipe' est limite a ${LONGUEUR_MAX_IDENTITE} caracteres.` });
+  // Meme cible que PUT (stable, independante des effectifs) : un commentaire
+  // historique reste lisible sous toute graphie equivalente (aucune migration).
+  const { ligne } = cibleCommentaire(session.id, equipe);
   res.json({ equipe, texte: ligne ? ligne.texte : '' });
 });
 
-app.put('/api/sessions/:id/commentaire', chargerSession, (req, res) => {
+app.put('/api/sessions/:id/commentaire', gardeImportEnCours, chargerSession, (req, res) => {
   const session = req.session;
   const { equipe: equipeBrute, texte } = req.body || {};
   if (typeof equipeBrute !== 'string' || !equipeBrute.trim()) return res.status(400).json({ error: "Le champ 'equipe' est requis." });
-  const equipe = equipeBrute.trim(); // meme normalisation que la fusion d'equipes (routes-fusion.js)
+  if ([...equipeBrute].length > LONGUEUR_MAX_IDENTITE) return res.status(400).json({ error: `Le champ 'equipe' est limite a ${LONGUEUR_MAX_IDENTITE} caracteres.` });
+  const { cle: equipe } = cibleCommentaire(session.id, equipeBrute);
   if (texte !== undefined && typeof texte !== 'string') {
     return res.status(400).json({ error: 'texte doit etre une chaine de caracteres.' });
   }
@@ -1101,14 +1154,23 @@ function cleObjectif(nomPilier, nomObjectif) {
 
 // `departement` (optionnel) cloisonne equipe ET departement : une equipe homonyme
 // d'un autre departement n'est ni agregee ni retenue comme session precedente.
+//
+// DECISION METIER NON PRISE : (1) la session « precedente » n'a pas a etre close ni a
+// ne pas chevaucher la courante (seul `ouverture_at <` compte aujourd'hui) ; (2) le
+// delta de pilier est calcule meme si les deux sessions n'ont pas le meme perimetre
+// de questions. Ni l'une ni l'autre n'est tranchee : ne pas les « corriger » seul.
 function calculerComparaison(session, equipe, manager, departement) {
+  // Meme regle que selectionnerRepondants : quand le filtre exclut les managers, une
+  // session dont le seul repondant de l'equipe est le manager ne peut pas etre la
+  // « precedente » (effectif 0, tous les `precedent` nuls) -- on remonte a la suivante.
+  const exclureManagers = estManagerExclu(manager);
   const precedente = db
     .prepare(
       `SELECT DISTINCT s.id, s.ouverture_at, s.fermeture_at
        FROM sessions s
        JOIN repondants r ON r.session_id = s.id
        WHERE s.id != ? AND r.equipe = ? AND r.soumis_at IS NOT NULL AND s.ouverture_at < ?
-         AND s.est_demo = ?${departement !== undefined ? ' AND r.departement = ?' : ''}
+         AND s.est_demo = ?${departement !== undefined ? ' AND r.departement = ?' : ''}${exclureManagers ? ' AND r.est_manager = 0' : ''}
        ORDER BY s.ouverture_at DESC
        LIMIT 1`
     )
@@ -1185,7 +1247,7 @@ app.get('/api/sessions/:id/comparaison', chargerSession, (req, res) => {
   const equipe = unParam(req.query.equipe);
   const manager = req.query.manager;
   if (!equipe) return res.status(400).json({ error: "Le parametre 'equipe' est requis." });
-  res.json(calculerComparaison(session, equipe, manager));
+  res.json(calculerComparaison(session, equipe, manager)); // manager transmis (filtre vie privee)
 });
 
 // --- Export du support de restitution PPT (US6.4) ---
@@ -1356,7 +1418,7 @@ app.get('/api/sessions/:id/export-ppt', chargerSession, (req, res) => avecCacheR
     fs.writeFileSync(jsonPath, JSON.stringify(payload), 'utf-8');
   } catch (err) {
     nettoyer();
-    console.error('[export-ppt] ecriture du JSON impossible :', String(err.message).slice(0, 2000));
+    console.error('[export-ppt] ecriture du JSON impossible : code=' + (err && err.code ? err.code : 'inconnu'));
     return res.status(500).json({ error: 'Preparation de l\'export impossible.' });
   }
 
@@ -1367,7 +1429,7 @@ app.get('/api/sessions/:id/export-ppt', chargerSession, (req, res) => avecCacheR
     if (err) {
       nettoyer();
       // Diagnostic cote serveur uniquement (audit 2026-10-04 : le stderr Python fuyait au client).
-      console.error('[export-ppt] echec python :', String(stderr || err.message).slice(0, 2000));
+      console.error(`[export-ppt] echec python : ${resumeSortiePython(stderr)} code=${err.code} tue=${Boolean(err.killed)}`);
       return res.status(500).json(corpsEchecPpt(err));
     }
     // Python peut sortir en 0 sans avoir ecrit son fichier : sans ce controle,
@@ -1386,7 +1448,7 @@ app.get('/api/sessions/:id/export-ppt', chargerSession, (req, res) => avecCacheR
     }
     if (tailleProduite === 0) {
       nettoyer();
-      console.error('[export-ppt] sortie sans fichier, stdout :', String(stdout || '').slice(0, 2000));
+      console.error('[export-ppt] sortie sans fichier produit (taille 0)');
       return res.status(500).json({
         error: "L'export s'est termine sans produire de fichier exploitable.",
       });
@@ -1415,37 +1477,33 @@ app.get('/api/sessions/:id/export-ppt', chargerSession, (req, res) => avecCacheR
 // Express traiterait ce middleware comme une route ordinaire, jamais appelee sur
 // erreur. Ne pas le supprimer en croyant nettoyer.
 app.use((err, req, res, _next) => {
-  console.error('[erreur non geree]', req.method, req.originalUrl, err && err.stack ? err.stack : err);
+  // Journal SANS donnee nominative (voir erreurs.js) : ni query string, ni
+  // message SQL brut, ni pile. Aucune pile n'est jamais rendue au client.
+  console.error(ligneJournal(req, err));
   if (res.headersSent) return;
-  const trop_gros = err && err.code === 'LIMIT_FILE_SIZE';
-  if (trop_gros) {
-    return res.status(413).json({ error: 'Fichier trop volumineux (10 Mo maximum).' });
-  }
-  // Erreur CLIENTE qui porte deja son propre statut. body-parser (express.json)
-  // en pose deux, tous deux `expose: true` : 413 « entity.too.large » au-dela de
-  // sa limite (100 ko par defaut) et 400 sur un JSON malforme. Sans ce relais,
-  // les deux arrivaient au client en 500 « erreur interne du serveur » --
-  // trompeur (c'est la requete qui est fautive, pas le serveur) et, surtout,
-  // CONTOURNANT : la borne de longueur du commentaire de restitution (400
-  // au-dela de 5000 caracteres) n'est jamais atteinte pour un corps de plus de
-  // 100 ko, et le meme envoi abusif ressortait donc en 500 (mesure le
-  // 2026-09-09 par le test test-robustesse-http.js, sur le correctif de borne
-  // lui-meme). On ne relaie QUE des statuts 4xx explicitement exposables : une
-  // erreur interne reste un 500 opaque, sans fuite de detail.
-  const statutClient = err && err.expose === true && Number.isInteger(err.status) && err.status >= 400 && err.status < 500
-    ? err.status
-    : null;
-  if (statutClient !== null) {
-    return res.status(statutClient).json({
-      error: statutClient === 413
-        ? 'Corps de requete trop volumineux.'
-        : 'Corps de requete illisible (JSON attendu).',
-    });
-  }
-  res.status(500).json({ error: 'Erreur interne du serveur. Si elle persiste, prevenez l\'exploitant.' });
+  const { statut, message, retryAfter } = classerErreur(err);
+  if (retryAfter !== undefined) res.set('Retry-After', String(retryAfter));
+  res.status(statut).json({ error: message });
 });
 
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`Serveur demarre sur http://localhost:${port}`);
+// PORT : entier 0-65535 (0 = port libre choisi par l'OS, utile aux tests).
+const portBrut = process.env.PORT === undefined || process.env.PORT === '' ? '3000' : process.env.PORT;
+const port = Number(portBrut);
+if (!/^\d+$/.test(portBrut) || port > 65535) {
+  console.error(`PORT invalide : "${portBrut}" (entier entre 0 et 65535 attendu).`);
+  process.exit(1);
+}
+const serveur = app.listen(port, () => {
+  console.log(`Serveur demarre sur http://localhost:${serveur.address().port}`);
 });
+serveur.on('error', (err) => {
+  if (err && err.code === 'EADDRINUSE') {
+    console.error(`Le port ${port} est deja utilise : arretez l'autre processus ou choisissez un autre PORT.`);
+  } else if (err && err.code === 'EACCES') {
+    console.error(`Droits insuffisants pour ecouter sur le port ${port}.`);
+  } else {
+    console.error(`Impossible de demarrer le serveur : ${err && err.code ? err.code : err}`);
+  }
+  process.exit(1);
+});
+installerArret({ serveur, db, delaiMs: delaiDepuisEnv() });

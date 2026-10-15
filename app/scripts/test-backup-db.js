@@ -90,6 +90,27 @@ async function main() {
     fs.rmSync(dossier2, { recursive: true, force: true });
   }
 
+  console.log('Deux sauvegardes consecutives immediates : deux fichiers distincts :');
+  const dossier3 = fs.mkdtempSync(path.join(os.tmpdir(), 'backup-double-'));
+  try {
+    const dbPath = path.join(dossier3, 'app.db');
+    const backupDir = path.join(dossier3, 'backups');
+    const src = new DatabaseSync(dbPath);
+    src.exec('CREATE TABLE t (x INTEGER)');
+    src.close();
+    const env = { DB_PATH: dbPath, BACKUP_DIR: backupDir, APP_ENV: 'test' };
+    // Meme milliseconde forcee : Date.prototype.toISOString figee via NODE_OPTIONS.
+    const gel = path.join(dossier3, 'gel.js');
+    fs.writeFileSync(gel, "Date.prototype.toISOString = () => '2026-01-01T00:00:00.000Z';");
+    const e2 = { ...env, NODE_OPTIONS: `--require ${JSON.stringify(gel.split(path.sep).join('/'))}` };
+    const a = lancerBackup(e2);
+    const b = lancerBackup(e2);
+    check(a.status === 0 && b.status === 0, `les deux sauvegardes reussissent (${a.status}, ${b.status}) ${(b.stderr || '').trim()}`);
+    check(fs.readdirSync(backupDir).length === 2, `deux fichiers (recu ${JSON.stringify(fs.readdirSync(backupDir))})`);
+  } finally {
+    fs.rmSync(dossier3, { recursive: true, force: true });
+  }
+
   console.log(echecs === 0 ? '\nTOUS LES TESTS PASSENT' : `\n${echecs} TEST(S) EN ECHEC`);
   process.exit(echecs === 0 ? 0 : 1);
 }

@@ -12,6 +12,14 @@ coverage/
 .gitignore
 
 scripts/test-*.js
+# Outillage de test : pas dans l'image de production (preload-test-serveur.js peut forcer des etats de test).
+scripts/e2e-*.js
+scripts/preload-test-serveur.js
+scripts/harnais-robustesse.js
+scripts/navigateur-e2e.js
+scripts/helpers-serveur.js
+scripts/verify-*.js
+scripts/capture-screenshots.js
 
 *.log
 dev-server.pid

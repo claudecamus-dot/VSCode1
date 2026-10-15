@@ -94,6 +94,8 @@ function creerSandbox({ fetchImpl }) {
     URL: { createObjectURL: () => 'blob:fake', revokeObjectURL: () => {} },
   };
   vm.createContext(sandbox);
+  // Helpers partages (<script src="/fetch-json.js">) : fetchJson, gardeSequence.
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'public', 'fetch-json.js'), 'utf8'), sandbox, { filename: 'fetch-json.js' });
   vm.runInContext(source, sandbox, { filename: 'resultats.html#inline' });
   // `elements` ne contient que les id deja demandes par le script (creation
   // paresseuse, comme document.getElementById) : passer par `document` (et non

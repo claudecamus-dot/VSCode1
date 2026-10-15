@@ -145,6 +145,8 @@ function creerSandbox({ stockageLeve = false } = {}) {
     },
   };
   vm.createContext(sandbox);
+  // La page charge /fetch-json.js par <script src> avant son bloc inline : on l'injecte pareil.
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'public', 'fetch-json.js'), 'utf8'), sandbox, { filename: 'fetch-json.js' });
   vm.runInContext(source, sandbox, { filename: 'repondre.html#inline' });
   return { sandbox, document, enVol, appels };
 }

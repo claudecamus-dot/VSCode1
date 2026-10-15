@@ -41,6 +41,37 @@ from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import pptx_deck as D
 
+# Champs texte du payload JSON : une cle presente avec la valeur null (JSON
+# `null`) n'est PAS protegee par `.get(cle, "")` -> TypeError dans re.sub.
+_CLES_TEXTE = frozenset({"texte", "contexte", "nom", "commentaire", "departement",
+                         "titre", "sousTitre", "date", "precedenteDate"})
+
+
+def _nettoyer_surrogates(s):
+    """Remplace les surrogates UTF-16 ISOLES (ex. un demi-emoji, que
+    JSON.stringify sort tel quel) par U+FFFD : lxml refuse de les encoder
+    (UnicodeEncodeError). Les paires valides (emojis) sont conservees."""
+    try:
+        s.encode("utf-8")
+        return s
+    except UnicodeEncodeError:
+        return s.encode("utf-16", "surrogatepass").decode("utf-16", "replace")
+
+
+def _assainir(v, cle=None):
+    """Copie du payload : surrogates isoles -> U+FFFD dans toute chaine, et
+    null -> "" pour les seuls champs texte connus (_CLES_TEXTE). Ne touche pas
+    aux autres null (moyenne, delta... : significatifs) ni a la structure."""
+    if isinstance(v, str):
+        return _nettoyer_surrogates(v)
+    if isinstance(v, dict):
+        return {k: _assainir(x, k) for k, x in v.items()}
+    if isinstance(v, list):
+        return [_assainir(x) for x in v]
+    if v is None and cle in _CLES_TEXTE:
+        return ""
+    return v
+
 # Echelle typographique du deck. Reduction globale ×0.9 ABANDONNEE (revue design
 # 2026-07-22, arbitrage utilisateur) : elle rapetissait le texte lisible (contexte,
 # legende, libelles radar) SANS agrandir les cartes (deja bloquees au plancher 6pt a
@@ -237,12 +268,19 @@ def slide_vue_ensemble(prs, layouts, bloc):
     slide = titre_slide(prs, layouts, f"{bloc['nom']} — Vue d'ensemble")
     piliers = bloc.get("piliers", [])
 
-    # Deltas par pilier (evolution), indexes par nom.
-    deltas = {}
+    # Deltas par pilier (evolution). Cle = POSITION du pilier (comparaison.piliers
+    # est construit dans le meme ordre que bloc.piliers, server.js) : deux piliers
+    # homonymes ne s'ecrasent pas. Repli sur le nom si les listes ne s'alignent pas.
     comp = bloc.get("comparaison", {})
-    if comp.get("disponible"):
-        for p in comp.get("piliers", []):
-            deltas[p["nom"]] = p.get("delta")
+    comp_piliers = comp.get("piliers", []) if comp.get("disponible") else []
+    deltas = {}
+    for cp in comp_piliers:
+        deltas.setdefault(cp["nom"], cp.get("delta"))
+
+    def delta_pilier(i, p):
+        if i < len(comp_piliers) and comp_piliers[i].get("nom") == p["nom"]:
+            return comp_piliers[i].get("delta")
+        return deltas.get(p["nom"])
 
     glob = moyenne([p.get("moyenne") for p in piliers])
     glob_delta = None
@@ -316,7 +354,7 @@ def slide_vue_ensemble(prs, layouts, bloc):
         by = y + (row_h - bar_h) / 2
         D.add_hbar(slide, track_x, by, track_w, bar_h,
                    (moy / 3.0) if moy is not None else 0, col_pil)
-        txt, col = fleche(deltas.get(p["nom"]))
+        txt, col = fleche(delta_pilier(i, p))
         lignes = [(fmt(moy), {"size": D.TYPE["h3"], "bold": True})]
         if txt:
             lignes.append((txt, {"size": D.TYPE["tiny"], "bold": True, "color": col}))
@@ -1080,6 +1118,7 @@ def slide_points_forts(prs, layouts, bloc):
 
 # ----------------------------------------------------------------------------
 def construire(data, template_path, out_path):
+    data = _assainir(data)
     prs = Presentation(template_path)
     # Charte du modele : on prend la couleur primaire du theme (dk1) comme accent
     # de marque ; repli sur le bleu de la palette si le theme est illisible.

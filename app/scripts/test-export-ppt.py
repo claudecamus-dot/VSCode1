@@ -320,6 +320,88 @@ def main():
             print("   -", p)
     check(not pb_lignes_long, f"geometrie OK malgre un commentaire de 300 sauts de ligne — {len(pb_lignes_long)} probleme(s)")
 
+    from pptx import Presentation as _P
+
+    def textes_slides(chemin, num=None):
+        out = []
+        for i, sl in enumerate(_P(chemin).slides):
+            if num is not None and i != num:
+                continue
+            for shp in sl.shapes:
+                if shp.has_text_frame:
+                    out.append(shp.text_frame.text)
+        return "\n".join(out)
+
+    print("Robustesse — textes null (cle presente, valeur None) :")
+    b_null = bloc_equipe("Equipe Null", [2.0, 1.8, 1.6, 1.9], avec_comp=False)
+    b_null["dispersion"] = [{"texte": "q", "moyenne": None, "ecartType": None,
+                             "min": None, "max": None, "contexte": None}]
+    b_null["hauts"] = [{"texte": None, "moyenne": 2.5, "contexte": None}]
+    b_null["faibles"] = [{"texte": None, "moyenne": 1.0, "contexte": None}]
+    b_null["commentaire"] = None
+    b_null["departement"] = None
+    try:
+        gen.construire({"couverture": None, "blocs": [b_null]}, gen.TEMPLATE,
+                       os.path.join(tmp, "deck-null.pptx"))
+        plante = None
+    except Exception as e:  # noqa: BLE001
+        plante = repr(e)
+    check(plante is None, f"texte/contexte/commentaire null ne plante pas — {plante}")
+
+    print("Robustesse — surrogate isole et emojis valides :")
+    b_sur = bloc_equipe("Equipe Surrogate", [2.0, 1.8, 1.6, 1.9], avec_comp=False)
+    b_sur["commentaire"] = "x\ud83dy et un emoji valide \U0001F600 conserve"
+    b_sur["hauts"][0]["texte"] = "question\udc00 avec surrogate bas isole"
+    out_sur = os.path.join(tmp, "deck-surrogate.pptx")
+    try:
+        gen.construire({"couverture": None, "blocs": [b_sur]}, gen.TEMPLATE, out_sur)
+        plante = None
+    except Exception as e:  # noqa: BLE001
+        plante = repr(e)
+    check(plante is None, f"surrogate isole ne plante pas — {plante}")
+    if plante is None:
+        t_sur = textes_slides(out_sur)
+        check("x�y" in t_sur, "surrogate haut isole remplace par U+FFFD")
+        check("\U0001F600" in t_sur, "emoji valide (paire de surrogates) conserve")
+
+    print("Commentaire tronque : marque visible seulement s'il y a troncature :")
+    b_tr = bloc_equipe("Equipe Tronquee", [2.0, 1.8, 1.6, 1.9], avec_comp=False)
+    b_tr["commentaire"] = "Phrase de commentaire tres longue pour depasser le callout. " * 100
+    out_tr = os.path.join(tmp, "deck-tronque.pptx")
+    gen.construire({"couverture": None, "blocs": [b_tr]}, gen.TEMPLATE, out_tr)
+    lignes_tr = [l for l in textes_slides(out_tr).split("\n") if "Phrase de commentaire" in l]
+    check(bool(lignes_tr) and lignes_tr[-1].rstrip().endswith("…"),
+          "commentaire trop long : le texte du slide se termine par « … »")
+    b_ok = bloc_equipe("Equipe Courte", [2.0, 1.8, 1.6, 1.9], avec_comp=False)
+    b_ok["commentaire"] = "Commentaire court et complet."
+    out_ok = os.path.join(tmp, "deck-court.pptx")
+    gen.construire({"couverture": None, "blocs": [b_ok]}, gen.TEMPLATE, out_ok)
+    lignes_ok = [l for l in textes_slides(out_ok).split("\n") if "Commentaire court" in l]
+    check(lignes_ok == ["Commentaire court et complet."],
+          f"commentaire court : aucune marque de troncature — {lignes_ok}")
+
+    print("Deltas de pilier : deux piliers homonymes gardent chacun leur delta :")
+    b_h = {"type": "equipe", "nom": "Equipe Homonymes", "departement": "", "effectif": 3,
+           "piliers": [{"nom": "Pilotage", "moyenne": 2.0}, {"nom": "Pilotage", "moyenne": 1.0}],
+           "objectifs": [], "dispersion": [], "faibles": [], "hauts": [], "accords": [],
+           "commentaire": "",
+           "comparaison": {"disponible": True, "precedenteDate": "01/01/2026",
+                           "piliers": [{"nom": "Pilotage", "courant": 2.0, "precedent": 1.2, "delta": 0.8},
+                                       {"nom": "Pilotage", "courant": 1.0, "precedent": 1.5, "delta": -0.5}]}}
+    out_h = os.path.join(tmp, "deck-homonymes.pptx")
+    gen.construire({"couverture": None, "blocs": [b_h]}, gen.TEMPLATE, out_h)
+    t_vue = textes_slides(out_h, num=0)
+    check("▲ +0.8" in t_vue and "▼ -0.5" in t_vue,
+          "chaque pilier homonyme affiche son propre delta (+0.8 et -0.5)")
+
+    print("Cas nominal : deltas par nom inchanges (noms uniques) :")
+    out_nom = os.path.join(tmp, "deck-nominal-deltas.pptx")
+    gen.construire({"couverture": None, "blocs": [bloc_equipe("Nominal", [2.0, 1.8, 1.6, 1.9])]},
+                   gen.TEMPLATE, out_nom)
+    t_n = textes_slides(out_nom, num=0)
+    # 4 piliers + le delta global (moyenne des piliers) = 5 occurrences.
+    check(t_n.count("▲ +0.8") == 5, f"4 piliers + delta global a +0.8 affiches — {t_n.count('▲ +0.8')}")
+
     print("\nTOUS LES TESTS PASSENT" if echecs == 0 else f"\n{echecs} TEST(S) EN ECHEC")
     sys.exit(0 if echecs == 0 else 1)
 

@@ -21,7 +21,15 @@ fs.mkdirSync(backupDir, { recursive: true });
 // pris, sans dependre d'une course de timing sur l'horodatage reel.
 const stamp = process.env.BACKUP_STAMP_TEST || new Date().toISOString().replace(/[:.]/g, '-');
 const env = process.env.APP_ENV ? `${process.env.APP_ENV}-` : '';
-const out = path.join(backupDir, `app-${env}${stamp}.db`);
+// Deux sauvegardes dans la meme milliseconde : suffixe de compteur tant que le
+// nom est pris (VACUUM INTO echoue sur un fichier existant). Le nom fige des
+// tests (BACKUP_STAMP_TEST) reste exact pour reproduire l'echec.
+let out = path.join(backupDir, `app-${env}${stamp}.db`);
+if (!process.env.BACKUP_STAMP_TEST) {
+  for (let n = 1; fs.existsSync(out); n += 1) {
+    out = path.join(backupDir, `app-${env}${stamp}-${process.pid}-${n}.db`);
+  }
+}
 
 // Le fichier n'existait pas AVANT notre tentative : s'il existe apres un echec,
 // c'est un residu PARTIEL du VACUUM en cours, sur a nettoyer. S'il existait
@@ -30,7 +38,7 @@ const out = path.join(backupDir, `app-${env}${stamp}.db`);
 // database"), sans jamais y toucher.
 const existaitAvant = fs.existsSync(out);
 
-const db = new DatabaseSync(dbPath);
+const db = new DatabaseSync(dbPath, { timeout: 5000 }); // meme valeur que db.js (sinon busy_timeout = 0)
 try {
   // Chemin en litteral SQLite : on echappe les quotes simples (VACUUM INTO ne
   // supporte pas de parametre lie pour la destination, c'est le seul canal).

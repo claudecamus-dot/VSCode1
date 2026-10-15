@@ -28,36 +28,11 @@ const { ENTETES, POLITIQUE_CSP } = require('../src/entetes-securite');
 const DELAI_DEMARRAGE_MS = 15000;
 const CHEMIN_SERVEUR = path.join(__dirname, '..', 'src', 'server.js');
 const DOSSIER_PAGES = path.join(__dirname, '..', 'src', 'public');
-// Navigateur de l'etage 3. CORRECTIF 2026-09-20 (audit securite du 2026-09-19,
-// ASI09 « CI verte qui n'execute pas ce qu'elle laisse croire ») : la valeur par
-// defaut etait un chemin Chrome WINDOWS en dur ; sur ubuntu-latest le fichier
-// n'existait jamais, l'etage 3 imprimait SKIP et le script sortait VERT — le
-// controle reel des en-tetes sous navigateur n'a donc jamais tourne en CI, sans
-// que rien ne le dise. Deux changements :
-//   1. on CHERCHE le navigateur parmi les emplacements usuels des trois OS ;
-//   2. l'absence de navigateur n'est un SKIP tolere QUE hors CI. En CI (`CI`
-//      pose par GitHub Actions) ou si EXIGER_NAVIGATEUR=1, elle est un ECHEC.
-// CHROME_PATH, quand elle est posee, fait AUTORITE et remplace la liste : c'est
-// ce qui rend l'absence de navigateur simulable (donc la garde eprouvable).
-const CANDIDATS_CHROME = process.env.CHROME_PATH ? [process.env.CHROME_PATH] : [
-  'C:/Program Files/Google/Chrome/Application/chrome.exe',
-  'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
-  '/usr/bin/google-chrome',
-  '/usr/bin/google-chrome-stable',
-  '/usr/bin/chromium-browser',
-  '/usr/bin/chromium',
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-];
-
-function trouverChrome() {
-  return CANDIDATS_CHROME.find((c) => fs.existsSync(c)) || null;
-}
-
-// Un navigateur est EXIGE des lors qu'on est dans une CI : c'est precisement la
-// ou le SKIP silencieux fabriquait une assurance fausse.
-function navigateurExige() {
-  return process.env.EXIGER_NAVIGATEUR === '1' || Boolean(process.env.CI);
-}
+// Navigateur de l'etage 3 : decouverte (CHROME_PATH fait autorite), exigence en CI
+// (EXIGER_NAVIGATEUR / CI : l'absence est un ECHEC, jamais un SKIP silencieux -
+// correctif 2026-09-20, audit securite ASI09) et fermeture bornee dans le helper
+// commun navigateur-e2e.js.
+const { CANDIDATS_CHROME, trouverChrome, navigateurExige, lancerNavigateur, fermer } = require('./navigateur-e2e');
 
 let echecs = 0;
 function check(condition, message) {
@@ -167,16 +142,7 @@ async function verifierSousChrome(base) {
     console.log(`  SKIP navigateur reel : Chrome introuvable — poser CHROME_PATH pour l'activer (candidats : ${CANDIDATS_CHROME.join(', ')})`);
     return;
   }
-  const CHROME_PATH = chrome;
-  const puppeteer = require('puppeteer-core');
-  const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'csp-verif-'));
-  const navigateur = await puppeteer.launch({
-    executablePath: CHROME_PATH,
-    headless: true,
-    userDataDir,
-    args: ['--no-sandbox', '--disable-gpu'],
-    protocolTimeout: 30000,
-  });
+  const navigateur = await lancerNavigateur(chrome);
   try {
     for (const chemin of ['/index.html', '/repondre.html', '/admin.html', '/resultats.html', '/pilotage.html']) {
       const page = await navigateur.newPage();
@@ -203,8 +169,7 @@ async function verifierSousChrome(base) {
       await page.close();
     }
   } finally {
-    await navigateur.close();
-    await nettoyer(userDataDir);
+    await fermer(navigateur);
   }
 }
 

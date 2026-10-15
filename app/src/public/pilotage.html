@@ -32,6 +32,7 @@
   .equipe-row a:hover { text-decoration: underline; }
 </style>
 <script src="/esc.js"></script>
+<script src="/fetch-json.js"></script>
 <script src="/env-banner.js" defer></script>
 </head>
 <body>
@@ -61,19 +62,20 @@
     const $ = (id) => document.getElementById(id);
     const sessionId = new URLSearchParams(window.location.search).get('session');
     const PALETTE = ['#2c5cc5', '#1e6b34', '#b3261e', '#b8860b', '#6a3d9a', '#138086'];
+    const gardeConsolidation = gardeSequence();
 
     async function init() {
       if (!sessionId) {
         $('zoneStatut').innerHTML = '<p class="err">Lien invalide : identifiant de session manquant.</p>';
         return;
       }
-      const res = await fetch(`/api/sessions/${sessionId}/departements`);
-      if (!res.ok) {
-        const e = await res.json();
-        $('zoneStatut').innerHTML = `<p class="err">${e.error}</p>`;
+      let departements;
+      try {
+        departements = await fetchJson(`/api/sessions/${sessionId}/departements`);
+      } catch (err) {
+        $('zoneStatut').innerHTML = `<p class="err">${esc(err.message)}</p>`;
         return;
       }
-      const departements = await res.json();
       const select = $('departement');
       if (departements.length === 0) {
         $('zoneStatut').innerHTML = '<p class="vide">Aucune réponse soumise pour cette session.</p>';
@@ -110,6 +112,9 @@
         a.click();
         a.remove();
         URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error('exporterPPT', err);
+        $('zoneStatut').innerHTML = `<p class="err">Échec de la génération du PPT : ${esc(err.message || 'connexion interrompue')}.</p>`;
       } finally {
         btn.disabled = false;
         btn.textContent = libelle;
@@ -119,7 +124,18 @@
     async function chargerConsolidation() {
       const departement = $('departement').value;
       const manager = $('avecManager').checked ? 'avec' : 'sans';
-      const data = await (await fetch(`/api/sessions/${sessionId}/consolidation?departement=${encodeURIComponent(departement)}&manager=${manager}`)).json();
+      const jeton = gardeConsolidation.prochain();
+      let data;
+      try {
+        data = await fetchJson(`/api/sessions/${sessionId}/consolidation?departement=${encodeURIComponent(departement)}&manager=${manager}`);
+      } catch (err) {
+        if (!gardeConsolidation.estCourant(jeton)) return;
+        console.error('chargerConsolidation', err);
+        $('zoneStatut').innerHTML = `<p class="err">Erreur de chargement de la consolidation : ${esc(err.message)}</p>`;
+        return;
+      }
+      if (!gardeConsolidation.estCourant(jeton)) return; // reponse perimee (autre departement demande entre-temps)
+      $('zoneStatut').innerHTML = '';
       $('effectif').textContent = `${data.effectif} réponse(s) soumise(s) — ${data.equipes.length} équipe(s)`;
       rendreRadar(data.piliers);
       rendreEquipes(data.equipes);
