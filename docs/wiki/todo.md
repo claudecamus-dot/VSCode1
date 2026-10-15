@@ -368,3 +368,100 @@ objectif) : voir le commit du lot. **Reliquat accepté, non corrigé** :
   d'axe (« Pilotage » deux fois), distingués seulement par la couleur du point.
 - Constat « XSS de `q.contexte` » **écarté** : `contexte` est déjà échappé à la source
   dans `resultats.html` (lignes 512 et 542) ; ajouter `esc()` doublerait l'échappement.
+
+## Chasse aux bugs du 2026-10-14 — corrigé, et reliquat connu
+
+Corrigé (voir le commit du lot) : restauration de base cohérente avec le WAL et refus
+d'une source étrangère ; courses de l'interface (commentaire d'équipe, soumission du
+répondant, imports, consolidation) ; comparaison qui respecte le filtre manager ;
+`ORDER BY ordre, id` ; Python tolérant aux textes `null` et aux surrogates ; délai de
+démarrage des tests (plancher de 60 s). Régressions de la revue du lot, corrigées avant
+commit : un commentaire en erreur ne vide plus les résultats valides, `confirm()` aussi
+sur la bascule « avec manager », erreurs serveur échappées dans `admin.html`,
+formulaire d'identification ré-affiché si le référentiel ne charge pas.
+
+**Reliquat accepté, non corrigé** :
+
+- `attendreServeur` n'échoue immédiatement avec la sortie du serveur que si l'appelant
+  lui passe le processus enfant ; les ~25 tests existants ne le font pas (ils profitent
+  seulement du plancher de 60 s). `TEST_SERVER_TIMEOUT_MS` ne peut qu'allonger l'attente.
+- `fetchJson` traite un corps vide ou `null` sur une réponse 2xx comme une erreur
+  (contrat « JSON non vide ») : à adapter le jour où une route répondra 204.
+- Qualité des tests : `fauxElement` et `creerSandbox` dupliqués entre les deux harnais
+  `node:vm` ; un test lit la variable interne `piliersSauvegardes` de la page ; le
+  drapeau `envoiEnCours` de `repondre.html` est remis à `false` à la main à plusieurs
+  endroits (un `finally` unique serait plus sûr) ; des `fetch(` bruts restent dans
+  `admin.html` (POST/DELETE JSON) ; `repondre.html` calcule le pilier suivant depuis le
+  pilier courant et non celui qui vient d'être validé si l'utilisateur navigue pendant
+  l'envoi.
+- `confirm()` natif à remplacer par une modale ; messages « HTTP 500 » bruts visibles.
+- La liste de 5 tables de `restore-db.js` suppose qu'elles existent dans les plus
+  anciennes sauvegardes : restauration d'une très ancienne sauvegarde réelle non testée.
+- Le retour arrière de `restore-db.js` remet aussi le `-wal` d'une copie brute de repli ;
+  ce cas n'est pas démontré (SQLite supprime lui-même un `-wal` invalide à l'ouverture).
+- Export PPT : les avertissements « ATTENTION texte » du cas nominal (sous-titres de
+  colonne estimés sur 2 lignes par `verifier_debordements_texte`) sont probablement des
+  faux positifs ; le rendu réel est correct. Seuil de `pptx_deck.py` à calibrer.
+
+**Décisions produit non prises (hors lot)** : conservation de l'historique d'une
+question au réimport du référentiel (une coquille corrigée archive l'ancienne question
+et scinde la comparaison historique) ; seuil d'anonymat (effectif ≤ 2) ; règle
+« session précédente close / sans chevauchement » et delta de pilier calculé sur des
+périmètres de questions différents (marqués `DECISION METIER NON PRISE` dans le code).
+
+## Comité « système robuste et testé » du 2026-10-14/15 — corrigé, et reliquat connu
+
+Corrigé : 4 mutants qui survivaient à la suite (CSRF `DELETE`, statut de session « pas encore
+ouverte », répondants non soumis, exclusion des managers) ont maintenant un test qui les tue ;
+arrêt propre (SIGTERM/SIGINT, second signal, code de sortie), `/health` qui interroge la base,
+503 (+ `Retry-After` seulement pour BUSY/LOCKED) sur base verrouillée, journal sans donnée
+nominative (y compris l'export PPT : seul le type de l'exception Python), erreur d'écoute lisible,
+gardes d'import sur `/invites` et `/commentaire`, clé de commentaire stable (indépendante des
+effectifs), garde 409 d'e-mail insensible à la casse, bornes de longueur en points de code,
+`foreign_key_check` à la restauration, test de migration sur base ancienne, 3 parcours de bout en
+bout en Chrome réel (`npm run test:e2e`, séparé de `npm test`), CI avec Chrome installé par une
+action épinglée par SHA, `timeout-minutes`, cache npm et `python-pptx` épinglé.
+
+**Reliquat accepté, non corrigé** :
+
+- **CI jamais exécutée** : le nom de la sortie `chrome-path` de `browser-actions/setup-chrome`,
+  `chrome-version: stable` sur `ubuntu-latest`, `--no-sandbox`, `cache-dependency-path` et le
+  comportement de `fermer()` sous Linux ne sont pas vérifiés ; `timeout-minutes: 20` est peut-être
+  serré. À surveiller au premier passage. `CHROME_PATH` vide en CI retombe sur les chemins usuels.
+- **Fiabilité de `npm test` sous charge** : une exécution complète sur trois a échoué une fois
+  (« Serveur injoignable après 60 s » au premier test lancé) ; cause non établie. Le helper de
+  tests détecte maintenant automatiquement le serveur lancé et échoue vite avec sa sortie, donc le
+  prochain échec dira pourquoi.
+- **Duplication des tests** : le démarrage d'un serveur de test est recopié dans ~30 fichiers
+  (`helpers-serveur.js` pourrait porter une `demarrerServeur()`), `check()` maison dans 44 fichiers,
+  assertions parfois faibles (`status !== 429`, `typeof error === 'string'`), quelques attentes à
+  durée fixe, `preload-test-serveur.js` couplé par monkey-patch à `referentiel.js`. La suite compte
+  69 scripts : durée non mesurée.
+- **Mutant équivalent** : `debit.js:38` est redondant avec la purge des lignes 34-36 (aucun test ne
+  peut le distinguer) ; à simplifier si on touche ce fichier.
+- Le callback `execFile` de l'export PPT n'est pas sous `try` (un jet partirait en arrêt propre).
+- Un commentaire de restitution stocké sous une graphie qui n'est plus celle d'aucune équipe reste
+  lisible sous toute graphie équivalente, mais l'export le relit par le nom exact de l'équipe.
+- Unicode : les bornes comptent des points de code ; un « é » décomposé compte 2.
+- `preload-test-serveur.js` n'est plus copié dans l'image Docker (`.dockerignore`).
+
+### Échec intermittent « Serveur injoignable » de `npm test` — analyse du 2026-10-15
+
+Constat : sur 6 exécutions complètes de la suite (3 `npm test`, 2 sous couverture, 1 de contrôle),
+1 a échoué (« Serveur injoignable après 60000 ms : fetch failed », premier test lancé après
+`test-helpers-serveur.js` et `test-fetch-json.js`), 5 sont passées. Rejoué seul : vert en 26 s.
+
+Cause **non démontrée** : aucune sortie du serveur, aucun port, aucun code réseau n'avaient été
+conservés. Établi : le démarrage nominal prend 2,3 à 2,6 s (5 mesures) et le code d'avant `listen`
+n'a ni `await`, ni promesse, ni minuteur ; un échec à 60 s suppose donc un serveur mort (collision de
+port `EADDRINUSE` entre `portLibre()` et le `listen` de l'enfant : probabilité estimée faible, de
+l'ordre de 1e-3 à 1e-2 par exécution) ou un gel externe (antivirus : non vérifiable sans droits
+administrateur). Écarté par ses traces : le faucheur d'orphelins n'a jamais arrêté que des `git.exe`
+(78 sur 78). Rejeu automatique volontairement refusé : il masquerait la cause.
+
+Mesure prise : `attendreServeur` rapporte maintenant le port, l'heure, la durée, le nombre de
+tentatives, la nature des échecs réseau (`ECONNREFUSED`, `ETIMEDOUT`… lue dans `err.cause`), l'état
+de l'enfant et les 2000 derniers caractères de sa sortie ; chaque tentative a un délai de 5 s ; le
+dernier serveur lancé est suivi automatiquement (patch de `ChildProcess.prototype.spawn`). Au prochain
+échec, le message dira lequel des cas s'est produit (mort, vivant sans écoute, écoute sans réponse).
+À reprendre si l'échec se reproduit : lire ce message avant toute autre hypothèse.
