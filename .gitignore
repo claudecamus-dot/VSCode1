@@ -23,6 +23,8 @@ _bmad-output/
 .claude/supervision/state.json
 .claude/supervision/usage.jsonl
 .claude/supervision/diagnostic.json
+.claude/supervision/faucheur_dernier.json
+.claude/supervision/orphelins_arretes.jsonl
 .claude/orchestration/runs.jsonl
 .claude/orchestration/routing-hints.json
 
