@@ -1,0 +1,11 @@
+{"ts": "2026-10-13T09:25:25+00:00", "hook": "guard_dispatch_pretooluse", "gardes": ["guard_destructive_git", "warn_verif_before_commit", "guard_service"], "motif": "attente", "issue": "passe", "delai_s": 15.0, "attente_s": 12.524}
+{"ts": "2026-10-13T09:25:25+00:00", "hook": "guard_dispatch_pretooluse", "gardes": ["guard_destructive_git", "warn_verif_before_commit", "guard_service"], "motif": "attente", "issue": "passe", "delai_s": 15.0, "attente_s": 10.603}
+{"ts": "2026-10-14T08:06:35+00:00", "hook": "guard_dispatch_pretooluse", "gardes": ["guard_destructive_git", "warn_verif_before_commit", "guard_service"], "motif": "attente", "issue": "passe", "delai_s": 15.0, "attente_s": 11.529}
+{"ts": "2026-10-14T08:06:35+00:00", "hook": "guard_dispatch_pretooluse", "gardes": ["guard_destructive_git", "warn_verif_before_commit", "guard_service"], "motif": "attente", "issue": "passe", "delai_s": 15.0, "attente_s": 7.077}
+
+{"ts": "2026-10-14T08:06:35+00:00", "hook": "guard_dispatch_pretooluse", "gardes": ["guard_destructive_git", "warn_verif_before_commit", "guard_service"], "motif": "attente", "issue": "passe", "delai_s": 15.0, "attente_s": 6.382}
+{"ts": "2026-10-14T08:06:35+00:00", "hook": "guard_dispatch_pretooluse", "gardes": ["guard_destructive_git", "warn_verif_before_commit", "guard_service"], "motif": "attente", "issue": "passe", "delai_s": 15.0, "attente_s": 5.58}
+{"ts": "2026-10-14T12:55:53+00:00", "hook": "guard_dispatch_pretooluse", "gardes": ["guard_destructive_git", "warn_verif_before_commit", "guard_service"], "motif": "attente", "issue": "passe", "delai_s": 15.0, "attente_s": 5.321}
+{"ts": "2026-10-14T12:58:27+00:00", "hook": "guard_dispatch_pretooluse", "gardes": ["guard_destructive_git", "warn_verif_before_commit", "guard_service"], "motif": "attente", "issue": "passe", "delai_s": 15.0, "attente_s": 5.4}
+{"ts": "2026-10-15T07:12:49+00:00", "hook": "guard_dispatch_pretooluse", "gardes": ["guard_destructive_git", "warn_verif_before_commit", "guard_service"], "motif": "attente", "issue": "passe", "delai_s": 15.0, "attente_s": 3.581}
+{"ts": "2026-10-15T12:17:39+00:00", "hook": "remind_revue_increment", "motif": "attente", "issue": "passe", "delai_s": 15.0, "attente_s": 5.81}
