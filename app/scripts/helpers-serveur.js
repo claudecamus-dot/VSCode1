@@ -22,6 +22,7 @@
 const net = require('node:net');
 const fs = require('node:fs');
 const cp = require('node:child_process');
+const path = require('node:path');
 
 // Suivi AUTOMATIQUE du dernier serveur (…/server.js) lance par ce processus de test :
 // ~24 tests appelaient attendreServeur(base, delai) sans passer l'enfant et perdaient donc
@@ -151,6 +152,37 @@ async function nettoyer(dossier) {
   console.warn(`  info dossier temporaire non supprime : ${dossier}`);
 }
 
+// Demarre le VRAI serveur (src/server.js, ou `chemin`) sur un port libre et attend qu'il reponde.
+// `env` s'ajoute a process.env (PORT est pose par le helper) ; `args` s'ajoute apres le chemin.
+// Rend { port, base, enfant, sortie(), arreter() } ; en cas d'echec de demarrage, l'enfant est
+// tue et l'erreur d'attendreServeur (avec la sortie du serveur) est relancee.
+// `arreter()` tue l'enfant et attend sa VRAIE mort ; la suppression du dossier reste a `nettoyer`.
+async function demarrerServeur(options = {}) {
+  const { env = {}, chemin, args = [], delaiMs = 15000 } = options;
+  const cheminServeur = chemin || process.env.SERVEUR_SOUS_TEST || path.join(__dirname, '..', 'src', 'server.js');
+  const port = options.port || await portLibre();
+  const base = `http://127.0.0.1:${port}`;
+  const enfant = cp.spawn(process.execPath, [cheminServeur, ...args], {
+    env: { ...process.env, PORT: String(port), ...env },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let texte = '';
+  enfant.stdout.on('data', (d) => { texte += d; });
+  enfant.stderr.on('data', (d) => { texte += d; });
+  const sortie = () => texte;
+  const arreter = async () => {
+    enfant.kill();
+    await attendreMort(enfant);
+  };
+  try {
+    await attendreServeur(base, delaiMs, enfant, sortie);
+  } catch (err) {
+    await arreter();
+    throw err;
+  }
+  return { port, base, enfant, sortie, arreter };
+}
+
 // Durcissement CSRF du 2026-09-04 (src/csrf.js, memeOrigine) : fail-closed
 // quand Origin ET Referer sont absents. Un VRAI navigateur envoie toujours
 // Origin sur une requete mutante same-origin -- mais le `fetch()` de Node, lui,
@@ -178,4 +210,4 @@ function basic(u, p) {
   return 'Basic ' + Buffer.from(`${u}:${p}`, 'utf8').toString('base64');
 }
 
-module.exports = { portLibre, attendreServeur, attendreMort, nettoyer, fetchMutant, USER, PASS, basic };
+module.exports = { demarrerServeur, portLibre, attendreServeur, attendreMort, nettoyer, fetchMutant, USER, PASS, basic };

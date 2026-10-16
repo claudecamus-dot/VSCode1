@@ -24,8 +24,7 @@
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
-const { portLibre, attendreServeur, attendreMort, nettoyer, fetchMutant, USER, PASS, basic } = require('./helpers-serveur');
+const { demarrerServeur, attendreMort, nettoyer, fetchMutant, USER, PASS, basic } = require('./helpers-serveur');
 
 const DELAI_DEMARRAGE_MS = 15000;
 const CHEMIN_SERVEUR = path.join(__dirname, '..', 'src', 'server.js');
@@ -70,22 +69,16 @@ async function main() {
   const q1 = dbSeed.prepare("SELECT id FROM questions WHERE texte = 'Q1'").get().id;
   dbSeed.close();
 
-  const port = await portLibre();
-  const base = `http://127.0.0.1:${port}`;
   // Barriere ACTIVE : c'est la configuration de production, celle ou la route en
   // liste blanche est la seule porte ouverte sur la table repondants.
-  const serveur = spawn(process.execPath, [CHEMIN_SERVEUR], {
-    env: { ...process.env, PORT: String(port), DB_PATH: dbPath, APP_ENV: 'test-repondant-sans-pii', AUTH_USER: USER, AUTH_PASS: PASS },
-    stdio: ['ignore', 'pipe', 'pipe'],
+  const { base, enfant: serveur, sortie: lireSortie } = await demarrerServeur({
+    chemin: CHEMIN_SERVEUR, delaiMs: DELAI_DEMARRAGE_MS,
+    env: { DB_PATH: dbPath, APP_ENV: 'test-repondant-sans-pii', AUTH_USER: USER, AUTH_PASS: PASS },
   });
-  let sortie = '';
-  serveur.stdout.on('data', (d) => { sortie += d; });
-  serveur.stderr.on('data', (d) => { sortie += d; });
 
   const entetesAnimateur = { Authorization: basic(USER, PASS) };
 
   try {
-    await attendreServeur(base, DELAI_DEMARRAGE_MS);
 
     console.log('Preparation (cote animateur, avec identifiants) : une session ouverte :');
     const creation = await fetchMutant(`${base}/api/sessions`, {
@@ -181,7 +174,7 @@ async function main() {
       `la route de detail refuse un appel du parcours repondant (recu ${detailSansIdentifiants.status})`
     );
   } catch (err) {
-    console.error('Sortie du serveur pendant le test :\n' + sortie);
+    console.error('Sortie du serveur pendant le test :\n' + lireSortie());
     throw err;
   } finally {
     serveur.kill();

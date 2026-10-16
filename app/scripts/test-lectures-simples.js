@@ -6,8 +6,7 @@
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
-const { portLibre, attendreServeur, attendreMort, nettoyer, fetchMutant } = require('./helpers-serveur');
+const { demarrerServeur, attendreMort, nettoyer, fetchMutant } = require('./helpers-serveur');
 
 const CHEMIN_SERVEUR = process.env.SERVEUR_SOUS_TEST || path.join(__dirname, '..', 'src', 'server.js');
 let echecs = 0;
@@ -29,18 +28,12 @@ async function main() {
   ]);
   db.close();
 
-  const port = await portLibre();
-  const base = `http://127.0.0.1:${port}`;
-  const serveur = spawn(process.execPath, [CHEMIN_SERVEUR], {
-    env: { ...process.env, PORT: String(port), DB_PATH: dbPath, APP_ENV: 'test-lectures', AUTH_USER: '', AUTH_PASS: '' },
-    stdio: ['ignore', 'pipe', 'pipe'],
+  const { base, enfant: serveur, sortie: lireSortie } = await demarrerServeur({
+    chemin: CHEMIN_SERVEUR, delaiMs: 15000,
+    env: { DB_PATH: dbPath, APP_ENV: 'test-lectures', AUTH_USER: '', AUTH_PASS: '' },
   });
-  let sortie = '';
-  serveur.stdout.on('data', (d) => { sortie += d; });
-  serveur.stderr.on('data', (d) => { sortie += d; });
 
   try {
-    await attendreServeur(base, 15000, serveur, () => sortie);
     const ouv = new Date(Date.now() - 3600e3).toISOString();
     const fer = new Date(Date.now() + 3600e3).toISOString();
     const creer = async () => (await (await fetchMutant(`${base}/api/sessions`, {
@@ -83,7 +76,7 @@ async function main() {
       check((await fetch(`${base}/api/sessions/inconnue/${route}`)).status === 404, `${route} : session inconnue -> 404`);
     }
   } catch (err) {
-    console.error('Sortie du serveur pendant le test :\n' + sortie);
+    console.error('Sortie du serveur pendant le test :\n' + lireSortie());
     throw err;
   } finally {
     serveur.kill();

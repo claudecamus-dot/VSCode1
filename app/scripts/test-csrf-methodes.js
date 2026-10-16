@@ -5,8 +5,7 @@
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
-const { portLibre, attendreServeur, attendreMort, nettoyer } = require('./helpers-serveur');
+const { demarrerServeur, attendreMort, nettoyer } = require('./helpers-serveur');
 
 const CHEMIN_SERVEUR = process.env.SERVEUR_SOUS_TEST || path.join(__dirname, '..', 'src', 'server.js');
 let echecs = 0;
@@ -17,15 +16,10 @@ function check(condition, message) {
 
 async function main() {
   const dossierTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'csrf-methodes-'));
-  const port = await portLibre();
-  const base = `http://127.0.0.1:${port}`;
-  const serveur = spawn(process.execPath, [CHEMIN_SERVEUR], {
-    env: { ...process.env, PORT: String(port), DB_PATH: path.join(dossierTmp, 'csrf.db'), APP_ENV: 'test-csrf-methodes', AUTH_USER: '', AUTH_PASS: '' },
-    stdio: ['ignore', 'pipe', 'pipe'],
+  const { base, enfant: serveur, sortie: lireSortie } = await demarrerServeur({
+    chemin: CHEMIN_SERVEUR, delaiMs: 15000,
+    env: { DB_PATH: path.join(dossierTmp, 'csrf.db'), APP_ENV: 'test-csrf-methodes', AUTH_USER: '', AUTH_PASS: '' },
   });
-  let sortie = '';
-  serveur.stdout.on('data', (d) => { sortie += d; });
-  serveur.stderr.on('data', (d) => { sortie += d; });
 
   const appel = (methode, chemin, origin, corps) => fetch(`${base}${chemin}`, {
     method: methode,
@@ -35,7 +29,6 @@ async function main() {
   const roles = async () => (await fetch(`${base}/api/roles`)).json();
 
   try {
-    await attendreServeur(base, 15000, serveur, () => sortie);
     const propre = new URL(base).origin;
     const tierce = 'http://evil.example';
 
@@ -69,7 +62,7 @@ async function main() {
     const get = await fetch(`${base}/api/roles`, { headers: { Origin: tierce } });
     check(get.status === 200, 'GET avec Origin tierce reste hors perimetre CSRF (200)');
   } catch (err) {
-    console.error('Sortie du serveur pendant le test :\n' + sortie);
+    console.error('Sortie du serveur pendant le test :\n' + lireSortie());
     throw err;
   } finally {
     serveur.kill();

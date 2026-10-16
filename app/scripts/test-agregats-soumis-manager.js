@@ -7,8 +7,7 @@
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
-const { portLibre, attendreServeur, attendreMort, nettoyer } = require('./helpers-serveur');
+const { demarrerServeur, attendreMort, nettoyer } = require('./helpers-serveur');
 
 const CHEMIN_SERVEUR = process.env.SERVEUR_SOUS_TEST || path.join(__dirname, '..', 'src', 'server.js');
 let echecs = 0;
@@ -45,19 +44,13 @@ async function main() {
   }
   db.close();
 
-  const port = await portLibre();
-  const base = `http://127.0.0.1:${port}`;
-  const serveur = spawn(process.execPath, [CHEMIN_SERVEUR], {
-    env: { ...process.env, PORT: String(port), DB_PATH: dbPath, APP_ENV: 'test-agregats', AUTH_USER: '', AUTH_PASS: '' },
-    stdio: ['ignore', 'pipe', 'pipe'],
+  const { base, enfant: serveur, sortie: lireSortie } = await demarrerServeur({
+    chemin: CHEMIN_SERVEUR, delaiMs: 15000,
+    env: { DB_PATH: dbPath, APP_ENV: 'test-agregats', AUTH_USER: '', AUTH_PASS: '' },
   });
-  let sortie = '';
-  serveur.stdout.on('data', (d) => { sortie += d; });
-  serveur.stderr.on('data', (d) => { sortie += d; });
   const get = async (chemin) => (await fetch(`${base}/api/sessions/s1/${chemin}`)).json();
 
   try {
-    await attendreServeur(base, 15000, serveur, () => sortie);
     console.log('(1) /resultats exclut le non soumis :');
     const res = await get('resultats?equipe=Alpha');
     const q = res.piliers[0].sousCategories[0].questions[0];
@@ -79,7 +72,7 @@ async function main() {
     check(depAvec.length === 1 && depAvec[0].effectif === 3, `departements : 3 soumis par defaut (recu ${JSON.stringify(depAvec)})`);
     check(depSans.length === 1 && depSans[0].effectif === 2, `departements?manager=sans : 2 (recu ${JSON.stringify(depSans)})`);
   } catch (err) {
-    console.error('Sortie du serveur pendant le test :\n' + sortie);
+    console.error('Sortie du serveur pendant le test :\n' + lireSortie());
     throw err;
   } finally {
     serveur.kill();

@@ -465,7 +465,18 @@ app.post('/api/sessions/:id/repondants', debitRepondants, (req, res) => {
     return res.status(409).json({ error: 'Cette session n\'est pas ouverte a la saisie actuellement.' });
   }
 
-  const { email, nom, prenom, departement, equipe, role, est_manager, dans_equipe } = req.body || {};
+  const corpsBrut = req.body || {};
+  const { est_manager, dans_equipe } = corpsBrut;
+  // NFC avant toute mesure ET avant stockage : un « é » decompose (e + U+0301) vaut
+  // 2 points de code, un « é » compose en vaut 1 ; la borne et la valeur stockee
+  // doivent ignorer cette difference de representation.
+  const nfc = (v) => (typeof v === 'string' ? v.normalize('NFC') : v);
+  const email = nfc(corpsBrut.email);
+  const nom = nfc(corpsBrut.nom);
+  const prenom = nfc(corpsBrut.prenom);
+  const departement = nfc(corpsBrut.departement);
+  const equipe = nfc(corpsBrut.equipe);
+  const role = nfc(corpsBrut.role);
   const champsTexte = { nom, prenom, departement, equipe, role };
   for (const [champ, valeur] of Object.entries(champsTexte)) {
     if (!valeur || typeof valeur !== 'string' || !valeur.trim()) {
@@ -839,7 +850,7 @@ const LONGUEUR_MAX_COMMENTAIRE = 5000;
 //     (c'est ce que l'export relit), sinon l'orthographe canonique des equipes de la
 //     session (valeurCanonique, comme a l'inscription), sinon la saisie nettoyee.
 function cibleCommentaire(sessionId, saisie) {
-  const propre = String(saisie).replace(/\s+/g, ' ').trim();
+  const propre = String(saisie).normalize('NFC').replace(/\s+/g, ' ').trim();
   const lignes = db.prepare('SELECT equipe, texte, updated_at FROM commentaires WHERE session_id = ?').all(sessionId);
   const exacte = lignes.find((l) => l.equipe === propre);
   if (exacte) return { cle: exacte.equipe, ligne: exacte };
@@ -854,8 +865,9 @@ function cibleCommentaire(sessionId, saisie) {
 }
 app.get('/api/sessions/:id/commentaire', chargerSession, (req, res) => {
   const session = req.session;
-  const equipe = unParam(req.query.equipe);
-  if (!equipe) return res.status(400).json({ error: "Le parametre 'equipe' est requis." });
+  const equipeSaisie = unParam(req.query.equipe);
+  if (!equipeSaisie) return res.status(400).json({ error: "Le parametre 'equipe' est requis." });
+  const equipe = equipeSaisie.normalize('NFC');
   if ([...equipe].length > LONGUEUR_MAX_IDENTITE) return res.status(400).json({ error: `Le parametre 'equipe' est limite a ${LONGUEUR_MAX_IDENTITE} caracteres.` });
   // Meme cible que PUT (stable, independante des effectifs) : un commentaire
   // historique reste lisible sous toute graphie equivalente (aucune migration).
@@ -865,8 +877,10 @@ app.get('/api/sessions/:id/commentaire', chargerSession, (req, res) => {
 
 app.put('/api/sessions/:id/commentaire', gardeImportEnCours, chargerSession, (req, res) => {
   const session = req.session;
-  const { equipe: equipeBrute, texte } = req.body || {};
-  if (typeof equipeBrute !== 'string' || !equipeBrute.trim()) return res.status(400).json({ error: "Le champ 'equipe' est requis." });
+  const { equipe: equipeSaisie, texte: texteSaisi } = req.body || {};
+  if (typeof equipeSaisie !== 'string' || !equipeSaisie.trim()) return res.status(400).json({ error: "Le champ 'equipe' est requis." });
+  const equipeBrute = equipeSaisie.normalize('NFC');
+  const texte = typeof texteSaisi === 'string' ? texteSaisi.normalize('NFC') : texteSaisi;
   if ([...equipeBrute].length > LONGUEUR_MAX_IDENTITE) return res.status(400).json({ error: `Le champ 'equipe' est limite a ${LONGUEUR_MAX_IDENTITE} caracteres.` });
   const { cle: equipe } = cibleCommentaire(session.id, equipeBrute);
   if (texte !== undefined && typeof texte !== 'string') {
@@ -1301,7 +1315,8 @@ function construireBlocRestitution(session, filtre, type, nom, manager) {
     // LIMITE DE SCHEMA CONNUE (pas de migration) : `commentaires` a pour PK
     // (session_id, equipe), sans colonne departement ; deux equipes homonymes de la
     // meme session partagent donc la meme ligne de commentaire.
-    const c = db.prepare('SELECT texte FROM commentaires WHERE session_id = ? AND equipe = ?').get(session.id, filtre.equipe);
+    // Meme cle canonique que GET/PUT /commentaire (graphie equivalente tolérée).
+    const { ligne: c } = cibleCommentaire(session.id, filtre.equipe);
     commentaire = c ? c.texte : '';
   } else {
     departement = nom;
@@ -1314,9 +1329,15 @@ function construireBlocRestitution(session, filtre, type, nom, manager) {
     // Meme limite de schema : commentaires indexes par equipe seule, un homonyme
     // d'un autre departement partage (et ici peut apparaitre dans) cette ligne.
     if (eqs.length > 0) {
-      const rows = db
-        .prepare(`SELECT equipe, texte FROM commentaires WHERE session_id = ? AND equipe IN (${eqs.map(() => '?').join(',')})`)
-        .all(session.id, ...eqs);
+      const vus = new Set();
+      const rows = [];
+      for (const eq of eqs) {
+        const { cle, ligne } = cibleCommentaire(session.id, eq);
+        if (ligne && !vus.has(cle)) {
+          vus.add(cle);
+          rows.push({ equipe: eq, texte: ligne.texte });
+        }
+      }
       commentaire = rows
         .sort((a, b) => a.equipe.localeCompare(b.equipe))
         .map((r) => `${r.equipe} : ${r.texte}`)
@@ -1426,6 +1447,9 @@ app.get('/api/sessions/:id/export-ppt', chargerSession, (req, res) => avecCacheR
   // une entree, laissait sinon la requete ouverte jusqu'au delai reseau du client.
   // 120 s couvre largement un export reel (mesure : quelques secondes).
   execFile(python, [script, jsonPath, outPath], { timeout: 120_000 }, (err, stdout, stderr) => {
+    // Un rappel asynchrone hors des handlers Express : une exception ici ne
+    // passerait par aucun filet et ferait tomber le processus.
+    try {
     if (err) {
       nettoyer();
       // Diagnostic cote serveur uniquement (audit 2026-10-04 : le stderr Python fuyait au client).
@@ -1461,6 +1485,12 @@ app.get('/api/sessions/:id/export-ppt', chargerSession, (req, res) => avecCacheR
         res.status(500).json({ error: 'Envoi du PPT impossible.' });
       }
     });
+    } catch (e) {
+      // Nom de l'erreur seulement : son message peut contenir des chemins ou des donnees nominatives.
+      try { nettoyer(); } catch { /* best effort */ }
+      try { process.stderr.write(`[export-ppt] exception dans le rappel : ${e && e.name ? e.name : 'inconnue'}\n`); } catch { /* best effort */ }
+      if (!res.headersSent) res.status(500).json({ error: 'Echec de la generation du PPT.' });
+    }
   });
 }));
 

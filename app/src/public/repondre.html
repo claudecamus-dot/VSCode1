@@ -166,7 +166,7 @@
         await demarrer();
       } catch (err) {
         // Reseau coupe, 5xx, corps illisible : message visible plutot qu'une page blanche.
-        $('zoneStatutSession').innerHTML = `<p class="err">Impossible de charger le questionnaire (${esc(err.message)}). Rechargez la page pour réessayer.</p>`;
+        $('zoneStatutSession').innerHTML = `<p class="err">Impossible de charger le questionnaire (${esc(messageErreur(err))}). Rechargez la page pour réessayer.</p>`;
       }
     }
 
@@ -177,7 +177,7 @@
       } catch (err) {
         // Une reponse 4xx du serveur (session inconnue...) garde son message tel quel.
         if (err.status > 0 && err.status < 500) {
-          $('zoneStatutSession').innerHTML = `<p class="err">${esc(err.message)}</p>`;
+          $('zoneStatutSession').innerHTML = `<p class="err">${esc(messageErreur(err))}</p>`;
           return;
         }
         throw err;
@@ -231,7 +231,7 @@
       try {
         await identifier();
       } catch (err) {
-        $('erreurIdentification').textContent = err.message;
+        $('erreurIdentification').textContent = messageErreur(err);
       } finally {
         identificationEnCours = false;
         if (bouton) bouton.disabled = false;
@@ -262,7 +262,7 @@
         // l'erreur soit visible, et dire comment reprendre sans re-saisir (un 2e envoi
         // serait refuse : email deja pris).
         $('formIdentification').classList.remove('hidden');
-        throw new Error(`${err.message} Rechargez la page pour reprendre votre questionnaire.`);
+        throw new Error(`${messageErreur(err)} Rechargez la page pour reprendre votre questionnaire.`);
       }
     }
 
@@ -390,6 +390,15 @@
       rendreZoneSoumission();
     }
 
+    // Message lisible : jamais « HTTP 500 » brut dans l'interface.
+    function messageErreur(err) {
+      const m = /^HTTP (\d+)$/.exec((err && err.message) || '');
+      if (!m) return (err && err.message) || "L'opération a échoué. Réessayez.";
+      return Number(m[1]) >= 500
+        ? 'Le serveur a rencontré un problème. Réessayez dans un instant.'
+        : "La demande n'a pas pu aboutir. Rechargez la page puis réessayez.";
+    }
+
     async function validerPilierCourant(pilier) {
       const erreurEl = $('erreurAction');
       if (erreurEl) erreurEl.textContent = '';
@@ -400,6 +409,9 @@
       }
       if (envoiEnCours) return;
       envoiEnCours = true;
+      // Index du pilier VALIDE, capture a l'envoi : la navigation reste possible
+      // pendant le PUT, pilierActifIndex peut avoir change entre-temps.
+      const indexValide = referentiel.indexOf(pilier);
       const bouton = $('btnValiderPilier');
       if (bouton) bouton.disabled = true;
       try {
@@ -410,18 +422,18 @@
         });
       } catch (err) {
         if (bouton) bouton.disabled = false;
-        envoiEnCours = false;
         const el = $('erreurAction');
-        if (el) el.textContent = err.message;
+        if (el) el.textContent = messageErreur(err);
         return;
+      } finally {
+        envoiEnCours = false;
       }
-      envoiEnCours = false;
       // INSTANTANE : un radio change pendant le PUT rend les reponses envoyees
       // obsoletes ; le pilier n'est « sauvegarde » que si rien n'a bouge.
       const inchange = reponses.every((r) => reponsesEnCours[r.question_id] === r.niveau);
       if (inchange) piliersSauvegardes.add(pilier.id);
       const prochainIndex = inchange
-        ? referentiel.findIndex((_, idx) => idx > pilierActifIndex && !pilierEstComplet(referentiel[idx]))
+        ? referentiel.findIndex((_, idx) => idx > indexValide && !pilierEstComplet(referentiel[idx]))
         : -1;
       if (prochainIndex !== -1) pilierActifIndex = prochainIndex;
       rendreNavigation();
@@ -464,7 +476,7 @@
         await fetchJson(`/api/repondants/${repondant.id}/soumission`, { method: 'POST' });
       } catch (err) {
         const erreurEl = $('erreurAction');
-        if (erreurEl) erreurEl.textContent = err.message;
+        if (erreurEl) erreurEl.textContent = messageErreur(err);
         if (bouton) bouton.disabled = false;
         return;
       } finally {

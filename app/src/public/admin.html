@@ -211,6 +211,15 @@
   <script>
     const $ = (id) => document.getElementById(id);
 
+    // Message lisible : jamais « HTTP 500 » brut dans l'interface.
+    function messageErreur(err) {
+      const m = /^HTTP (\d+)$/.exec((err && err.message) || '');
+      if (!m) return (err && err.message) || "L'opération a échoué. Réessayez.";
+      return Number(m[1]) >= 500
+        ? 'Le serveur a rencontré un problème. Réessayez dans un instant.'
+        : "La demande n'a pas pu aboutir. Rechargez la page puis réessayez.";
+    }
+
     function afficherResultat(el, ok, message) {
       el.innerHTML = `<div class="result ${ok ? 'ok' : 'err'}">${message}</div>`;
     }
@@ -257,9 +266,7 @@
       formData.append('fichier', fichier);
       formData.append('mode', mode);
       try {
-        const res = await fetch('/api/referentiel/import', { method: 'POST', body: formData });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Erreur inconnue.');
+        const data = await fetchJson('/api/referentiel/import', { method: 'POST', body: formData });
         let suffixe;
         if (data.mode === 'remplacer') {
           suffixe = ' Référentiel remplacé : ancienne grille, sessions et réponses supprimées.';
@@ -269,7 +276,7 @@
         afficherResultat($('resultatImport'), true, `Import réussi : ${data.piliers} pilier(s), ${data.sousCategories} objectif(s), ${data.questions} question(s).${suffixe}`);
         await chargerPerimetre();
       } catch (err) {
-        afficherResultat($('resultatImport'), false, esc(err.message));
+        afficherResultat($('resultatImport'), false, esc(messageErreur(err)));
       }
     }
 
@@ -281,7 +288,7 @@
       try {
         referentiel = await fetchJson('/api/referentiel');
       } catch (err) {
-        zone.innerHTML = `<div class="result err">Impossible de charger le référentiel : ${esc(err.message)}</div>`;
+        zone.innerHTML = `<div class="result err">Impossible de charger le référentiel : ${esc(messageErreur(err))}</div>`;
         return;
       }
       if (referentiel.length === 0) {
@@ -351,18 +358,16 @@
       const actives = questionsActives();
       if (actives.length === 0) return afficherResultat($('resultatSession'), false, 'Sélectionnez au moins une question active dans le périmètre.');
       try {
-        const res = await fetch('/api/sessions', {
+        const data = await fetchJson('/api/sessions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ouverture_at: new Date(ouverture).toISOString(), fermeture_at: new Date(fermeture).toISOString(), questions_actives: actives, texte_intro: $('texteIntro').value }),
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Erreur inconnue.');
         const lien = `${window.location.origin}${data.lien}`;
         afficherResultat($('resultatSession'), true, `Session créée. Lien à partager : <code>${lien}</code>`);
         $('idSession').value = data.id;
       } catch (err) {
-        afficherResultat($('resultatSession'), false, esc(err.message));
+        afficherResultat($('resultatSession'), false, esc(messageErreur(err)));
       }
     });
 
@@ -376,12 +381,10 @@
       const formData = new FormData();
       formData.append('fichier', fichier);
       try {
-        const res = await fetch(`/api/sessions/${idSession}/invites`, { method: 'POST', body: formData });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Erreur inconnue.');
+        const data = await fetchJson(`/api/sessions/${idSession}/invites`, { method: 'POST', body: formData });
         afficherResultat($('resultatParticipants'), true, `${data.invites} destinataire(s) importé(s).`);
       } catch (err) {
-        afficherResultat($('resultatParticipants'), false, esc(err.message));
+        afficherResultat($('resultatParticipants'), false, esc(messageErreur(err)));
       }
     }
 
@@ -643,7 +646,7 @@
       try {
         roles = await fetchJson('/api/roles');
       } catch (err) {
-        $('erreurRole').textContent = `Impossible de charger les rôles : ${err.message}`;
+        $('erreurRole').textContent = `Impossible de charger les rôles : ${messageErreur(err)}`;
         return;
       }
       $('listeRoles').innerHTML = roles
@@ -656,10 +659,10 @@
 
     async function supprimerRole(nom) {
       $('erreurRole').textContent = '';
-      const res = await fetch(`/api/roles/${encodeURIComponent(nom)}`, { method: 'DELETE' });
-      if (!res.ok) {
-        const data = await res.json();
-        $('erreurRole').textContent = data.error || 'Suppression impossible.';
+      try {
+        await fetchJson(`/api/roles/${encodeURIComponent(nom)}`, { method: 'DELETE' });
+      } catch (err) {
+        $('erreurRole').textContent = messageErreur(err);
         return;
       }
       await chargerRoles();
@@ -669,14 +672,14 @@
       $('erreurRole').textContent = '';
       const nom = $('nouveauRole').value.trim();
       if (!nom) return ($('erreurRole').textContent = 'Saisissez un nom de rôle.');
-      const res = await fetch('/api/roles', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nom }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        $('erreurRole').textContent = data.error || 'Ajout impossible.';
+      try {
+        await fetchJson('/api/roles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nom }),
+        });
+      } catch (err) {
+        $('erreurRole').textContent = messageErreur(err);
         return;
       }
       $('nouveauRole').value = '';
@@ -697,7 +700,7 @@
       try {
         valeurs = await fetchJson(`/api/repondants/valeurs/${champ}`);
       } catch (err) {
-        afficherResultat($('resultatFusion'), false, `Impossible de charger les valeurs : ${esc(err.message)}`);
+        afficherResultat($('resultatFusion'), false, `Impossible de charger les valeurs : ${esc(messageErreur(err))}`);
         return;
       }
       $('listeValeurs').innerHTML = valeurs.length
@@ -716,13 +719,16 @@
       if (!source || !cible) return afficherResultat($('resultatFusion'), false, 'Sélectionnez une source et une cible.');
       if (source === cible) return afficherResultat($('resultatFusion'), false, 'La source et la cible doivent être différentes.');
       if (!confirm(`Fusionner « ${source} » dans « ${cible} » ? Tous les répondants concernés seront réaffectés.`)) return;
-      const res = await fetch('/api/repondants/fusion', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ champ, source, cible }),
-      });
-      const data = await res.json();
-      if (!res.ok) return afficherResultat($('resultatFusion'), false, esc(data.error || 'Fusion impossible.'));
+      let data;
+      try {
+        data = await fetchJson('/api/repondants/fusion', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ champ, source, cible }),
+        });
+      } catch (err) {
+        return afficherResultat($('resultatFusion'), false, esc(messageErreur(err)));
+      }
       afficherResultat($('resultatFusion'), true, `${data.reaffectes} répondant(s) réaffecté(s) de « ${esc(source)} » vers « ${esc(cible)} ».`);
       await chargerValeursFusion();
     }

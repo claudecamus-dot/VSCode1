@@ -377,7 +377,14 @@ def tronquer_a_lignes(texte, largeur_in, taille_pt, max_lignes, cpi_ref=11.0,
     return tronque.rstrip(" ,;:.") + "…"
 
 
-def verifier_debordements_texte(prs, cpi_pessimiste=10.7, tolerance_in=0.15):
+# Calibration mesuree 2026-10-15 (rendu PowerPoint COM, police Outfit) : le
+# sous-titre de colonne de 55 caracteres a 9 pt occupe ~3,0 in, soit ~15,7 car/in
+# ramene a 10,5 pt. 10.7 (ancien defaut) donnait 2 lignes estimees pour un texte
+# rendu sur 1 ligne (faux positifs). 13.5 garde ~14 % de marge sous le mesure.
+CPI_PESSIMISTE = 13.5
+
+
+def verifier_debordements_texte(prs, cpi_pessimiste=CPI_PESSIMISTE, tolerance_in=0.15):
     """Filet « le texte tient dans sa boîte » — complémentaire de
     verifier_geometrie (qui ne voit que les BORDS des formes, pas le rendu du
     texte dedans). Pour chaque zone de texte dessinée (wrap actif, ancrage TOP,

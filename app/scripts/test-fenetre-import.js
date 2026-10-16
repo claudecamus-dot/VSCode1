@@ -9,9 +9,8 @@
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
 const ExcelJS = require('exceljs');
-const { portLibre, attendreServeur, attendreMort, nettoyer, fetchMutant } = require('./helpers-serveur');
+const { demarrerServeur, attendreMort, nettoyer, fetchMutant } = require('./helpers-serveur');
 
 const DELAI_DEMARRAGE_MS = 15000;
 const CHEMIN_SERVEUR = path.join(__dirname, '..', 'src', 'server.js');
@@ -90,18 +89,12 @@ async function main() {
   const dossierTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fenetre-import-'));
   const dbPath = path.join(dossierTmp, 'fenetre-import.db');
 
-  const port = await portLibre();
-  const base = `http://127.0.0.1:${port}`;
-  const serveur = spawn(process.execPath, [CHEMIN_SERVEUR], {
-    env: { ...process.env, PORT: String(port), DB_PATH: dbPath, APP_ENV: 'test-fenetre-import', AUTH_USER: '', AUTH_PASS: '' },
-    stdio: ['ignore', 'pipe', 'pipe'],
+  const { base, enfant: serveur, sortie: lireSortie } = await demarrerServeur({
+    chemin: CHEMIN_SERVEUR, delaiMs: DELAI_DEMARRAGE_MS,
+    env: { DB_PATH: dbPath, APP_ENV: 'test-fenetre-import', AUTH_USER: '', AUTH_PASS: '' },
   });
-  let sortie = '';
-  serveur.stdout.on('data', (d) => { sortie += d; });
-  serveur.stderr.on('data', (d) => { sortie += d; });
 
   try {
-    await attendreServeur(base, DELAI_DEMARRAGE_MS);
 
     console.log('Preparation : referentiel initial (import conserver), session ouverte, repondant identifie :');
     const importInitial = await importer(base, 'Pilier Initial', 'conserver');
@@ -223,7 +216,7 @@ async function main() {
       `verrou bien releve une fois le REMPLACER concurrent termine (404 "repondant inconnu", plus de 503 ; recu ${ecritureApresLesDeux.status})`
     );
   } catch (err) {
-    console.error('Sortie du serveur pendant le test :\n' + sortie);
+    console.error('Sortie du serveur pendant le test :\n' + lireSortie());
     throw err;
   } finally {
     serveur.kill();

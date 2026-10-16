@@ -35,7 +35,7 @@ function limiteDebit({
       if (maintenant - seau.debut > fenetreMs) compteurs.delete(autre);
     }
     let seau = compteurs.get(k);
-    if (!seau || maintenant - seau.debut > fenetreMs) {
+    if (!seau) { // les seaux perimes viennent d'etre purges ci-dessus
       seau = { debut: maintenant, n: 0 };
       compteurs.set(k, seau);
     }

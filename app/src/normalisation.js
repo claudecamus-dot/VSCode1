@@ -21,7 +21,7 @@ function cleNormalisee(valeur) {
 // la meme cle (tie-break alphabetique pour rester deterministe), ou, a defaut de
 // correspondance, la saisie simplement nettoyee (= nouvelle valeur).
 function valeurCanonique(existantes, saisie) {
-  const propre = (saisie || '').replace(/\s+/g, ' ').trim();
+  const propre = (saisie || '').normalize('NFC').replace(/\s+/g, ' ').trim();
   const cle = cleNormalisee(propre);
   const candidates = existantes.filter((e) => cleNormalisee(e.valeur) === cle);
   if (candidates.length === 0) return propre;

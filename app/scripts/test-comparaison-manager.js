@@ -7,8 +7,7 @@
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
-const { portLibre, attendreServeur, attendreMort, nettoyer, fetchMutant } = require('./helpers-serveur');
+const { demarrerServeur, attendreMort, nettoyer, fetchMutant } = require('./helpers-serveur');
 
 const DELAI_DEMARRAGE_MS = 15000;
 const CHEMIN_SERVEUR = process.env.SERVEUR_SOUS_TEST || path.join(__dirname, '..', 'src', 'server.js');
@@ -97,18 +96,12 @@ async function main() {
   check(q7.length === 3 && croissant(ids(q7)), `questions a ordre egal par id croissant (${JSON.stringify(ids(q7))})`);
   dbSeed.close();
 
-  const port = await portLibre();
-  const base = `http://127.0.0.1:${port}`;
-  const serveur = spawn(process.execPath, [CHEMIN_SERVEUR], {
-    env: { ...process.env, PORT: String(port), DB_PATH: dbPath, APP_ENV: 'test-comparaison-manager', AUTH_USER: '', AUTH_PASS: '' },
-    stdio: ['ignore', 'pipe', 'pipe'],
+  const { base, enfant: serveur, sortie: lireSortie } = await demarrerServeur({
+    chemin: CHEMIN_SERVEUR, delaiMs: DELAI_DEMARRAGE_MS,
+    env: { DB_PATH: dbPath, APP_ENV: 'test-comparaison-manager', AUTH_USER: '', AUTH_PASS: '' },
   });
-  let sortie = '';
-  serveur.stdout.on('data', (d) => { sortie += d; });
-  serveur.stderr.on('data', (d) => { sortie += d; });
 
   try {
-    await attendreServeur(base, DELAI_DEMARRAGE_MS);
     console.log('(a) N-2 (manager + non-manager), N-1 (SEUL le manager), courante :');
     const n2 = await creerSession(base, 72);
     await soumettre(base, n2, 'mgr2@exemple.fr', pilier, 3, true);
@@ -133,7 +126,7 @@ async function main() {
     const repete = await get('&manager=sans&manager=x');
     check(repete.precedente && repete.precedente.id === n2, 'manager repete (sans puis x) : exclusion appliquee, N-2 retenue');
   } catch (err) {
-    console.error('Sortie du serveur pendant le test :\n' + sortie);
+    console.error('Sortie du serveur pendant le test :\n' + lireSortie());
     throw err;
   } finally {
     serveur.kill();

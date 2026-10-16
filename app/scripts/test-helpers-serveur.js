@@ -5,7 +5,7 @@
 // qui ne sort pas.
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
-const { portLibre, attendreServeur, attendreMort } = require('./helpers-serveur');
+const { portLibre, attendreServeur, attendreMort, demarrerServeur } = require('./helpers-serveur');
 
 async function main() {
   // 1) L'enfant meurt tout de suite : echec rapide, sortie de l'enfant dans le message.
@@ -86,6 +86,33 @@ async function main() {
   await attendreMort(tetu, 500);
   await new Promise((r) => setTimeout(r, 500));
   assert.ok(tetu.exitCode !== null || tetu.signalCode !== null, 'enfant recalcitrant tue par attendreMort');
+
+  // 4) demarrerServeur : serveur factice qui ecoute sur PORT avec l'env passe, puis arreter() le tue ;
+  //    un serveur factice qui meurt au demarrage echoue vite avec sa sortie.
+  const os = require('node:os');
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'helper-demarrer-'));
+  const faux1 = path.join(dossier, 'server.js');
+  fs.writeFileSync(faux1, "require('node:http').createServer((q, r) => r.end(JSON.stringify({ env: process.env.MARQUEUR, arg: process.argv[2] }))).listen(Number(process.env.PORT), '127.0.0.1'); console.log('faux serveur pret');");
+  const srv = await demarrerServeur({ chemin: faux1, env: { MARQUEUR: 'valeur-env' }, args: ['un-arg'] });
+  assert.ok(srv.port > 0 && srv.base === `http://127.0.0.1:${srv.port}`, 'port et base coherents');
+  const corps = await (await fetch(`${srv.base}/api/env`)).json();
+  assert.equal(corps.env, 'valeur-env', 'env propage au serveur');
+  assert.equal(corps.arg, 'un-arg', 'args propages au serveur');
+  assert.match(srv.sortie(), /faux serveur pret/, 'sortie() rend ce que le serveur a ecrit');
+  await srv.arreter();
+  assert.ok(srv.enfant.exitCode !== null || srv.enfant.signalCode !== null, 'arreter() tue vraiment le serveur');
+  const faux2 = path.join(dossier, 'mort.js');
+  fs.writeFileSync(faux2, "console.error('boom-demarrer'); process.exit(7);");
+  const t2 = Date.now();
+  await assert.rejects(
+    () => demarrerServeur({ chemin: faux2 }),
+    (e) => /s'est arrete avant d'etre joignable/.test(e.message) && /exitCode=7/.test(e.message) && /boom-demarrer/.test(e.message),
+    'serveur mort au demarrage : echec rapide avec sa sortie',
+  );
+  assert.ok(Date.now() - t2 < 10000, 'echec rapide (< 10 s)');
+  fs.rmSync(dossier, { recursive: true, force: true });
 
   console.log('Helpers serveur OK');
 }

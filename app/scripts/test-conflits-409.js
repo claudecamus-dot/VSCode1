@@ -6,8 +6,7 @@
 const os = require('node:os');
 const fs = require('node:fs');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
-const { portLibre, attendreServeur, attendreMort, nettoyer, fetchMutant } = require('./helpers-serveur');
+const { demarrerServeur, attendreMort, nettoyer, fetchMutant } = require('./helpers-serveur');
 
 const CHEMIN_SERVEUR = process.env.SERVEUR_SOUS_TEST || path.join(__dirname, '..', 'src', 'server.js');
 let echecs = 0;
@@ -32,15 +31,10 @@ async function main() {
   const pB = { id: db.prepare("SELECT id FROM piliers WHERE nom = 'Pilier B'").get().id, q: db.prepare("SELECT id FROM questions WHERE texte = 'QB'").get().id };
   db.close();
 
-  const port = await portLibre();
-  const base = `http://127.0.0.1:${port}`;
-  const serveur = spawn(process.execPath, [CHEMIN_SERVEUR], {
-    env: { ...process.env, PORT: String(port), DB_PATH: dbPath, APP_ENV: 'test-conflits-409', AUTH_USER: '', AUTH_PASS: '' },
-    stdio: ['ignore', 'pipe', 'pipe'],
+  const { base, enfant: serveur, sortie: lireSortie } = await demarrerServeur({
+    chemin: CHEMIN_SERVEUR, delaiMs: 15000,
+    env: { DB_PATH: dbPath, APP_ENV: 'test-conflits-409', AUTH_USER: '', AUTH_PASS: '' },
   });
-  let sortie = '';
-  serveur.stdout.on('data', (d) => { sortie += d; });
-  serveur.stderr.on('data', (d) => { sortie += d; });
 
   const ecrire = (id, pilier, niveau) => fetchMutant(`${base}/api/repondants/${id}/piliers/${pilier.id}/reponses`, {
     method: 'PUT', headers: json, body: JSON.stringify({ reponses: [{ question_id: pilier.q, niveau }] }),
@@ -48,7 +42,6 @@ async function main() {
   const soumettre = (id) => fetchMutant(`${base}/api/repondants/${id}/soumission`, { method: 'POST' });
 
   try {
-    await attendreServeur(base, 15000, serveur, () => sortie);
     const cs = await (await fetchMutant(`${base}/api/sessions`, {
       method: 'POST', headers: json,
       body: JSON.stringify({ ouverture_at: new Date(Date.now() - 3600e3).toISOString(), fermeture_at: new Date(Date.now() + 3600e3).toISOString() }),
@@ -92,7 +85,7 @@ async function main() {
     check(JSON.stringify(qAvant) === JSON.stringify(qApres) && qAvant.every((m) => m === 1), `moyennes inchangees (${qAvant} -> ${qApres})`);
     check((await (await fetch(`${base}/api/repondants/${ok}`)).json()).soumis_at === soumisAvant, 'soumis_at inchange');
   } catch (err) {
-    console.error('Sortie du serveur pendant le test :\n' + sortie);
+    console.error('Sortie du serveur pendant le test :\n' + lireSortie());
     throw err;
   } finally {
     serveur.kill();
