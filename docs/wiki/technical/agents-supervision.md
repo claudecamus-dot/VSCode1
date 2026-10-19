@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-16
+updated: 2026-10-19
 generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, étage 1)
 ---
 
@@ -8,21 +8,21 @@ generated-by: .claude/supervision/scan_transcripts.py (superviseur d'agents, ét
 > ⚠️ **Page générée automatiquement** (hook SessionStart → `.claude/supervision/scan_transcripts.py`).
 > **Ne pas éditer à la main** — toute modification serait écrasée au prochain scan.
 
-Dernier scan : 2026-10-16T09:25:11+02:00 · **5 sessions** (transcripts) · **48** invocations de skills · **100** lancements de sous-agents.
+Dernier scan : 2026-10-19T17:03:41+02:00 · **6 sessions** (transcripts) · **51** invocations de skills · **100** lancements de sous-agents.
 
 ## Skills — usage réel
 
 | Skill | Famille | Invocations | Première | Dernière |
 | --- | --- | --- | --- | --- |
-| `agent-orchestrator` | projet | 18 | 2026-07-21 | 2026-10-15 |
-| `revue-increment` | projet | 6 | 2026-07-21 | 2026-09-04 |
+| `agent-orchestrator` | projet | 19 | 2026-07-21 | 2026-10-16 |
+| `revue-increment` | projet | 7 | 2026-07-21 | 2026-10-16 |
 | `run` | (builtin/session) | 6 | 2026-07-21 | 2026-09-04 |
 | `agent-supervisor` | projet | 3 | 2026-07-21 | 2026-07-22 |
 | `bmad-review-edge-case-hunter` | BMAD | 3 | 2026-09-01 | 2026-09-01 |
+| `code-review` | (builtin/session) | 3 | 2026-09-04 | 2026-10-16 |
 | `pptx-verify` | projet | 3 | 2026-07-21 | 2026-10-13 |
 | `artifact-design` | (builtin/session) | 2 | 2026-07-21 | 2026-09-01 |
 | `bmad-code-review` | BMAD | 2 | 2026-09-01 | 2026-09-01 |
-| `code-review` | (builtin/session) | 2 | 2026-09-04 | 2026-09-04 |
 | `bmad-review-adversarial-general` | BMAD | 1 | 2026-09-01 | 2026-09-01 |
 | `dataviz` | (builtin/session) | 1 | 2026-09-01 | 2026-09-01 |
 | `veille-agentic` | projet | 1 | 2026-09-04 | 2026-09-04 |
@@ -77,7 +77,7 @@ _Consommés en lisant/exécutant leurs `scripts/`, ou via un sous-agent qui les 
 
 ## TODO agents (constats automatiques)
 
-⚠️ **Mesure incomplète** — 2 transcript(s) sur 5 absent(s) du disque. Un `n=0` ne veut plus dire « jamais invoquée » mais « on ne le voit plus » : les listes ci-dessous sous-estiment l'usage réel. Ne rien désinstaller sur cette base.
+⚠️ **Mesure incomplète** — 2 transcript(s) sur 6 absent(s) du disque. Un `n=0` ne veut plus dire « jamais invoquée » mais « on ne le voit plus » : les listes ci-dessous sous-estiment l'usage réel. Ne rien désinstaller sur cette base.
 
 1. **Désinstaller les shims BMAD dépréciés** (4) : `bmad-create-architecture` → `bmad-architecture`, `bmad-create-prd` → `bmad-prd`, `bmad-edit-prd` → `bmad-prd`, `bmad-validate-prd` → `bmad-prd` — dépréciés par BMAD dans leur propre `description`, chacun avec son remplaçant ; le seul élagage qui ne repose pas sur notre mesure d'usage.
 2. **Skills projet sans usage** : `agent-securite` — vérifier pertinence et déclencheurs.
@@ -155,7 +155,7 @@ _14 constat(s) de ce diagnostic écarté(s) par un arbitrage — pour en rouvrir
 
 ## Seuil de qualification — la mesure
 
-Depuis le 2026-09-04 : **127** demande(s) vue(s) hors commande slash (+ 15 slash), **6** run(s) orchestré(s) journalisé(s) sur la même fenêtre — soit **5 %** des demandes orchestrées.
+Depuis le 2026-09-04 : **134** demande(s) vue(s) hors commande slash (+ 18 slash), **6** run(s) orchestré(s) journalisé(s) sur la même fenêtre — soit **4 %** des demandes orchestrées.
 _Ce chiffre ne dit pas ce qui AURAIT dû être orchestré : le hook compte, il ne juge pas. Il donne le dénominateur qui manquait pour arbitrer le seuil sur données plutôt que sur habitude._
 
 ---
