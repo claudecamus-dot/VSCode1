@@ -4,7 +4,7 @@
 # | garder : la signaler au hub, qui corrige le canon et re-synchronise.
 # | (Depuis le hub : « py .claude/dispositif/sync_dispositif.py » — ce script
 # |  n'est pas déployé, il n'existe pas dans ce dépôt.)
-# | Provenance canon : 21a43bab du 2026-10-11 — permet, au prochain sync, de dire si
+# | Provenance canon : e16ed731 du 2026-10-19 — permet, au prochain sync, de dire si
 # | une différence vient d'une édition locale ou d'une avance du canon (voir
 # | `determiner_cause` dans sync_dispositif.py au hub).
 # +---------------------------------------------------------------------------
@@ -1545,6 +1545,10 @@ def main(argv) -> int:
     if refus_lot:
         print(refus_lot)
         return 1
+    refus_preuve = verifier_preuve_de_verification(run)
+    if refus_preuve:
+        print(refus_preuve)
+        return 1
     refus_revue = verifier_revue_increment(run)
     if refus_revue:
         print(refus_revue)
@@ -1564,6 +1568,60 @@ def main(argv) -> int:
 LIVRABLE_UTILISATEUR = ("deck", "slide", "pptx", "ecran", "écran", "export")
 VALIDATION_UTILISATEUR = ("valide par l'utilisateur", "validé par l'utilisateur",
                           "valide par utilisateur", "ok utilisateur")
+
+
+# --- Succes sans preuve de verification (revue 2026-10-19 F4) ----------------
+# Un `succes` dont les notes ne portent AUCUN marqueur de verification etait
+# accepte sans condition ; seul le scan le comptait apres coup (21 %). Refus a
+# l'append, sauf qualification explicite `verification: "non-verifiee"`.
+# COPIE de `scripts/scan_projets.MARQUEURS_VERIFICATION` (le scan n'est pas
+# deploye avec le canon) : un test egalise les deux listes. Seules les `notes`
+# comptent : un marqueur dans une autre cle ne prouve rien.
+CHAMP_VERIFICATION = "verification"
+VERIFICATION_NON_VERIFIEE = "non-verifiee"
+MARQUEURS_VERIFICATION = (
+    r"pytest",
+    r"py -m",
+    r"mesur",
+    r"rendu regard",
+    r"\bouvert",
+    r"\b(?=[0-9]*[a-f])[0-9a-f]{7,40}\b",
+    r"\bpassed\b",
+    r"--check",
+)
+
+
+def _a_plat(txt) -> str:
+    import unicodedata
+    return unicodedata.normalize("NFKD", str(txt)).encode("ascii", "ignore").decode().lower()
+
+
+def verifier_preuve_de_verification(run: dict) -> str | None:
+    """Refus si `resultat: succes` sans marqueur de verification dans `notes`.
+
+    Exemptions : tout autre resultat, un run de lot (`lot` : verifie par
+    `verifier_lot`), et la qualification explicite `verification:
+    "non-verifiee"` (le run reste `succes` mais se declare non verifie, donc
+    mesurable). Le `--solde` ne passe pas par ici. Le marqueur se cherche sur les
+    seules `notes`, mises a plat (minuscules, sans accents)."""
+    if run.get("resultat") != "succes" or str(run.get(CHAMP_LOT) or "").strip():
+        return None
+    if _a_plat(run.get(CHAMP_VERIFICATION) or "").strip() == VERIFICATION_NON_VERIFIEE:
+        return None
+    notes = _a_plat(run.get("notes") or "")
+    if any(re.search(m, notes) for m in MARQUEURS_VERIFICATION):
+        return None
+    return (
+        "log_run REFUS : resultat 'succes' sans aucune preuve de verification dans "
+        "'notes'.\n"
+        "  Ajouter dans notes la commande rejouee et son resultat (ex. 'pytest 12 "
+        "passed', 'py -m ... --check'), un sha de commit, ou 'rendu regarde'.\n"
+        f"  Sinon qualifier : '{CHAMP_VERIFICATION}': '{VERIFICATION_NON_VERIFIEE}' "
+        "(le run reste journalise, declare non verifie), ou un resultat "
+        "'partiel' / 'en-attente-validation'.\n"
+        "  Cette garde est une FRICTION, pas une preuve : elle cherche un marqueur "
+        "dans les notes et ne verifie pas que la commande a ete lancee."
+    )
 
 
 def verifier_revue_increment(run: dict) -> str | None:
