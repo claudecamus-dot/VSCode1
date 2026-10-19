@@ -585,15 +585,13 @@ def _date_plus_ancien_non_propage(source_rel, blob_copie):
     tort coute une journee, un rappel qui crie a tort se fait ignorer pour toujours.
     """
     try:
-        import subprocess
         cmd = ["git", "log", "-n", "40", "--format=C %cI", "--raw", "--abbrev=40",
                "--no-renames", "--", source_rel]
         lb = _lancement_borne()
         if lb is not None:
             out = lb.lancer_texte(cmd, delai=15, cwd=RACINE, errors="replace")
-        else:
-            out = subprocess.run(cmd, cwd=RACINE, capture_output=True, text=True,
-                                 encoding="utf-8", errors="replace", timeout=15)
+        else:  # no unbounded fallback: caught below -> None (fail-open)
+            raise OSError("_lancement_borne indisponible: pas de lancement non borne")  # fail-open via les except existants
     except Exception:  # pragma: no cover - fail-open
         return None
     if out.returncode != 0:
@@ -764,14 +762,12 @@ def lister_git_exe():
     if os.name != "nt":
         return None
     try:
-        import subprocess
         cmd = ["powershell", "-NoProfile", "-NonInteractive", "-Command", _PS_GIT]
         lb = _lancement_borne()
         if lb is not None:
             r = lb.lancer_texte(cmd, delai=DELAI_LISTE_PROCESSUS_S, errors="replace")
-        else:
-            r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
-                               errors="replace", timeout=DELAI_LISTE_PROCESSUS_S)
+        else:  # no unbounded fallback: caught below -> None (fail-open)
+            raise OSError("_lancement_borne indisponible: pas de lancement non borne")  # fail-open via les except existants
         if r.returncode != 0:
             return None
         brut = (r.stdout or "").strip()

@@ -20,8 +20,8 @@ Détail, mesures et historique de chaque section (divulgation progressive, lot 3
 [routage-bmad](references/routage-bmad.md) · [veille](references/veille.md) ·
 [salles](references/salles.md) · [journal](references/journal.md).
 
-<!-- SOCLE-PROVENANCE: socle : e305975b du 2026-10-13 -->
-> **Socle généré** — tout ce qui suit `## Méthode` vient du hub de supervision (`e305975b`, 2026-10-13) et sera **réécrit** à la prochaine propagation.
+<!-- SOCLE-PROVENANCE: socle : c02579da du 2026-10-19 -->
+> **Socle généré** — tout ce qui suit `## Méthode` vient du hub de supervision (`c02579da`, 2026-10-19) et sera **réécrit** à la prochaine propagation.
 > Le chapitre « Portée sur ce projet » ci-dessous, lui, n'est jamais réécrit : c'est le travail local.
 
 ## Portée sur ce projet (import du 2026-07-21 ; flotte arbitrée le 2026-07-21)
@@ -453,7 +453,7 @@ reste. *Pourquoi* : dans les rapports longs, les décisions en attente se perdai
 À la fin du run (succès **ou** échec), une ligne dans `.claude/orchestration/runs.jsonl` :
 
 ```bash
-py .claude/orchestration/log_run.py '{"demande": "résumé court", "qualification": "orchestre", "playbook": "dev-verifie", "gabarit": "executor-lot", "topologie": "cascade", "plan": [{"etape": "revue design", "agent": "Explore", "mode": "parallele", "modele": "sonnet", "etat": "ok"}], "resultat": "succes", "reprises": 0, "notes": "", "livrable_utilisateur": false, "livrable_utilisateur_motif": "chantier interne, aucun artefact ouvert par un humain"}'
+py .claude/orchestration/log_run.py '{"demande": "résumé court", "qualification": "orchestre", "playbook": "dev-verifie", "gabarit": "executor-lot", "topologie": "cascade", "plan": [{"etape": "revue design", "agent": "Explore", "mode": "parallele", "modele": "sonnet", "etat": "ok"}], "resultat": "succes", "reprises": 0, "notes": "pytest 12 passed ; revue-increment jouee en fin de run", "livrable_utilisateur": false, "livrable_utilisateur_motif": "chantier interne, aucun artefact ouvert par un humain"}'
 ```
 
 - `gabarit` (nom du fichier `prompts/*.md` sans extension) et `topologie` sont
