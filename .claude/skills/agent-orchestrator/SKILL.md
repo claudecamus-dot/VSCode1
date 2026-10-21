@@ -20,8 +20,8 @@ Détail, mesures et historique de chaque section (divulgation progressive, lot 3
 [routage-bmad](references/routage-bmad.md) · [veille](references/veille.md) ·
 [salles](references/salles.md) · [journal](references/journal.md).
 
-<!-- SOCLE-PROVENANCE: socle : c02579da du 2026-10-19 -->
-> **Socle généré** — tout ce qui suit `## Méthode` vient du hub de supervision (`c02579da`, 2026-10-19) et sera **réécrit** à la prochaine propagation.
+<!-- SOCLE-PROVENANCE: socle : c2529663 du 2026-10-21 -->
+> **Socle généré** — tout ce qui suit `## Méthode` vient du hub de supervision (`c2529663`, 2026-10-21) et sera **réécrit** à la prochaine propagation.
 > Le chapitre « Portée sur ce projet » ci-dessous, lui, n'est jamais réécrit : c'est le travail local.
 
 ## Portée sur ce projet (import du 2026-07-21 ; flotte arbitrée le 2026-07-21)
@@ -123,6 +123,7 @@ checkpoints**, ne garder que les étapes conditionnelles applicables. Playbooks 
 | `evolution-flotte` | Modifier un AUTRE projet de la flotte (corrige/rattache/déploie/propage sur VSCodeN) — cadrage sur l'état réel, commit scopé au périmètre | Éprouvé |
 | `dev-verifie` | Implémentation/correction avec tests + vérif réelle + revue finale avant commit | Importé, à confirmer |
 | `export-ppt-verifie` | Livrable = un deck PPT : génération + enrichissements conditionnels (cadres photo, polish, design) + `pptx-verify` obligatoire | Importé, à confirmer |
+| `export-ppt-iteration` | Retours utilisateur (commentaires, formes, textes) sur UN SOUS-ENSEMBLE de slides d'un deck PPT EXISTANT : rendu `-Slides` des seules slides touchées ; deck neuf → `export-ppt-verifie` | Créé 2026-10-21, jamais joué |
 | `revue-design-parallele` | Revue multi-angles d'un livrable en fan-out puis consolidation | Importé, à confirmer |
 | `cadrage-produit` | Intention produit NEUVE (pas un bug) : durcir l'idée → brief → PRD → architecture → UX, puis relais explicite vers `dev-verifie` à son étape `cadrage-epics` (`bmad-create-epics-and-stories`, critères d'acceptance) — jamais de code avant les stories | Créé 2026-09-21, routé ici le 2026-09-24 (un playbook absent de cette table n'existe pas pour l'orchestrateur) |
 
