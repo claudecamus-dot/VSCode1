@@ -4,7 +4,7 @@
 # | garder : la signaler au hub, qui corrige le canon et re-synchronise.
 # | (Depuis le hub : « py .claude/dispositif/sync_dispositif.py » — ce script
 # |  n'est pas déployé, il n'existe pas dans ce dépôt.)
-# | Provenance canon : e16ed731 du 2026-10-19 — permet, au prochain sync, de dire si
+# | Provenance canon : d8d62056 du 2026-10-22 — permet, au prochain sync, de dire si
 # | une différence vient d'une édition locale ou d'une avance du canon (voir
 # | `determiner_cause` dans sync_dispositif.py au hub).
 # +---------------------------------------------------------------------------
@@ -1596,6 +1596,34 @@ def _a_plat(txt) -> str:
     return unicodedata.normalize("NFKD", str(txt)).encode("ascii", "ignore").decode().lower()
 
 
+# Negation (diagnostic 2026-10-19) : « fait, rien mesure » ou « pytest pas lance »
+# portaient un marqueur sans verification. Un marqueur est NIE si, dans la meme
+# proposition (coupee a , ; . ! ? saut de ligne et « mais »), un negateur le precede
+# de moins de 4 mots (rien, pas, non, sans, jamais, aucun) ou le suit de 2 mots
+# (pas, non, jamais). « ne ... pas » compte pour UNE negation (« ne » seul ignore).
+# Un nombre pair de negateurs du meme cote s'annule (« jamais sans pytest » passe).
+# Limite : « pytest 12 passed sans erreur » reste accepte (« sans » apres), mais
+# « passed pas de regression » est refuse a tort : friction assumee.
+_NEGATEURS_AVANT = frozenset({"rien", "pas", "non", "sans", "jamais", "aucun", "aucune"})
+_NEGATEURS_APRES = frozenset({"pas", "non", "jamais"})
+_COUPURE_PROPOSITION = re.compile(r"[,;.!?\n]|\bmais\b")
+
+
+def _marqueur_affirme(notes: str, motif: str) -> bool:
+    """Vrai si `motif` apparait dans `notes` au moins une fois sans negation proche."""
+    for m in re.finditer(motif, notes):
+        debut = max((c.end() for c in _COUPURE_PROPOSITION.finditer(notes, 0, m.start())), default=0)
+        fin_c = _COUPURE_PROPOSITION.search(notes, m.end())
+        fin = fin_c.start() if fin_c else len(notes)
+        avant = re.findall(r"[a-z0-9]+", notes[debut:m.start()])[-4:]
+        apres = re.findall(r"[a-z0-9]+", notes[m.end():fin])[:2]
+        nb_av = sum(1 for w in avant if w in _NEGATEURS_AVANT)
+        nb_ap = sum(1 for w in apres if w in _NEGATEURS_APRES)
+        if nb_av % 2 == 0 and nb_ap % 2 == 0:
+            return True
+    return False
+
+
 def verifier_preuve_de_verification(run: dict) -> str | None:
     """Refus si `resultat: succes` sans marqueur de verification dans `notes`.
 
@@ -1609,7 +1637,7 @@ def verifier_preuve_de_verification(run: dict) -> str | None:
     if _a_plat(run.get(CHAMP_VERIFICATION) or "").strip() == VERIFICATION_NON_VERIFIEE:
         return None
     notes = _a_plat(run.get("notes") or "")
-    if any(re.search(m, notes) for m in MARQUEURS_VERIFICATION):
+    if any(_marqueur_affirme(notes, m) for m in MARQUEURS_VERIFICATION):
         return None
     return (
         "log_run REFUS : resultat 'succes' sans aucune preuve de verification dans "
@@ -1619,8 +1647,11 @@ def verifier_preuve_de_verification(run: dict) -> str | None:
         f"  Sinon qualifier : '{CHAMP_VERIFICATION}': '{VERIFICATION_NON_VERIFIEE}' "
         "(le run reste journalise, declare non verifie), ou un resultat "
         "'partiel' / 'en-attente-validation'.\n"
+        "  Un marqueur nie a proximite (rien, pas, non, sans, jamais, aucun) ne compte pas.\n"
         "  Cette garde est une FRICTION, pas une preuve : elle cherche un marqueur "
-        "dans les notes et ne verifie pas que la commande a ete lancee."
+        "dans les notes et ne verifie pas que la commande a ete lancee. Un sha n'est "
+        "PAS verifie dans le depot courant (un run du hub cite des commits d'AUTRES "
+        "depots) : il peut etre invente."
     )
 
 
