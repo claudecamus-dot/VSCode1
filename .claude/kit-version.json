@@ -1,32 +1,16 @@
 {
-  "kit_id": "667291f358b5c2fd7bfed81ef50ad3a752b640da34ce844b410d831cd50b4154",
-  "hub_commit": "4bb1cf83",
-  "date": "2026-10-21",
-  "fichiers": 114,
+  "kit_id": "3aa910e079bc15f999df46a94b1622545c3863e38d2c59bb52adb7d7668d6a6f",
+  "hub_commit": "aed23c33",
+  "date": "2026-10-22",
+  "fichiers": 115,
   "ecarts_connus": [
-    {
-      "fichier": ".claude/agents/agent-securite.md",
-      "nature": "SPECIALISATION"
-    },
-    {
-      "fichier": ".claude/agents/veille-agentic.md",
-      "nature": "SPECIALISATION"
-    },
-    {
-      "fichier": ".claude/hooks/_lancement_borne.py",
-      "nature": "SPECIALISATION"
-    },
-    {
-      "fichier": ".claude/hooks/faucher_orphelins.py",
-      "nature": "SPECIALISATION"
-    },
     {
       "fichier": ".claude/orchestration/catalogue.md",
       "nature": "structurellement-local"
     },
     {
       "fichier": ".claude/orchestration/generate_bmad_playbook.py",
-      "nature": "HORS-REGIME"
+      "nature": "SPECIALISATION"
     },
     {
       "fichier": ".claude/orchestration/playbooks/cadrage-produit.md",
@@ -39,10 +23,6 @@
     {
       "fichier": ".claude/orchestration/playbooks/export-ppt-verifie.md",
       "nature": "structurellement-local"
-    },
-    {
-      "fichier": ".claude/skills/agent-securite/SKILL.md",
-      "nature": "SPECIALISATION"
     },
     {
       "fichier": ".claude/skills/deck-design-library/SKILL.md",
