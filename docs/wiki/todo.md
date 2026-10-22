@@ -1,10 +1,90 @@
 ---
-updated: 2026-07-21
+updated: 2026-10-22
 confidence: mixed
 agents: [onboarder]
 ---
 
 # TODO
+
+## Prochaine session — PRD « collecte en ligne » à finaliser (demandé le 2026-10-22)
+
+> Reprise d'un cadrage mené le 2026-10-20/21. Rien n'est déployé, aucun code produit
+> n'a été modifié : seuls des documents de cadrage ont bougé. Ne pas refaire la
+> discussion : les décisions sont datées dans les deux `.memlog.md` ci-dessous.
+
+**État des fichiers**
+- Brief validé le 2026-10-21 : `docs/product-brief.md` + `docs/.memlog.md` — **non
+  commités**. Le hub VScode5 attend ces deux chemins libres pour lancer
+  `sync_dispositif --projet VSCode1 --accepter-derive` (retard pur : il manque
+  `_marqueur_affirme` à `log_run.py`). Les commits `212aac4` (socle) et `1df0358`
+  (kit pptx) sont déjà faits côté hub. Décider : committer, attendre, ou ranger ; puis
+  prévenir le hub.
+- PRD en **brouillon** (30 FR, 4 UJ, 11 questions ouvertes) :
+  `_bmad-output/planning-artifacts/prds/prd-VSCode1-2026-10-21/prd.md` + son
+  `.memlog.md`. Ne pas passer `status: final` avant la finalisation ci-dessous.
+
+**Décisions déjà prises** (détail et dates dans les `.memlog.md`)
+- Seuil d'anonymat : groupe de 2 répondants ou moins masqué (écran + deck), et masquage
+  du complément si un seul groupe est masqué dans un total. Inverse « aucun seuil »
+  (`cadrage/experience-map.md:73`, `cadrage/difficultes-realisation.md:37`).
+- Taux de réponse sur les invités importés ; charge cible 100 répondants simultanés.
+- v1 en ligne = **collecte seule** (lien + QR code, web mobile, ni application native
+  ni PWA). Restitution, consolidation et génération du PPT **uniquement sur le laptop
+  du propriétaire**, qui remet le deck. Epic 10 reste clos (un seul administrateur),
+  FR-14/FR-15 reportés. Administration (référentiel, sessions, invités) en ligne par le
+  propriétaire.
+
+**À trancher en premier**
+1. **Hébergeur.** Apps Script était la première cible, mais le domaine OCTO peut refuser
+   les web apps ouvertes à l'extérieur. Recherche sourcée du 2026-10-21 : **Fly.io**
+   recommandé (Paris/Francfort, volume persistant sur `/data`, `Dockerfile` repris tel
+   quel, environ 4 $/mois) ; Render payant avec disque en second, Azure Container Apps
+   en troisième ; **Vercel écarté** (disque en lecture seule, plan gratuit non
+   commercial, réécriture des 126 accès SQLite). Non vérifié : DPA/RGPD et usage
+   commercial de Fly.io, auto-stop, et l'export réel de la base (`fly ssh`).
+   Prérequis humain : la politique OCTO sur les services tiers pour des données
+   nominatives. Un essai réel (compte, coût) demande un accord explicite.
+2. **Commit du brief et du journal** (voir « État des fichiers »).
+
+**Ensuite, dans l'ordre**
+1. Mettre à jour le PRD et le brief selon l'hébergeur retenu (FR-23, §4.7/§4.8, Q9 à Q11,
+   SM-3, glossaire « cible de déploiement »).
+2. **Correctif B1** de la revue du 2026-10-20 : limite d'inscriptions par session et
+   `trust proxy` (`app/src/debit.js:25`, `app/src/server.js:455`). Nécessaire quel que soit
+   l'hébergeur : prouvé par `node -e` (12 répondants, même IP : `200 ×10, 429, 429`). La
+   dépendance `proxy-addr` a une vulnérabilité critique signalée par `npm audit` : la
+   corriger avant d'activer `trust proxy`.
+3. Réécrire les passages du cadrage qui disent encore « aucun seuil », et les deux lignes
+   périmées du README (`app/README.md:347-348` « pas de route santé » alors que `/health`
+   existe ; `:317` cite `npm run backup`, qui n'existe pas — seuls `backup:dev`,
+   `backup:preprod`, `backup:prod`).
+4. Finaliser le PRD (`bmad-prd`, étape Finalize) : audit du journal, réconciliation avec
+   chaque document d'entrée, passe des relecteurs, tri des hypothèses `[ASSUMPTION]` et
+   des questions ouvertes, mise en forme, puis `status: final`.
+5. Enchaîner le cadrage lourd du playbook `dev-verifie` : `bmad-architecture`, epics et
+   stories avec critères d'acceptation, planification de sprint. Aucun code avant les
+   stories.
+
+**Reliquat de la revue de code du 2026-10-20** (comité augmenté, 5 voix, toutes en
+balayage partiel ; non corrigé, ni commité)
+- Exactitude : « ガ » et « カ » fusionnés par `normalisation.js:10-17` ; limite de 5000
+  caractères comptée en UTF-16 (`server.js:891`, `routes-fusion.js:77`) ;
+  `moyenneDe([undefined, 2])` renvoie `NaN` (`public/stats-partagees.js:16`).
+- Erreurs et sécurité : une panne interne présentée comme un 400 « format » avec message
+  brut (`server.js:182-187`, `:422`) ; aucun frein aux essais de mot de passe
+  (`auth.js:177-210`) ; HTTP clair toléré par défaut (`auth.js:175-186`) ; pas de plafond
+  de répondants par session ni de limite sur `server.js:619` et `:714` ; insertion non
+  échappée à `admin.html:224`.
+- Exploitation : `_pont-python.js:23` sans délai maximal ; interpréteur par défaut
+  `python` (`server.js:1432`) ; `restore-db.js:141` sans garde `src === dbPath`.
+- Maintenabilité : seuil « stable » 0,05 recopié (`resultats.html:850`,
+  `export-restitution-ppt.py:206`) ; commentaire périmé (`export-restitution-ppt.py:191`).
+- Zones non couvertes : insertions HTML de `resultats.html` (436-1037), `repondre.html`,
+  `pilotage.html` ; `pptx_deck.py`, `build-synthese-ppt.py` ; `invites.js`,
+  `backup-db.js`, migrations ; soumissions concurrentes.
+- `npm test` complet **jamais terminé** sur cette revue : il s'est arrêté au 3ᵉ test
+  (serveur injoignable 60 s, machine chargée). `test-csrf-methodes.js` repasse seul. À
+  relancer machine au repos.
 
 ## Prochaine session — file d'attente (demandé le 2026-07-21)
 
@@ -465,3 +545,10 @@ de l'enfant et les 2000 derniers caractères de sa sortie ; chaque tentative a u
 dernier serveur lancé est suivi automatiquement (patch de `ChildProcess.prototype.spawn`). Au prochain
 échec, le message dira lequel des cas s'est produit (mort, vivant sans écoute, écoute sans réponse).
 À reprendre si l'échec se reproduit : lire ce message avant toute autre hypothèse.
+
+### Mise à jour de Claude Code — tentative du 2026-10-22
+
+`claude update` n'a pas abouti : « Unable to fetch latest version from npm registry » (réseau / proxy
+d'entreprise suspecté, non vérifié). Version restée à **2.1.308** (`claude --version`, relu après la
+tentative). À reprendre : vérifier `npm view @anthropic-ai/claude-code version` hors proxy, puis relancer
+`claude update`.
