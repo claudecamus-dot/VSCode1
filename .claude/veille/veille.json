@@ -3,9 +3,9 @@
     "source": "hub de supervision VScode5, .claude/veille/veille.json",
     "projection": "entrees dont projets_concernes nomme VSCode1",
     "ne_pas_editer": "Fichier GENERE, en lecture seule : une correction faite ici sera ecrasee a la prochaine propagation. La veille s'ecrit AU HUB, ou elle est lue (section 3 du wiki) et arbitree. Une veille lancee depuis ce depot doit y etre remontee.",
-    "date": "2026-10-22"
+    "date": "2026-11-02"
   },
-  "derniere_veille": "2026-10-19T11:10:41+02:00",
+  "derniere_veille": "2026-11-02T13:22:39+01:00",
   "entrees": [
     {
       "titre": "microsoft/hve-core — skill PowerPoint python-pptx pilotée par YAML",
@@ -456,6 +456,109 @@
       "pertinence": "Reprise a comparer avant toute evolution des hooks garde-fou git destructif de la flotte (deja en place). Classement all-time lu sur skills.sh le 2026-10-15 ; contenu de la skill NON lu, qualification reprise telle quelle/adaptee/rien a faire sur le depot mattpocock/skills. Vus aussi : handoff (987,5K installs). [ecarte le 2026-10-20 : ecarte par l'utilisateur le 2026-10-20 : contenu non lu, gardes git deja en place au hub]",
       "date": "2026-10-15",
       "statut": "ecarte"
+    },
+    {
+      "titre": "Skills : directives qui desserrent la supervision (1 skill sur 17), conflits de composition (CoSA) et scanner pre-installation - 3 preprints d'octobre 2026",
+      "url": "https://arxiv.org/abs/2610.37734 ; https://arxiv.org/abs/2610.35082 ; https://arxiv.org/abs/2610.37901",
+      "type": "papier",
+      "projets_concernes": [
+        "VScode5",
+        "VSCode",
+        "VSCode1",
+        "VSCode2",
+        "VSCode3",
+        "VSCode4",
+        "Vscode8-DataDriven"
+      ],
+      "pertinence": "Trois preprints (arXiv, 26-27 oct. 2026), NON relus par les pairs, convergent sur le risque propre aux skills, dont la flotte porte 42 a 68 par arbre (10 arbres lus). Citations avec leur protocole, jamais des mesures faites chez nous. (1) 2610.37734 : 1,53 M de skills anglophones de GitSkills, 2 097 unites annotees a la main ; environ 1 skill sur 17 contient une directive qui desserre la supervision (avancer sans approbation, contourner une verification, poursuivre sans point d'etape), 70,1 % sans condition ; les scanners open source en trouvent 46 % au mieux pour une precision < 0,4, un LLM muni du codebook des auteurs 61 % a 0,71. (2) 2610.35082 CoSA : 5 LLM, 3 harnais, 288 taches ; ajouter des skills admises localement, plafonnees a 5 % du pool, fait passer le taux de violation de politique de 35,02 % a 58,45 % ; une garde de flux d'information et d'autorisation cote harnais ramene 65,28 % a 6,67 % (taches de recrutement, 5 modeles). (3) 2610.37901 : scanner a six modules, rappel 95,90 % sur 556 cas SkillTrustBench ; aucun code publie n'est mentionne. Complete l'entree Agent Skills Can Be Harmful (deja arbitree, story 21.3) sans la recreer. MESURE ICI (lecture seule, script jetable, 2026-11-02) : un balayage par motifs EN/FR des SKILL.md rend 9 skills sur 54 au hub, memes comptes par motif dans 8 autres arbres (VSCode1 : 5 sur 62) : 7 skills BMAD (bmad-build-auto, bmad-deep-recon, bmad-product-brief, bmad-project-context, bmad-retrospective, bmad-sprint-planning, bmad-walkthrough) et 2 skills du hub (agent-orchestrator, audit-technique, motif francais sans validation, contexte non lu). Ce comptage est un triage a faible precision (le papier 1 chiffre un scanner a motifs sous 0,4), pas un verdict : chaque occurrence reste a lire.",
+      "date": "2026-11-02",
+      "statut": "nouveau",
+      "source_referentiel": "arXiv cs.CR/cs.AI/cs.CL, soumis les 26 et 27 octobre 2026, v1, aucun lieu de publication nomme",
+      "regle_proposee": "Balayage froid des SKILL.md de chaque projet pour les directives qui desserrent la supervision humaine (contournement de verification, ne demande pas, poursuite sans validation, contournement des permissions), compte par projet dans scripts/scan_projets.py a cote de mesurer_skills(). Chaque occurrence est lue une fois et classee (voulue par conception, ex. bmad-build-auto concu pour boucler sans supervision / a corriger) dans une liste tracee ; un SKILL.md nouveau ou modifie dont le compte augmente est signale. Le compte est un triage, pas un verdict.",
+      "action_corrective": "VScode5 : ajouter le compteur au scan (0 token), puis lire les 7 skills BMAD et les 2 skills du hub listes ci-dessus pour classer chaque occurrence. Toute skill de place de marche adoptee (superpowers, ui-craft, design-review, design-audit) passe par le meme controle avant propagation au kit. Avant d'ajouter une skill a un projet qui en porte deja plus de 40, la tester en composition avec les existantes sur 3 taches de garde (risque d'interaction de type CoSA). Aucun correctif applique sans arbitrage.",
+      "revue_par_pairs": "non"
+    },
+    {
+      "titre": "Soei (arXiv 2610.39468) : 57,8 % des to-dos termines apres edition sans preuve, 23,4 % des episodes d'edition sans controle independant apres la derniere edition",
+      "url": "https://arxiv.org/abs/2610.39468",
+      "type": "papier",
+      "projets_concernes": [
+        "VScode5",
+        "VSCode",
+        "VSCode1",
+        "VSCode2",
+        "VSCode3",
+        "VSCode4",
+        "Vscode8-DataDriven"
+      ],
+      "pertinence": "Preprint NON relu par les pairs. Protocole des auteurs : audit de l'outil d'observabilite open source Agenttrail, puis 45 sessions reelles d'agents de code (102 233 enregistrements, 20 577 executions d'outils, 2 336 episodes humain vers agent), classifieur audite en aveugle (precision 83,3 % et 96,7 %), resultats donnes comme des estimations : 57,8 % des to-dos marques termines apres edition n'ont aucune preuve entre les deux ; 23,4 % (IC 95 % 17,1 a 35,7) des episodes d'edition de code se terminent sans controle independant apres la derniere edition. Les auteurs proposent un registre local a chainage de hachage (environ 20 % de la taille brute, sans contenu ni identifiants, detecte l'alteration) et une couche qui separe l'affirmation d'achevement de la preuve. Citation, pas une mesure chez nous. Lien flotte : le bloc CHIFFRES-MESURES:REPRISES du CLAUDE.md du hub (scan) compte deja les succes de run sans marqueur de verification dans les NOTES (45 sur 214, 21 %) ; la mesure du papier est plus fine et part des TRANSCRIPTS : la derniere edition de fichier d'une session est-elle suivie d'un appel de verification ? Un grep cible de 6 libelles dans scripts/*.py, .claude/supervision/*.py et .claude/dispositif/canon/*.py ne rend aucune occurrence : pas de mesure equivalente reperee (grep faible, a confirmer). Famille deja instruite : Confident Closing (2606.09863), OverclaimBench (2609.20812).",
+      "date": "2026-11-02",
+      "statut": "nouveau",
+      "source_referentiel": "arXiv cs.SE, soumis le 2026-10-29, v1, preprint sans lieu de publication nomme",
+      "regle_proposee": "Part des sessions, par projet et depuis les transcripts deja agreges par l'etage 1, dont la derniere edition de fichier (Edit, Write) n'est suivie d'aucun appel de verification (commande de test, lint, build, ouverture du rendu) avant la fin de session. La definition de verification et le seuil sont fixes AVANT la mesure sur 30 sessions du hub (R6) ; la mesure complete celle des notes de run, elle ne la remplace pas ; comptes seulement, jamais de contenu.",
+      "action_corrective": "VScode5 : prototype de mesure en lecture seule sur les transcripts, restitue en comptes par projet ; ne pas reprendre le chiffre du papier (45 sessions d'un autre corpus) comme seuil avant reproduction. Le registre a chainage de hachage pour runs.jsonl est a etudier seulement si un besoin local d'inviolabilite du journal est demontre : aucun n'est etabli ici. Aucun correctif applique sans arbitrage.",
+      "revue_par_pairs": "non"
+    },
+    {
+      "titre": "M4Bench (NeurIPS 2026, Evaluations and Datasets) : la valeur d'une skill vient de la completude de la specification, pas du format ; controle specification-dans-le-brief a ajouter au protocole de la story 21.3",
+      "url": "https://neurips.cc/virtual/2026/poster/139625 ; https://arxiv.org/abs/2610.37459",
+      "type": "papier",
+      "projets_concernes": [
+        "VScode5",
+        "VSCode",
+        "VSCode1",
+        "VSCode2",
+        "VSCode3",
+        "VSCode4",
+        "Vscode8-DataDriven"
+      ],
+      "pertinence": "Seul des papiers de cette veille a porter une acceptation (NeurIPS 2026, piste Evaluations and Datasets, lue dans le commentaire arXiv, page poster non ouverte ; relecture de pistes de jeux de donnees, plus faible que la piste principale). Domaine tres eloigne de la flotte : derivation de variables sur dossiers medicaux (MIMIC-IV, eICU), 28 taches, SQL. Protocole : campagne Codex isolee sous Docker (GPT 5.4 Mini et GPT 5.5), 280 runs avec skill et 280 sans : recompense +0,136, 26 taches sur 28 ameliorees ; sur un sous-ensemble de 8 taches, une specification operationnelle seule donne +0,162 et la skill n'ajoute que +0,024, indiscernable de zero ; sur 10 taches, des skills leurres valent l'absence de skill ; replication Claude Code (Opus 4.7, Sonnet 4.6, 560 runs) : +0,120, 21 taches sur 28. Citations, pas des mesures chez nous. Pourquoi ici : la flotte porte 42 a 68 skills par arbre et la story 21.3 (Agent Skills Can Be Harmful) prevoit de mesurer l'effet d'une skill avec et sans ; ce papier ajoute le bras manquant, la meme specification livree dans le brief. SkillCT (arXiv 2610.38147, preprint non relu, 28 oct. 2026) propose en plus une evaluation de skills sans execution sur neuf dimensions : lu au niveau du resume seulement, aucun code mentionne.",
+      "date": "2026-11-02",
+      "statut": "nouveau",
+      "source_referentiel": "NeurIPS 2026, piste Evaluations and Datasets (acceptation lue dans le champ commentaire de la page arXiv 2610.37459 ; page poster neurips.cc remontee par la recherche, non ouverte)",
+      "regle_proposee": "Avant de generaliser une skill a la flotte, la mesurer sur trois bras et au moins 3 taches de garde du projet : sans skill, specification operationnelle equivalente dans le brief, avec skill (meme modele, 3 passes minimum par bras). La skill n'est justifiee que si le bras avec skill depasse le bras specification-dans-le-brief au-dela du bruit mesure ; sinon la specification va dans le gabarit de brief.",
+      "action_corrective": "VScode5 : ajouter le bras specification-dans-le-brief au protocole de la story 21.3 plutot que d'ouvrir un chantier separe ; premiere candidate : une skill du hub a contrat de sortie precis (revue-increment ou pptx-verify) ; aucune modification de skill avant mesure. Les autres projets ne sont concernes qu'apres le resultat au hub.",
+      "revue_par_pairs": "oui"
+    },
+    {
+      "titre": "Claude Code 2.1.309-2.1.311 : correctifs de garde (deny Edit contre redirection Bash, hooks PowerShell sortie 2, hooks Windows sans Git Bash, SubagentStop en double) ; le poste est en 2.1.308",
+      "url": "https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md#2.1.309",
+      "type": "pratique",
+      "projets_concernes": [
+        "VScode5",
+        "VSCode",
+        "VSCode1",
+        "VSCode2",
+        "VSCode3",
+        "VSCode4",
+        "Vscode8-DataDriven"
+      ],
+      "pertinence": "MESURE le 2026-11-02 : claude --version rend 2.1.308 au poste ; le haut du CHANGELOG officiel est a 2.1.316. Le CHANGELOG range dans 2.1.309 : 'Fixed an Edit(path) deny rule not blocking a Bash redirect to that path' et 'Fixed hooks that run in PowerShell not blocking when the hook's program exits with code 2' (2.1.316 ajoute le cas d'une commande qui debute par un type cast) ; dans 2.1.310 (Windows) 'Fixed PreToolUse and PermissionRequest hooks letting a tool call through when Git Bash is missing' ; dans 2.1.311 'Fixed SubagentStop hooks running about twice a minute for each running subagent instead of once' ; dans 2.1.304 'Fixed a PreToolUse hook's deny reason being replaced by a timeout error'. La documentation permissions lue le meme jour dit que la cible d'une redirection est verifiee contre les regles Edit allow et deny : le comportement documente n'etait donc pas tenu avant 2.1.309. Constats locaux : les regles deny sur .env vues au hub (settings.json l.218-236) sont de type Read ; un seul hook de toute la flotte tourne sous PowerShell (hub, settings.json l.49-56, guard_salle_skills.py) : son blocage nominal passe par un JSON permissionDecision deny avec sortie 0 (l.240-243), son chemin de refus prudent par la sortie 2 (l.165), qui peut ne pas bloquer sous PowerShell en 2.1.308 : a confirmer par un test comme en production, pas encore fait. Effet utile : les prerequis de version notes le 2026-10-20 (2.1.295 pour onFailure, 2.1.302 pour le fork par defaut, poste note en 2.1.263) sont desormais satisfaits au poste ; 0 occurrence de onFailure dans les settings de la flotte (grep du 2026-11-02). Source editeur (CHANGELOG), pas une etude.",
+      "date": "2026-11-02",
+      "statut": "nouveau",
+      "source_referentiel": "Anthropic - Claude Code CHANGELOG 2.1.304 a 2.1.316 (lu le 2026-11-02) + documentation permissions (code.claude.com/docs/en/permissions, section Redirections)",
+      "regle_proposee": "Plancher de version de Claude Code declare dans un fichier versionne du dispositif (valeur initiale 2.1.309, a relever quand le CHANGELOG corrige une garde de hooks ou de permissions) et compare a claude --version au demarrage de session par le hook de rappel existant (fail-open, 0 token) ; un poste sous le plancher est un constat de securite, pas un simple rappel. Mesurable a froid : un appel de version et une comparaison de tuples.",
+      "action_corrective": "Poste (decision utilisateur) : mettre Claude Code a jour de 2.1.308 vers 2.1.316 ou plus. Ensuite, au hub : rejouer comme en production les tests des hooks bloquants (guard_dispatch_pretooluse, guard_salle_skills sous PowerShell avec sortie 2) et verifier qu'une redirection Bash vers un fichier couvert par une regle Edit deny est refusee. Declarer le plancher dans le dispositif. Le plancher est une propriete du poste : tous les projets sont concernes, aucun correctif par depot."
+    },
+    {
+      "titre": "Claude Code 2.1.314-2.1.316 : permissions.blockWritesOutsideWorkingDirectories et CLAUDE_CODE_SUBAGENT_EFFORT, a declarer ou a ecarter avec raison",
+      "url": "https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md#2.1.314",
+      "type": "pratique",
+      "projets_concernes": [
+        "VScode5",
+        "VSCode",
+        "VSCode1",
+        "VSCode2",
+        "VSCode3",
+        "VSCode4",
+        "Vscode8-DataDriven"
+      ],
+      "pertinence": "Le CHANGELOG officiel ajoute en 2.1.314 'permissions.blockWritesOutsideWorkingDirectories: Write, Edit and NotebookEdit refuse paths outside' (phrase tronquee dans l'extrait lu) et en 2.1.316 'CLAUDE_CODE_SUBAGENT_EFFORT to set the effort level subagents run at' ; 2.1.312 plafonne par ailleurs a 24 les hooks prompt et agent simultanes par session, sous-agents compris (le critere du referentiel du 2026-10-20 retient 12 par evenement : deux grandeurs distinctes). La page permissions de la documentation, lue le meme jour, ne mentionne pas le premier reglage : la seule source est le CHANGELOG. Pourquoi ici : le hub ecrit par conception dans d'autres depots (regle R2) ; ce reglage ne s'y active qu'avec une liste additionalDirectories exhaustive, point deja releve le 2026-09-12 (additionalDirectories jamais declare au hub a cette date ; etat actuel non reverifie). Le second est un levier de cout pour la discipline de tokens, sans mesure locale d'effet. Constat du 2026-11-02 : 0 occurrence de blockWritesOutsideWorkingDirectories, CLAUDE_CODE_SUBAGENT_EFFORT, onFailure et autoCompactWindow dans les .claude/settings*.json du dossier Documents. Prerequis non satisfaits : poste en 2.1.308, reglages absents avant 2.1.314 et 2.1.316.",
+      "date": "2026-11-02",
+      "statut": "nouveau",
+      "source_referentiel": "Anthropic - Claude Code CHANGELOG 2.1.312 a 2.1.316 (lu le 2026-11-02) ; reglage non retrouve dans la page permissions de la documentation",
+      "regle_proposee": "Chaque reglage nouveau de securite ou de cout d'un CHANGELOG est soit declare dans les settings du projet, soit ecarte avec sa raison dans le referentiel (meme regime que onFailure et idleCompaction, entrees du 2026-10-20). Mesurable a froid par grep du nom du reglage dans les settings de chaque projet. Pour blockWritesOutsideWorkingDirectories : l'ensemble des chemins de projets.json doit figurer dans additionalDirectories du hub avant toute activation.",
+      "action_corrective": "Apres mise a jour du poste (2.1.316 ou plus) : (1) hub : decider de l'activation de blockWritesOutsideWorkingDirectories apres comparaison de additionalDirectories a projets.json, d'abord sur une session canari ; (2) tous : essayer CLAUDE_CODE_SUBAGENT_EFFORT sur une seance mesuree (tokens avant et apres via mesure_tokens.py coupe par version) avant de le fixer, sinon l'ecarter avec sa raison. Aucune activation sans arbitrage."
     }
   ]
 }

@@ -4,7 +4,7 @@
 # | garder : la signaler au hub, qui corrige le canon et re-synchronise.
 # | (Depuis le hub : « py .claude/dispositif/sync_dispositif.py » — ce script
 # |  n'est pas déployé, il n'existe pas dans ce dépôt.)
-# | Provenance canon : d8d62056 du 2026-10-22 — permet, au prochain sync, de dire si
+# | Provenance canon : 4eb1f67f du 2026-11-02 — permet, au prochain sync, de dire si
 # | une différence vient d'une édition locale ou d'une avance du canon (voir
 # | `determiner_cause` dans sync_dispositif.py au hub).
 # +---------------------------------------------------------------------------
@@ -153,7 +153,8 @@ def transcript_dir() -> str:
 def load_state() -> dict:
     try:
         with open(STATE_PATH, encoding="utf-8") as fh:
-            return json.load(fh)
+            d = json.load(fh)
+        return d if isinstance(d, dict) else {}
     except (OSError, ValueError):
         return {}
 
@@ -184,9 +185,12 @@ def read_new_lines(path: str, offset: int):
         offset = 0
     if size == offset:
         return [], offset
-    with open(path, "rb") as fh:
-        fh.seek(offset)
-        chunk = fh.read()
+    try:
+        with open(path, "rb") as fh:
+            fh.seek(offset)
+            chunk = fh.read()
+    except OSError:  # verrou/permission apres getsize : ignorer ce fichier ce tour-ci
+        return [], offset
     end = chunk.rfind(b"\n")
     if end < 0:
         return [], offset
@@ -223,6 +227,7 @@ def reset_si_detecteur_change(state: dict) -> bool:
         return False
     state["files"] = {}
     state["skills"] = {}
+    state["skills_via_sous_agent"] = {}
     state["subagents"] = {}
     state["skills_journal"] = {}
     state["subagents_journal"] = {}
@@ -237,7 +242,7 @@ def scan(state: dict) -> int:
     tdir = transcript_dir()
     if reset_si_detecteur_change(state):
         print(
-            f"Supervision agents : detecteur v{DETECTOR_VERSION} — rejeu complet "
+            f"Supervision agents : detecteur v{DETECTOR_VERSION} - rejeu complet "
             "des transcripts (offsets et agregats remis a zero)."
         )
     files_state = state.setdefault("files", {})
@@ -262,8 +267,11 @@ def scan(state: dict) -> int:
                 obj = json.loads(raw.decode("utf-8", "replace"))
             except ValueError:
                 continue
+            if not isinstance(obj, dict):
+                continue
             ts = obj.get("timestamp") or ""
-            content = (obj.get("message") or {}).get("content")
+            msg = obj.get("message")
+            content = msg.get("content") if isinstance(msg, dict) else None
             # Slash-commands : une skill invoquée en /commande n'émet PAS de
             # tool_use Skill — elle apparaît en <command-name> dans le message
             # utilisateur (constat superviseur VScode5 2026-07-23, propagé).
@@ -287,11 +295,46 @@ def scan(state: dict) -> int:
                 if not (isinstance(blk, dict) and blk.get("type") == "tool_use"):
                     continue
                 tool_input = blk.get("input") or {}
+                if not isinstance(tool_input, dict):
+                    continue
                 if blk.get("name") == "Skill" and tool_input.get("skill"):
                     record(skills, str(tool_input["skill"]), ts)
                     new_events += 1
                 elif blk.get("name") in ("Agent", "Task"):
                     record(subagents, str(tool_input.get("subagent_type") or "(defaut)"), ts)
+                    new_events += 1
+        files_state[name] = {"offset": new_offset}
+    # Sidechains <session>/subagents/agent-*.jsonl : les porteurs (bmad-revue...) y invoquent
+    # les skills bmad-*. Meme cle de comptage `skills` ; sous-compteur `skills_via_sous_agent`.
+    # Seuls les tool_use Skill y sont lus (les /commandes et Agent restent propres aux sessions).
+    via = state.setdefault("skills_via_sous_agent", {})
+    for path in sorted(glob.glob(os.path.join(tdir, "*", "subagents", "agent-*.jsonl"))):
+        name = os.path.relpath(path, tdir).replace(os.sep, "/")
+        offset = files_state.get(name, {}).get("offset", 0)
+        lines, new_offset = read_new_lines(path, offset)
+        for raw in lines:
+            if b'"Skill"' not in raw:
+                continue
+            try:
+                obj = json.loads(raw.decode("utf-8", "replace"))
+            except ValueError:
+                continue
+            if not isinstance(obj, dict):
+                continue
+            msg = obj.get("message")
+            content = msg.get("content") if isinstance(msg, dict) else None
+            if not isinstance(content, list):
+                continue
+            for blk in content:
+                if not (isinstance(blk, dict) and blk.get("type") == "tool_use"):
+                    continue
+                tool_input = blk.get("input") or {}
+                if not isinstance(tool_input, dict):
+                    continue
+                if blk.get("name") == "Skill" and tool_input.get("skill"):
+                    ts = obj.get("timestamp") or ""
+                    record(skills, str(tool_input["skill"]), ts)  # SIDECHAIN-COUNT
+                    record(via, str(tool_input["skill"]), ts)
                     new_events += 1
         files_state[name] = {"offset": new_offset}
     state["last_scan"] = dt.datetime.now().astimezone().isoformat(timespec="seconds")
@@ -2660,7 +2703,23 @@ def update_index(todos: list, avertissement: str = "") -> None:
 
 
 # Seuil au-delà duquel un run en-attente-validation est signalé au démarrage.
-RUN_A_SOLDER_H = 24
+RUN_A_SOLDER_H = 24   # relance du hook ; le site marque « en retard » a 48 h : ecart voulu (rappel vs retard)
+
+
+STATUT_A_SOLDER = "en-attente-validation"
+DEFINITION_RUNS_A_SOLDER = 'run journalise "en-attente-validation", tout age'
+PORTEE_HOOK = "journal de ce projet seulement"
+
+
+def runs_en_attente(runs):
+    """LA definition unique des « runs a solder » (P2) : tout run journalise dont
+    `resultat == "en-attente-validation"`, quel que soit son age et son `ts`
+    (absent ou illisible compris). Partagee par le hook (`runs_a_solder`, ci-dessous)
+    et par `scripts/scan_projets.py` (site) : deux compteurs avaient diverge (le
+    site 9-10, le hook 0) parce que le hook y ajoutait un seuil d'age et ignorait
+    les `ts` illisibles. Entrees non-dict ignorees (fail-open)."""
+    return [r for r in runs
+            if isinstance(r, dict) and r.get("resultat") == STATUT_A_SOLDER]
 
 
 def runs_a_solder(runs, maintenant=None):
@@ -2677,9 +2736,7 @@ def runs_a_solder(runs, maintenant=None):
         # print — sinon la ligne relance l'incident qu'elle documente.
         return str(texte).encode("ascii", "replace").decode("ascii")
 
-    for run in runs:
-        if run.get("resultat") != "en-attente-validation":
-            continue
+    for run in runs_en_attente(runs):
         try:
             ts = dt.datetime.fromisoformat(str(run.get("ts", "")))
         except ValueError:
@@ -2802,6 +2859,7 @@ def commits_non_journalises():
             commits.append({
                 "hash": hash_,
                 "sujet": sujet.encode("ascii", "replace").decode("ascii"),
+                "depuis": dernier_run,
             })
     return commits
 
@@ -2893,7 +2951,7 @@ def main(argv) -> int:
                 else prec.get("version_depuis"))
     save_state(state)
     fam = installed_skills()
-    runs = load_jsonl(RUNS_PATH)
+    runs = [r for r in load_jsonl(RUNS_PATH) if isinstance(r, dict)]  # ligne non-objet : ignoree
     arbitrages = load_arbitrages()
     todos = build_todos(state.get("skills", {}), fam, catalogue_gaps(runs),
                         arbitrages, state=state)
@@ -2978,6 +3036,10 @@ def main(argv) -> int:
     # stdout du scan : ASCII strict. Les tests du dispositif capturent ce flux en
     # subprocess (console cp1252 sur Windows) — un caractere hors cp1252 y leve
     # UnicodeDecodeError et rend stdout None (incident verifie le 2026-07-29).
+    total_a_solder = len(runs_en_attente(runs))
+    if total_a_solder:
+        print(f"  {total_a_solder} run(s) a solder au total ({DEFINITION_RUNS_A_SOLDER} ; "
+              f"{PORTEE_HOOK}) ; relances ci-dessous : ceux de {RUN_A_SOLDER_H} h ou plus.")
     for run in runs_a_solder(runs):
         # ts COMPLET, jamais tronque : `log_run.py --solde` exige EXACTEMENT une
         # correspondance de prefixe et rend rc=1 sinon. Tronquer a l'heure ([:13])
@@ -3014,7 +3076,7 @@ def main(argv) -> int:
         apercu = ", ".join(f"{c['hash']} {c['sujet']}" for c in commits_non_journalises_[:3])
         suite = "..." if len(commits_non_journalises_) > 3 else ""
         print(f"  {len(commits_non_journalises_)} commit(s) depuis le dernier run "
-              f"journalise ({apercu}{suite}) - verifier qu'aucune demande ne s'y "
+              f"journalise du {str(commits_non_journalises_[0]['depuis'])[:10]} ({apercu}{suite}) - verifier qu'aucune demande ne s'y "
               "est perdue sans run ni arbitrage.")
     commits_non_pousses_ = commits_non_pousses()
     if commits_non_pousses_:
