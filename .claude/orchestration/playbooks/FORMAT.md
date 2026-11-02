@@ -35,6 +35,8 @@ avant de supposer que le bloc JSON n'est protégé que par la relecture (finding
 | `contrat` | objet `{type, critere[, commande]}` | Vérifié avant de passer à l'étape suivante. `type` : `deterministe` (fichier attendu présent, commande verte — préférer) \| `reel` (rendu regardé par un humain/screenshot : run-dev-server, pptx-verify) \| `llm` (dernier recours) |
 | `checkpoint` | `false` \| texte (raison) | Validation utilisateur obligatoire avant de continuer — toujours non-`false` avant une action irréversible (commit, suppression, publication) |
 
+**Statut d'étape `bloque`** : une étape dont une précondition du `contrat` n'est pas remplie (ex. story cible absente avant `implementation` dans `dev-verifie`) n'est ni exécutée ni sautée : elle prend le statut `bloque`, le run s'arrête, et la skill rend à l'utilisateur la précondition manquante et la personne qui peut la lever. Au journal (`log_run.py`) le run est `en-attente-validation` avec la raison dans les notes, jamais `succes` ; il se solde par `log_run.py --solde` une fois la précondition levée (ou dérogation écrite de l'utilisateur citée). L'agent ne lève jamais seul une précondition `bloque`.
+
 Une étape `parallele` doit être suivie d'une étape de consolidation en `cascade`
 (jamais d'écritures concurrentes sur les mêmes fichiers). Un playbook de dev se termine
 par l'étape `revue-increment` (leçon superviseur : « jamais invoquée » — rendue
@@ -63,8 +65,8 @@ contrat, et journalise le run dans `runs.jsonl` avec `"playbook": "<nom>"` dans 
 ou le plan — c'est ce qui permettra au superviseur (étage 2 / incrément O-C) de mesurer
 le taux de réussite par playbook et de remonter les playbooks jamais joués.
 
-<!-- SOCLE-PROVENANCE: socle : aed23c33 du 2026-10-22 -->
-> **Socle généré** — tout ce qui PRÉCÈDE ce bandeau vient du hub de supervision (`aed23c33`, 2026-10-22) et sera **réécrit** à la prochaine propagation.
+<!-- SOCLE-PROVENANCE: socle : f4ac4a07 du 2026-11-02 -->
+> **Socle généré** — tout ce qui PRÉCÈDE ce bandeau vient du hub de supervision (`f4ac4a07`, 2026-11-02) et sera **réécrit** à la prochaine propagation.
 > Le chapitre « Portée sur ce projet » placé après ce bandeau, lui, n'est jamais réécrit : c'est le travail local.
 
 ## Portée sur ce projet
